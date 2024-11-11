@@ -1,0 +1,19 @@
+{
+  "name": "stock-flow-server",
+  "version": "1.0.0",
+  "description": "This is the server-side API for the StockFlow Inventory/Warehouse Management System. It is built using Express.js and connected to a PostgreSQL database to handle inventory, product, and sales data.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "pg": "^8.13.1",
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.0"
+  }
+}
