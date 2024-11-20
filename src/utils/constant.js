@@ -17,6 +17,15 @@ module.exports = {
       },
       TABLE: {
             LOGIN: "login",
+            LOGIN_LOG: "login_log",
+      },
+      CONTEXTS: {
+            AUTH: "/api/v1/auth"
+      },
+      ROUTES: {
+            SIGN_IN: "/sign-in",
+            REFRESH_TOKEN: "/refresh-token",
+            GET_USER_INFO: "/get-user-info"
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
       MESSAGE: {
