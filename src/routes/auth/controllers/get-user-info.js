@@ -12,6 +12,7 @@ const get_user_info = async (request, res) => {
             let data_set = await get_data(sql);
             data = data_set.length !== 1 ? null : data_set[0];
 
+            log.info(`User info Found: ${data?.email}`)
             return res.status(200).json({
                   code: 200, message: "User info Found", data
             });

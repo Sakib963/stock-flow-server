@@ -22,14 +22,14 @@ const refresh_token = async (request, res) => {
                   return res.status(404).json({ code: 404, message: "Refresh token was expired. Please make a new sign in request!" });
             }
 
-            let token = { user_id: decoded.user_id };
+            let token = { user_id: decoded.token.user_id };
             new_token = generate_token(token);
-            await update_login_log(refresh_token, new_token);
+            await update_login_log(new_token, refresh_token);
             log.info(`New token generated using refresh token [${token['user_id']}]`);
 
             return res.status(200).json({
                   code: 200, message: "Generated Refresh Token", data: {
-                        access_token: token, refresh_token: refresh_token
+                        access_token: new_token, refresh_token: refresh_token
                   }
             });
       } catch (e) {
