@@ -2,6 +2,7 @@ const { get_data, execute_value } = require("../../../utils/database");
 const jwt = require("jsonwebtoken");
 const { log } = require("../../../utils/log");
 const { generate_token, update_login_log } = require("../../../utils/helper");
+const { TABLE } = require("../../../utils/constant");
 
 const refresh_token = async (request, res) => {
       const { refresh_token } = request?.body;
@@ -28,7 +29,7 @@ const refresh_token = async (request, res) => {
 
             return res.status(200).json({
                   code: 200, message: "Generated Refresh Token", data: {
-                        access_token: token, refresh_token: ref_token
+                        access_token: token, refresh_token: refresh_token
                   }
             });
       } catch (e) {
