@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data, execute_value } = require("../../../utils/database");
+const { get_data } = require("../../../utils/database");
 const { generate_token, refresh_token, update_login_log } = require("../../../utils/helper");
 const { log } = require("../../../utils/log");
 const bcrypt = require('bcrypt')

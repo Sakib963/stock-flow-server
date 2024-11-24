@@ -9,7 +9,6 @@ const refreshSchema = Joi.object({
       refresh_token: Joi.string().required()
 });
 
-
 module.exports = {
       loginSchema,
       refreshSchema

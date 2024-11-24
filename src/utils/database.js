@@ -1,4 +1,3 @@
-// db.operations.js
 const pool = require('./db.config');
 const log = require('./log');
 
