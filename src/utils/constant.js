@@ -19,7 +19,9 @@ module.exports = {
             REFRESH_TOKEN: "/refresh-token",
             GET_USER_INFO: "/get-user-info",
             GET_USER_LIST: "/get-user-list",
-            CREATE_USER: "/create-user"
+            CREATE_USER: "/create-user",
+            UPDATE_USER_DETAILS: "/update-user-details",
+            GET_USER_DETAILS: "/get-user-details"
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
