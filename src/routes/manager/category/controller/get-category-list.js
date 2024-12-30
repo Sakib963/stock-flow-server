@@ -35,14 +35,14 @@ const generate_count_sql = (request) => {
       let values = [];
 
       if (request.query.search_text) {
-            const searchText = `%${request.query.search_text}%`;
+            const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(category_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
 
       if (request.query.status) {
-            query+=`AND status = $${values.length + 1}`
+            query += `AND status = $${values.length + 1}`
             values.push(request.query.status);
       }
 
@@ -54,25 +54,25 @@ const generate_data_sql = (request) => {
       let values = [];
 
       if (request.query.search_text) {
-            const searchText = `%${request.query.search_text}%`;
+            const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(category_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
 
       if (request.query.status) {
-            query+=`AND status = $${values.length + 1}`
+            query += ` AND status = $${values.length + 1}`;
             values.push(request.query.status);
       }
 
       if (request.query.offset) {
             query += ` OFFSET $${values.length + 1}`;
-            values.push(request.query.offset);
+            values.push(Number(request.query.offset));
       }
 
       if (request.query.limit) {
             query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
-            values.push(request.query.limit);
+            values.push(Number(request.query.limit));
       }
 
       return { text: query, values };

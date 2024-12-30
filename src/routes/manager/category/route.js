@@ -26,7 +26,7 @@ router.post(
 
 // Update New User
 router.post(
-      ROUTES.UPDATE_USER_DETAILS,
+      ROUTES.UPDATE_CATEGORY_DETAILS,
       [jwtMiddleware, validator.post(category_schema)],
       update_category_details
 );
