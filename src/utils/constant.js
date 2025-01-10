@@ -32,11 +32,13 @@ module.exports = {
             CREATE_CATEGORY: "/create-category",
             UPDATE_CATEGORY_DETAILS: "/update-category-details",
             GET_CATEGORY_DETAILS: "/get-category-details",
+            GET_CATEGORY_LIST_FOR_DROPDOWN: "/get-category-list-for-dropdown",
 
             GET_SUPPLIER_DEALER_LIST: "/get-supplier-dealer-list",
             CREATE_SUPPLIER_DEALER: "/create-supplier-dealer",
             UPDATE_SUPPLIER_DEALER_DETAILS: "/update-supplier-dealer-details",
             GET_SUPPLIER_DEALER_DETAILS: "/get-supplier-dealer-details",
+            GET_SUPPLIER_DEALER_LIST_FOR_DROPDOWN: "/get-supplier-dealer-list-for-dropdown",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

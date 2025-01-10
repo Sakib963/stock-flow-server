@@ -7,31 +7,39 @@ const get_category_list = require("./controller/get-category-list");
 const create_category = require("./controller/create-category");
 const update_category_details = require("./controller/update-category-details");
 const get_category_details = require("./controller/get-category-details");
+const get_category_list_for_dropdown = require("./controller/get-category-list-for-dropdown");
 
 const router = Router();
 
-// Get User List
+// Get Category List
 router.get(
       ROUTES.GET_CATEGORY_LIST,
       [jwtMiddleware, validator.get(category_list_schema)],
       get_category_list
 );
 
-// Create A New User
+// Get Category List for dropdown
+router.get(
+      ROUTES.GET_CATEGORY_LIST_FOR_DROPDOWN,
+      [jwtMiddleware],
+      get_category_list_for_dropdown
+);
+
+// Create A New Category
 router.post(
       ROUTES.CREATE_CATEGORY,
       [jwtMiddleware, validator.post(category_schema)],
       create_category
 );
 
-// Update New User
+// Update New Category
 router.post(
       ROUTES.UPDATE_CATEGORY_DETAILS,
       [jwtMiddleware, validator.post(category_schema)],
       update_category_details
 );
 
-// Get User Details
+// Get Category Details
 router.get(
       ROUTES.GET_CATEGORY_DETAILS,
       [jwtMiddleware, validator.get(category_details_schema)],
