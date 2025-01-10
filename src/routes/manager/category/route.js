@@ -5,7 +5,7 @@ const { category_list_schema, category_schema, category_details_schema } = requi
 const { validator } = require("../../../utils/validator");
 const get_category_list = require("./controller/get-category-list");
 const create_category = require("./controller/create-category");
-const update_category_details = require("./controller/update-user-details");
+const update_category_details = require("./controller/update-category-details");
 const get_category_details = require("./controller/get-category-details");
 
 const router = Router();

@@ -6,7 +6,8 @@ module.exports = {
       TABLE: {
             LOGIN: "login",
             LOGIN_LOG: "login_log",
-            CATEGORIES: "categories"
+            CATEGORIES: "categories",
+            SOURCE: "source"
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -16,6 +17,7 @@ module.exports = {
       SUB_CONTEXTS: {
             USER: "/user",
             CATEGORY: "/category",
+            SUPPLIER_DEALER: "/supplier-dealer",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -30,6 +32,11 @@ module.exports = {
             CREATE_CATEGORY: "/create-category",
             UPDATE_CATEGORY_DETAILS: "/update-category-details",
             GET_CATEGORY_DETAILS: "/get-category-details",
+
+            GET_SUPPLIER_DEALER_LIST: "/get-supplier-dealer-list",
+            CREATE_SUPPLIER_DEALER: "/create-supplier-dealer",
+            UPDATE_SUPPLIER_DEALER_DETAILS: "/update-supplier-dealer-details",
+            GET_SUPPLIER_DEALER_DETAILS: "/get-supplier-dealer-details",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
