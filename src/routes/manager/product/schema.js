@@ -1,0 +1,28 @@
+const Joi = require("joi");
+
+const product_list_schema = Joi.object({
+      offset: Joi.number().required(),
+      limit: Joi.number().required(),
+      search_text: Joi.string().trim().allow(null, "").optional(),
+      status: Joi.string().trim().allow(null, "").optional(),
+});
+
+const product_schema = Joi.object({
+      oid: Joi.string().allow(null),
+      name: Joi.string().required(),
+      sku: Joi.string().required(),
+      category_oid: Joi.string().required(),
+      source_oid: Joi.string().required(),
+      unit_type: Joi.string().allow(null),
+      product_nature: Joi.string().allow(null),
+      restock_threshold: Joi.number().required(),
+      description: Joi.string().allow(null),
+      photo: Joi.string().allow(null),
+      status: Joi.string().required(),
+});
+
+const product_details_schema = Joi.object({
+      oid: Joi.string().required(),
+});
+
+module.exports = { product_list_schema, product_schema, product_details_schema };

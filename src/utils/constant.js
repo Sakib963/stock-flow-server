@@ -7,7 +7,8 @@ module.exports = {
             LOGIN: "login",
             LOGIN_LOG: "login_log",
             CATEGORIES: "categories",
-            SOURCE: "source"
+            SOURCE: "source",
+            PRODUCT: 'product'
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -18,6 +19,7 @@ module.exports = {
             USER: "/user",
             CATEGORY: "/category",
             SUPPLIER_DEALER: "/supplier-dealer",
+            PRODUCT: "/product",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -39,6 +41,12 @@ module.exports = {
             UPDATE_SUPPLIER_DEALER_DETAILS: "/update-supplier-dealer-details",
             GET_SUPPLIER_DEALER_DETAILS: "/get-supplier-dealer-details",
             GET_SUPPLIER_DEALER_LIST_FOR_DROPDOWN: "/get-supplier-dealer-list-for-dropdown",
+
+            GET_PRODUCT_LIST: "/get-product-list",
+            CREATE_PRODUCT: "/create-product",
+            UPDATE_PRODUCT_DETAILS: "/update-product-details",
+            GET_PRODUCT_DETAILS: "/get-product-details",
+            GET_PRODUCT_LIST_FOR_DROPDOWN: "/get-product-list-for-dropdown",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
