@@ -22,4 +22,8 @@ const supplier_dealer_details_schema = Joi.object({
       oid: Joi.string().required(),
 });
 
-module.exports = { supplier_dealer_list_schema, supplier_dealer_schema, supplier_dealer_details_schema };
+const supplier_dealer_dropdown_schema = Joi.object({
+      source_type: Joi.string().required(),
+})
+
+module.exports = { supplier_dealer_list_schema, supplier_dealer_schema, supplier_dealer_details_schema, supplier_dealer_dropdown_schema };

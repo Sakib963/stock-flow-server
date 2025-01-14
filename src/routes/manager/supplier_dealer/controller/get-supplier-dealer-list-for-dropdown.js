@@ -23,8 +23,8 @@ const get_supplier_dealer_list_for_dropdown = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT oid as value, name as label  FROM ${TABLE.SOURCE} WHERE status = 'Active'`;
-      let values = [];
+      let query = `SELECT oid as value, name as label  FROM ${TABLE.SOURCE} WHERE status = 'Active' and source_type = $1`;
+      let values = [request.query.source_type];
       return { text: query, values };
 };
 

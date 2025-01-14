@@ -2,7 +2,7 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require('../../../utils/validate-jwt');
 const { validator } = require("../../../utils/validator");
-const { supplier_dealer_list_schema, supplier_dealer_schema, supplier_dealer_details_schema } = require("./schema");
+const { supplier_dealer_list_schema, supplier_dealer_schema, supplier_dealer_details_schema, supplier_dealer_dropdown_schema } = require("./schema");
 const create_supplier_dealer = require("./controller/create-supplier-dealer");
 const get_supplier_dealer_details = require("./controller/get-supplier-dealer-details");
 const get_supplier_dealer_list = require("./controller/get-supplier-dealer-list");
@@ -21,7 +21,7 @@ router.get(
 // Get Supplier/Dealer List for dropdown
 router.get(
       ROUTES.GET_SUPPLIER_DEALER_LIST_FOR_DROPDOWN,
-      [jwtMiddleware],
+      [jwtMiddleware, validator.get(supplier_dealer_dropdown_schema)],
       get_supplier_dealer_list_for_dropdown
 );
 
