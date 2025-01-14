@@ -8,7 +8,8 @@ module.exports = {
             LOGIN_LOG: "login_log",
             CATEGORIES: "categories",
             SOURCE: "source",
-            PRODUCT: 'product'
+            PRODUCT: 'product',
+            WAREHOUSE: 'warehouse'
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -20,6 +21,7 @@ module.exports = {
             CATEGORY: "/category",
             SUPPLIER_DEALER: "/supplier-dealer",
             PRODUCT: "/product",
+            WAREHOUSE: "/warehouse",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -47,6 +49,12 @@ module.exports = {
             UPDATE_PRODUCT_DETAILS: "/update-product-details",
             GET_PRODUCT_DETAILS: "/get-product-details",
             GET_PRODUCT_LIST_FOR_DROPDOWN: "/get-product-list-for-dropdown",
+
+            GET_WAREHOUSE_LIST: "/get-warehouse-list",
+            CREATE_WAREHOUSE: "/create-warehouse",
+            UPDATE_WAREHOUSE_DETAILS: "/update-warehouse-details",
+            GET_WAREHOUSE_DETAILS: "/get-warehouse-details",
+            GET_WAREHOUSE_LIST_FOR_DROPDOWN: "/get-warehouse-list-for-dropdown",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
