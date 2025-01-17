@@ -7,6 +7,7 @@ module.exports = {
             LOGIN: "login",
             LOGIN_LOG: "login_log",
             CATEGORIES: "categories",
+            SUB_CATEGORIES: "sub_categories",
             SOURCE: "source",
             PRODUCT: 'product',
             WAREHOUSE: 'warehouse'
@@ -19,6 +20,7 @@ module.exports = {
       SUB_CONTEXTS: {
             USER: "/user",
             CATEGORY: "/category",
+            SUB_CATEGORY: "/sub-category",
             SUPPLIER_DEALER: "/supplier-dealer",
             PRODUCT: "/product",
             WAREHOUSE: "/warehouse",
@@ -37,6 +39,12 @@ module.exports = {
             UPDATE_CATEGORY_DETAILS: "/update-category-details",
             GET_CATEGORY_DETAILS: "/get-category-details",
             GET_CATEGORY_LIST_FOR_DROPDOWN: "/get-category-list-for-dropdown",
+
+            GET_SUB_CATEGORY_LIST: "/get-sub-category-list",
+            CREATE_SUB_CATEGORY: "/create-sub-category",
+            UPDATE_SUB_CATEGORY_DETAILS: "/update-sub-category-details",
+            GET_SUB_CATEGORY_DETAILS: "/get-sub-category-details",
+            GET_SUB_CATEGORY_LIST_FOR_DROPDOWN: "/get-sub-category-list-for-dropdown",
 
             GET_SUPPLIER_DEALER_LIST: "/get-supplier-dealer-list",
             CREATE_SUPPLIER_DEALER: "/create-supplier-dealer",
