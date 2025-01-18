@@ -23,7 +23,7 @@ const get_sub_category_list_for_dropdown = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT sc.oid as value, sc.name as label  FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE sc.status = 'Active' and sc.category_oid = $1`;
+      let query = `SELECT sc.oid as value, sc.name as label  FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE sc.status = 'Active' and sc.category_oid = $1  ORDER BY sc.created_on ASC`;
       let values = [request.query.category_oid];
       return { text: query, values };
 };

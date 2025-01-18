@@ -67,6 +67,8 @@ const generate_data_sql = (request) => {
             values.push(request.query.status);
       }
 
+      query += ` ORDER BY sc.created_on ASC`
+
       if (request.query.offset) {
             query += ` OFFSET $${values.length + 1}`;
             values.push(Number(request.query.offset));
