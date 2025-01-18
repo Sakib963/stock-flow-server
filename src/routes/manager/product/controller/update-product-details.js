@@ -7,8 +7,8 @@ const update_product_details = async (request, res) => {
       let user_id = request.credentials.user_id;
       try {
             const sql = {
-                  text: `update ${TABLE.PRODUCT} set name = $1, sku = $2, category_oid = $3, source_oid = $4, unit_type = $5, description = $6, photo = $7, product_nature = $8, restock_threshold = $9, status = $10 WHERE oid = $11`,
-                  values: [payload.name, payload.sku, payload.category_oid, payload.source_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, payload.oid]
+                  text: `update ${TABLE.PRODUCT} set name = $1, sku = $2, category_oid = $3, sub_category_oid = $4, unit_type = $5, description = $6, photo = $7, product_nature = $8, restock_threshold = $9, status = $10 WHERE oid = $11`,
+                  values: [payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, payload.oid]
             }
             await execute_value(sql);
       } catch (e) {

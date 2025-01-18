@@ -24,7 +24,7 @@ const get_sub_category_details = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT sc.oid, sc.name, sc.description, sc.status, sc.category_code, c.name as category_name  FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE sc.oid = $1`;
+      let query = `SELECT sc.oid, sc.name, sc.description, sc.status, sc.category_code, c.name as category_name, sc.category_oid  FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE sc.oid = $1`;
       let values = [request.query.oid];
 
       return { text: query, values };

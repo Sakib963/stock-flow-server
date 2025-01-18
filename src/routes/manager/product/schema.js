@@ -12,7 +12,7 @@ const product_schema = Joi.object({
       name: Joi.string().required(),
       sku: Joi.string().required(),
       category_oid: Joi.string().required(),
-      source_oid: Joi.string().required(),
+      sub_category_oid: Joi.string().required(),
       unit_type: Joi.string().allow(null),
       product_nature: Joi.string().allow(null),
       restock_threshold: Joi.number().required(),

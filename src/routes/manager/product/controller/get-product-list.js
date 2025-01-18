@@ -50,7 +50,7 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.source_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SOURCE} s ON s.oid = p.source_oid WHERE 1 = 1`;
+      let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.sub_category_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text) {

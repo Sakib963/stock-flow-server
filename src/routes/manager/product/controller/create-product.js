@@ -15,8 +15,8 @@ const create_product = async (request, res) => {
             }
 
             const sql = {
-                  text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, source_oid, unit_type, description, photo, product_nature, restock_threshold, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                  values: [uuidv4(), payload.name, payload.sku, payload.category_oid, payload.source_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id]
+                  text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, unit_type, description, photo, product_nature, restock_threshold, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                  values: [uuidv4(), payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id]
             }
 
             await execute_value(sql);
