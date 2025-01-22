@@ -11,7 +11,8 @@ module.exports = {
             SUPPLIER: "supplier",
             SOURCE: "source",
             PRODUCT: 'product',
-            WAREHOUSE: 'warehouse'
+            WAREHOUSE: 'warehouse',
+            AISLE: "aisle",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -26,6 +27,7 @@ module.exports = {
             SUPPLIER_DEALER: "/supplier-dealer",
             PRODUCT: "/product",
             WAREHOUSE: "/warehouse",
+            AISLE: "/aisle",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -71,6 +73,12 @@ module.exports = {
             UPDATE_WAREHOUSE_DETAILS: "/update-warehouse-details",
             GET_WAREHOUSE_DETAILS: "/get-warehouse-details",
             GET_WAREHOUSE_LIST_FOR_DROPDOWN: "/get-warehouse-list-for-dropdown",
+
+            GET_AISLE_LIST: "/get-aisle-list",
+            CREATE_AISLE: "/create-aisle",
+            UPDATE_AISLE_DETAILS: "/update-aisle-details",
+            GET_AISLE_DETAILS: "/get-aisle-details",
+            GET_AISLE_LIST_FOR_DROPDOWN: "/get-aisle-list-for-dropdown",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
