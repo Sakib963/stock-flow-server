@@ -1,6 +1,6 @@
 const Joi = require("joi");
 
-const product_list_schema = Joi.object({
+const purchase_list_schema = Joi.object({
       offset: Joi.number().required(),
       limit: Joi.number().required(),
       search_text: Joi.string().trim().allow(null, "").optional(),
@@ -35,4 +35,4 @@ const product_details_schema = Joi.object({
       oid: Joi.string().required(),
 });
 
-module.exports = { product_list_schema, purchase_schema, product_details_schema };
+module.exports = { purchase_list_schema, purchase_schema, product_details_schema };

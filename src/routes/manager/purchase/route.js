@@ -2,17 +2,18 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require('../../../utils/validate-jwt');
 const { validator } = require("../../../utils/validator");
-const { purchase_schema } = require("./schema");
+const { purchase_schema, purchase_list_schema } = require("./schema");
 const create_purchase = require("./controller/create-purchase");
+const get_purchase_list = require("./controller/get-purchase-list");
 
 const router = Router();
 
 // Get Purchase List
-/* router.get(
-      ROUTES.GET_Purchase_LIST,
-      [jwtMiddleware, validator.get(Purchase_list_schema)],
-      get_Purchase_list
-); */
+router.get(
+      ROUTES.GET_PURCHASE_LIST,
+      [jwtMiddleware, validator.get(purchase_list_schema)],
+      get_purchase_list
+);
 
 // Get Purchase List for dropdown
 /* router.get(

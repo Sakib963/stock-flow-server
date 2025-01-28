@@ -31,18 +31,19 @@ const get_purchase_list = async (request, res) => {
 };
 
 const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total FROM ${TABLE.PURCHASE} WHERE 1 = 1`;
+      let query = `SELECT COUNT(*) AS total FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(sku) LIKE $${values.length + 2})`;
-            values.push(searchText, searchText);
+            query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
+            query += ` AND (LOWER(b.batch_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
+            values.push(searchText, searchText, searchText);
       }
 
       if (request.query.status) {
-            query += `AND status = $${values.length + 1}`
+            query += `AND p.status = $${values.length + 1}`
             values.push(request.query.status);
       }
 
@@ -50,14 +51,15 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.sub_category_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
+      let query = `SELECT p.oid, p.bill_no, to_char(p.date_of_purchase, 'DD-MM-YYYY') as date_of_purchase, p.supplier_oid, p.special_notes, p.total_amount, p.status, b.batch_code, s.name as supplier_name, b.total_sell FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(p.name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(p.sku) LIKE $${values.length + 2})`;
-            values.push(searchText, searchText);
+            query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
+            query += ` AND (LOWER(b.batch_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
+            values.push(searchText, searchText, searchText);
       }
 
       if (request.query.status) {
