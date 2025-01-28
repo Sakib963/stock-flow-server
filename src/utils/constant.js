@@ -13,6 +13,10 @@ module.exports = {
             PRODUCT: 'product',
             WAREHOUSE: 'warehouse',
             AISLE: "aisle",
+            PURCHASE: "purchase",
+            PURCHASE_DETAILS: "purchase_details",
+            BATCH: "batch",
+            BATCH_DETAILS: "batch_details",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -28,6 +32,7 @@ module.exports = {
             PRODUCT: "/product",
             WAREHOUSE: "/warehouse",
             AISLE: "/aisle",
+            PURCHASE: "/purchase",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -79,6 +84,12 @@ module.exports = {
             UPDATE_AISLE_DETAILS: "/update-aisle-details",
             GET_AISLE_DETAILS: "/get-aisle-details",
             GET_AISLE_LIST_FOR_DROPDOWN: "/get-aisle-list-for-dropdown",
+
+            GET_PURCHASE_LIST: "/get-purchase-list",
+            CREATE_PURCHASE: "/create-purchase",
+            UPDATE_PURCHASE_DETAILS: "/update-purchase-details",
+            GET_PURCHASE_DETAILS: "/get-purchase-details",
+            GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

@@ -8,7 +8,7 @@ const aisle_list_schema = Joi.object({
 });
 
 const aisle_list_for_dropdown_schema = Joi.object({
-      warehouse_oid: Joi.number().required(),
+      warehouse_oid: Joi.string().required(),
 });
 
 const aisle_schema = Joi.object({
