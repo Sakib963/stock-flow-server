@@ -31,8 +31,8 @@ const purchase_schema = Joi.object({
       ).required()
 });
 
-const product_details_schema = Joi.object({
+const purchase_details_schema = Joi.object({
       oid: Joi.string().required(),
 });
 
-module.exports = { purchase_list_schema, purchase_schema, product_details_schema };
+module.exports = { purchase_list_schema, purchase_schema, purchase_details_schema };

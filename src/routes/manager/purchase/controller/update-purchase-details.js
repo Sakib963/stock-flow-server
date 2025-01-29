@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data, execute_value } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 
-const update_product_details = async (request, res) => {
+const update_purchase_details = async (request, res) => {
       let payload = request.body;
       let user_id = request.credentials.user_id;
       try {
@@ -23,4 +23,4 @@ const update_product_details = async (request, res) => {
       });
 }
 
-module.exports = update_product_details
+module.exports = update_purchase_details

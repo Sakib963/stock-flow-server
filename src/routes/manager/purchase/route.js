@@ -2,9 +2,11 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require('../../../utils/validate-jwt');
 const { validator } = require("../../../utils/validator");
-const { purchase_schema, purchase_list_schema } = require("./schema");
+const { purchase_schema, purchase_list_schema, purchase_details_schema } = require("./schema");
 const create_purchase = require("./controller/create-purchase");
 const get_purchase_list = require("./controller/get-purchase-list");
+const get_purchase_details = require("./controller/get-purchase-details");
+const update_purchase_details = require("./controller/update-purchase-details");
 
 const router = Router();
 
@@ -29,18 +31,18 @@ router.post(
       create_purchase
 );
 
-// Update New Purchase
-/* router.post(
-      ROUTES.UPDATE_Purchase_DETAILS,
-      [jwtMiddleware, validator.post(Purchase_schema)],
-      update_Purchase_details
-); */
+// Update Purchase
+router.post(
+      ROUTES.UPDATE_PURCHASE_DETAILS,
+      [jwtMiddleware, validator.post(purchase_schema)],
+      update_purchase_details
+);
 
 // Get Purchase Details
-/* router.get(
-      ROUTES.GET_Purchase_DETAILS,
-      [jwtMiddleware, validator.get(Purchase_details_schema)],
-      get_Purchase_details
-); */
+router.get(
+      ROUTES.GET_PURCHASE_DETAILS,
+      [jwtMiddleware, validator.get(purchase_details_schema)],
+      get_purchase_details
+);
 
 module.exports = { purchaseRouter: router };

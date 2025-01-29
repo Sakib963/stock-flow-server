@@ -44,8 +44,8 @@ const create_purchase = async (request, res) => {
                   purchase_details_sql.push(purchase_details);
 
                   const batch_details = {
-                        text: `INSERT INTO ${TABLE.BATCH_DETAILS} (oid, batch_oid, product_oid, warehouse_oid, aisle_oid, supplier_oid, purchase_quantity, unit_price, total_price, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-                        values: [uuidv4(), batch_oid, product.product_oid, product.warehouse_oid, product.aisle_oid, payload.supplier_oid, product.quantity, product.unit_price, product.total_price, "Active", user_id]
+                        text: `INSERT INTO ${TABLE.BATCH_DETAILS} (oid, batch_oid, product_oid, warehouse_oid, aisle_oid, supplier_oid, purchase_quantity, available_quantity, unit_price, total_price, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                        values: [uuidv4(), batch_oid, product.product_oid, product.warehouse_oid, product.aisle_oid, payload.supplier_oid, product.quantity, product.quantity, product.unit_price, product.total_price, "Active", user_id]
                   }
                   batch_details_sql.push(batch_details);
             })

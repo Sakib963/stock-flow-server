@@ -51,7 +51,7 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.bill_no, to_char(p.date_of_purchase, 'DD-MM-YYYY') as date_of_purchase, p.supplier_oid, p.special_notes, p.total_amount, p.status, b.batch_code, s.name as supplier_name, b.total_sell FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
+      let query = `SELECT p.oid, p.bill_no, to_char(p.date_of_purchase, 'DD-MM-YYYY') as date_of_purchase, p.supplier_oid, p.special_notes, CAST(p.total_amount AS INTEGER) AS total_amount, p.status, b.batch_code, s.name as supplier_name, CAST(b.total_sell AS INTEGER) AS total_sell FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text) {
