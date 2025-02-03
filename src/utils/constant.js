@@ -33,6 +33,7 @@ module.exports = {
             WAREHOUSE: "/warehouse",
             AISLE: "/aisle",
             PURCHASE: "/purchase",
+            INVENTORY_OVERVIEW: "/inventory-overview",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -90,6 +91,9 @@ module.exports = {
             UPDATE_PURCHASE_DETAILS: "/update-purchase-details",
             GET_PURCHASE_DETAILS: "/get-purchase-details",
             GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
+
+            GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
+            GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
