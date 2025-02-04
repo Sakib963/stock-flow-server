@@ -5,7 +5,7 @@ const { log } = require("../../../utils/log");
 const get_user_info = async (request, res) => {
       let data = null;
       let sql = {
-            text: `select name, email, mobile_number, role, status from ${TABLE.LOGIN} r where email = $1`,
+            text: `select name, email, mobile_number, role, status, photo, designation from ${TABLE.LOGIN} r where email = $1`,
             values: [request.credentials.user_id],
       };
       try {
