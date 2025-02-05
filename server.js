@@ -3,7 +3,7 @@ const app = express();
 const cors = require('cors');
 const mainRouter = require("./src/routes/routes");
 
-const port = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
@@ -15,4 +15,7 @@ app.get('/', (req, res) => {
 
 app.use("/", mainRouter);
 
-app.listen(port, () => console.log(`StockFlow Server is listening on port ${port}`));
+app.listen(PORT, () => console.log(`StockFlow Server is listening on port ${PORT}`));
+
+// Required for Vercel
+module.exports = app;
