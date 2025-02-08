@@ -56,7 +56,7 @@ const generate_data_sql = (request) => {
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (LOWER(a.name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(a.category_code) LIKE $${values.length + 2})`;
+            query += `OR LOWER(a.code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
 

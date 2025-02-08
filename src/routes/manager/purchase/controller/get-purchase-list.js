@@ -37,7 +37,7 @@ const generate_count_sql = (request) => {
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
-            query += ` AND (LOWER(b.batch_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(b.batch_code) LIKE $${values.length + 2} `;
             query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
             values.push(searchText, searchText, searchText);
       }
@@ -57,7 +57,7 @@ const generate_data_sql = (request) => {
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
-            query += ` AND (LOWER(b.batch_code) LIKE $${values.length + 2} `;
+            query += `OR LOWER(b.batch_code) LIKE $${values.length + 2} `;
             query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
             values.push(searchText, searchText, searchText);
       }
