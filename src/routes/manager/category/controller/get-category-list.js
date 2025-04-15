@@ -22,7 +22,7 @@ const get_category_list = async (request, res) => {
                   code: 200,
                   message: "Category list Found",
                   total,
-                  data,
+                  data: [],
             });
       } catch (e) {
             log.error(`An exception occurred while getting category information: ${e?.message}`);
@@ -50,22 +50,49 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT oid, name, description, status, category_code FROM ${TABLE.CATEGORIES} WHERE 1 = 1`;
+      let query = `SELECT 
+  c.oid,
+  c.name,
+  c.description,
+  c.status,
+  c.category_code,
+  COALESCE(
+    JSON_AGG(
+      JSONB_BUILD_OBJECT(
+        'oid', sc.oid,
+        'name', sc.name,
+        'description', sc.description,
+        'category_code', sc.category_code,
+        'status', sc.status,
+        'created_by', sc.created_by,
+        'created_on', sc.created_on,
+        'edited_by', sc.edited_by,
+        'edited_on', sc.edited_on
+      )
+    ) FILTER (WHERE sc.oid IS NOT NULL),
+    '[]'
+  ) AS children
+FROM 
+  categories c
+LEFT JOIN 
+  sub_categories sc ON c.oid = sc.category_oid
+GROUP BY 
+  c.oid, c.name, c.description, c.status, c.category_code`;
       let values = [];
 
-      if (request.query.search_text) {
+      /* if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
+            query += ` AND (LOWER(c.name) LIKE $${values.length + 1} `;
+            query += `OR LOWER(c.category_code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
 
       if (request.query.status) {
-            query += ` AND status = $${values.length + 1}`;
+            query += ` AND c.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
 
-      query += ` ORDER BY created_on ASC`
+      query += ` ORDER BY c.created_on ASC`
 
       if (request.query.offset) {
             query += ` OFFSET $${values.length + 1}`;
@@ -75,7 +102,7 @@ const generate_data_sql = (request) => {
       if (request.query.limit) {
             query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
             values.push(Number(request.query.limit));
-      }
+      } */
 
       return { text: query, values };
 };
