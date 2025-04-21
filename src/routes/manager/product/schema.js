@@ -10,11 +10,11 @@ const product_list_schema = Joi.object({
 const product_schema = Joi.object({
       oid: Joi.string().allow(null),
       name: Joi.string().required(),
-      sku: Joi.string().required(),
+      sku: Joi.string().allow(null),
       category_oid: Joi.string().required(),
       sub_category_oid: Joi.string().required(),
       unit_type: Joi.string().allow(null),
-      product_nature: Joi.string().allow(null),
+      product_nature: Joi.string().required(),
       restock_threshold: Joi.number().required(),
       description: Joi.string().allow(null),
       photo: Joi.string().allow(null),

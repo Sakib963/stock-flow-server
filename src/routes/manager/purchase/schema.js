@@ -9,24 +9,20 @@ const purchase_list_schema = Joi.object({
 
 const purchase_schema = Joi.object({
       oid: Joi.string().allow(null),
-      bill_no: Joi.string().required(),
-      date_of_purchase: Joi.string().required(),
       supplier_oid: Joi.string().required(),
       total_amount: Joi.number().required(),
       special_notes: Joi.string().allow(null),
-      status: Joi.string().allow(null),
+      payment_status: Joi.string().required(),
+      paid_amount: Joi.number().required(),
+      purchase_type: Joi.string().required(),
       products: Joi.array().items(
             Joi.object({
                   oid: Joi.string().allow(null),
                   product_oid: Joi.string().required(),
-                  product_name: Joi.string().required(),
                   warehouse_oid: Joi.string().required(),
-                  warehouse_name: Joi.string().required(),
                   aisle_oid: Joi.string().allow(null),
-                  aisle_name: Joi.string().allow(null),
                   quantity: Joi.number().required(),
                   unit_price: Joi.number().required(),
-                  total_price: Joi.number().required(),
             })
       ).required()
 });

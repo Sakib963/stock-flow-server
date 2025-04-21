@@ -5,7 +5,7 @@ const { log } = require("../../../../utils/log");
 const get_purchase_list = async (request, res) => {
       try {
             // Step 1: Generate SQL for total count
-            const countSql = generate_count_sql(request);
+            /* const countSql = generate_count_sql(request);
 
             const countResult = await get_data(countSql);
             const total = countResult[0]?.total || 0;
@@ -14,15 +14,15 @@ const get_purchase_list = async (request, res) => {
             const dataSql = generate_data_sql(request);
 
             const data_set = await get_data(dataSql);
-            const data = data_set.length ? data_set : [];
+            const data = data_set.length ? data_set : []; */
 
             // Step 3: Respond with total count and paginated data
-            log.info(`Product list Found: ${data?.length} of ${total}`);
+            // log.info(`Product list Found: ${data?.length} of ${total}`);
             return res.status(200).json({
                   code: 200,
                   message: "Product list Found",
-                  total,
-                  data,
+                  total: 0,
+                  data: [],
             });
       } catch (e) {
             log.error(`An exception occurred while getting product information: ${e?.message}`);
