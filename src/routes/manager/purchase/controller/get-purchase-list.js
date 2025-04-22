@@ -5,7 +5,7 @@ const { log } = require("../../../../utils/log");
 const get_purchase_list = async (request, res) => {
       try {
             // Step 1: Generate SQL for total count
-            /* const countSql = generate_count_sql(request);
+            const countSql = generate_count_sql(request);
 
             const countResult = await get_data(countSql);
             const total = countResult[0]?.total || 0;
@@ -14,51 +14,33 @@ const get_purchase_list = async (request, res) => {
             const dataSql = generate_data_sql(request);
 
             const data_set = await get_data(dataSql);
-            const data = data_set.length ? data_set : []; */
+            const data = data_set.length ? data_set : [];
 
             // Step 3: Respond with total count and paginated data
-            // log.info(`Product list Found: ${data?.length} of ${total}`);
+            log.info(`Purchase Order list Found: ${data?.length} of ${total}`);
             return res.status(200).json({
                   code: 200,
-                  message: "Product list Found",
-                  total: 0,
-                  data: [],
+                  message: "Purchase Order list Found",
+                  total,
+                  data,
             });
       } catch (e) {
-            log.error(`An exception occurred while getting product information: ${e?.message}`);
+            log.error(`An exception occurred while getting Purchase Order information: ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
 };
 
 const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
+      let query = `SELECT COUNT(DISTINCT p.oid) AS total FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
+
       let values = [];
 
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
-            query += `OR LOWER(b.batch_code) LIKE $${values.length + 2} `;
-            query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
-            values.push(searchText, searchText, searchText);
-      }
 
-      if (request.query.status) {
-            query += `AND p.status = $${values.length + 1}`
-            values.push(request.query.status);
-      }
-
-      return { text: query, values };
-};
-
-const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.bill_no, to_char(p.date_of_purchase, 'DD-MM-YYYY') as date_of_purchase, p.supplier_oid, p.special_notes, CAST(p.total_amount AS INTEGER) AS total_amount, p.status, b.batch_code, s.name as supplier_name, CAST(b.total_sell AS INTEGER) AS total_sell FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.BATCH} b ON b.purchase_oid = p.oid LEFT JOIN ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid WHERE 1 = 1`;
-      let values = [];
-
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(p.bill_no) LIKE $${values.length + 1} `;
-            query += `OR LOWER(b.batch_code) LIKE $${values.length + 2} `;
-            query += `OR LOWER(s.name) LIKE $${values.length + 3})`;
+            query += `AND (LOWER(s.name) LIKE $${values.length + 1}
+                  OR LOWER(pr.name) LIKE $${values.length + 2}
+                  OR CAST(p.total_amount AS TEXT) LIKE $${values.length + 3})`;
             values.push(searchText, searchText, searchText);
       }
 
@@ -66,6 +48,29 @@ const generate_data_sql = (request) => {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
+
+      return { text: query, values };
+};
+
+const generate_data_sql = (request) => {
+      let query = `SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
+      let values = [];
+
+      if (request.query.search_text) {
+            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+            query += ` AND (LOWER(s.name) LIKE $${values.length + 1} `;
+            query += `OR LOWER(p.name) LIKE $${values.length + 2} `;
+            query += `OR LOWER(p.total_amount) LIKE $${values.length + 3})`;
+            values.push(searchText, searchText, searchText);
+      }
+
+      if (request.query.status) {
+            query += ` AND p.status = $${values.length + 1}`;
+            values.push(request.query.status);
+      }
+
+      query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, 
+    p.purchase_type, p.status, s.name`;
 
       query += ` ORDER BY p.created_on ASC`
 
