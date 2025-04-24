@@ -53,7 +53,7 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
+      let query = `SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count, to_char(p.created_on, 'DD/MM/YYYY') as created_on, p.created_by  FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text) {
@@ -69,8 +69,7 @@ const generate_data_sql = (request) => {
             values.push(request.query.status);
       }
 
-      query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, 
-    p.purchase_type, p.status, s.name`;
+      query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name, p.created_on`;
 
       query += ` ORDER BY p.created_on ASC`
 

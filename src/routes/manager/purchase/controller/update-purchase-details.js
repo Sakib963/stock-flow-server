@@ -1,25 +1,33 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { execute_values } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 
 const update_purchase_details = async (request, res) => {
       let payload = request.body;
       let user_id = request.credentials.user_id;
       try {
-            const sql = {
-                  text: `update ${TABLE.PRODUCT} set name = $1, sku = $2, category_oid = $3, sub_category_oid = $4, unit_type = $5, description = $6, photo = $7, product_nature = $8, restock_threshold = $9, status = $10, edited_on = clock_timestamp(), edited_by = $11 WHERE oid = $12`,
-                  values: [payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id, payload.oid]
+            const purchase_sql = {
+                  text: `UPDATE ${TABLE.PURCHASE} SET supplier_oid = $1, total_amount = $2, special_notes = $3, payment_status = $4, paid_amount = $5, purchase_type = $6, status = $7, edited_on = clock_timestamp(), edited_by = $8 WHERE oid = $9`,
+                  values: [payload.supplier_oid, payload.total_amount, payload.special_notes, payload.payment_status, payload.paid_amount, payload.purchase_type, 'Submitted', user_id, payload.oid]
             }
-            await execute_value(sql);
+            const purchase_details_sql = []
+            payload.products.map((product) => {
+                  let details_sql = {
+                        text: `UPDATE ${TABLE.PURCHASE_DETAILS} SET product_oid = $1, warehouse_oid = $2, aisle_oid = $3, ordered_quantity = $4, ordered_unit_price = $5 WHERE oid = $6 AND purchase_oid = $7`,
+                        values: [product.product_oid, product.warehouse_oid, product.aisle_oid, product.quantity, product.unit_price, product.oid, payload.oid]
+                  }
+                  purchase_details_sql.push(details_sql);
+            })
+            await execute_values([purchase_sql, ...purchase_details_sql]);
       } catch (e) {
-            log.error(`An exception occurred while updating product : ${e?.message}`);
+            log.error(`An exception occurred while updating purchase order : ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
 
-      log.info(`Product ${payload.name} updated successfully by : ${user_id}`);
+      log.info(`Purchase order ${payload.oid} updated successfully by : ${user_id}`);
       return res.status(200).json({
             code: 200,
-            message: "Product Updated Successfully!",
+            message: "Purchase order Updated Successfully!",
       });
 }
 

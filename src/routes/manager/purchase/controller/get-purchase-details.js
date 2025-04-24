@@ -6,25 +6,18 @@ const get_purchase_details = async (request, res) => {
       try {
             let data;
             const purchaseSql = generate_purchase_data_sql(request);
-            const productsSql = generate_products_data_sql(request);
+            const productSql = generate_products_data_sql(request);
 
-            let purchase_data = null;
-            let products = [];
             try {
                   const data_set = await get_data(purchaseSql);
-                  purchase_data = data_set.length ? data_set[0] : null;
+                  let purchase_data = data_set.length ? data_set[0] : null;
+                  data = { ...purchase_data };
+                  // get product list
+                  const product_data_set = await get_data(productSql);
+                  let products = product_data_set.length ? product_data_set : null;
+                  data = { ...data, products };
             } catch (e) {
                   log.error(`An exception occurred while getting Purchase details: ${e?.message}`);
-            }
-            try {
-                  const data_set = await get_data(productsSql);
-                  products = data_set.length ? data_set : [];
-            } catch (e) {
-                  log.error(`An exception occurred while getting Purchase Products list: ${e?.message}`);
-            }
-
-            data = {
-                  ...purchase_data, products
             }
 
             // Step 2: Respond with data
@@ -41,19 +34,18 @@ const get_purchase_details = async (request, res) => {
 };
 
 const generate_purchase_data_sql = (request) => {
-      let query = `SELECT pr.oid, pr.bill_no, pr.date_of_purchase, to_char(pr.date_of_purchase, 'DD-MM-YYYY') as date_of_purchase_text, pr.supplier_oid, sup.name as supplier_name, pr.special_notes, CAST(pr.total_amount as INTEGER) as total_amount, pr.status, bt.batch_code, CAST(bt.total_sell as INTEGER) as total_sell FROM ${TABLE.PURCHASE} pr LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pr.supplier_oid LEFT JOIN ${TABLE.BATCH} bt ON pr.oid = bt.purchase_oid WHERE pr.oid = $1`;
+      let query = `SELECT pr.oid, pr.supplier_oid, pr.total_amount, pr.special_notes, pr.payment_status, pr.paid_amount, pr.purchase_type, pr.status, pr.created_by, to_char(pr.created_on, 'DD/MM/YYYY') as created_on, pr.cancelled_by, to_char(pr.cancelled_on, 'DD/MM/YYYY') as cancelled_on, pr.verified_by, to_char(pr.verified_on, 'DD/MM/YYYY') as verified_on, sup.name as supplier_name FROM ${TABLE.PURCHASE} pr LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pr.supplier_oid WHERE pr.oid = $1`;
       let values = [request.query.oid];
 
       return { text: query, values };
 };
 
 const generate_products_data_sql = (request) => {
-      let query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, pd.supplier_oid, sup.name as supplier_name, CAST(pd.quantity AS INTEGER) AS quantity, CAST(pd.unit_price as INTEGER) as unit_price, CAST(pd.total_price as INTEGER) as total_price, pd.status 
+      let query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price 
       FROM ${TABLE.PURCHASE_DETAILS} pd 
       LEFT JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid 
       LEFT JOIN ${TABLE.WAREHOUSE} wr ON wr.oid = pd.warehouse_oid 
       LEFT JOIN ${TABLE.AISLE} ai ON ai.oid = pd.aisle_oid 
-      LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pd.supplier_oid 
       WHERE pd.purchase_oid = $1`;
       let values = [request.query.oid];
 
