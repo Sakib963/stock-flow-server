@@ -91,6 +91,7 @@ module.exports = {
             UPDATE_PURCHASE_DETAILS: "/update-purchase-details",
             GET_PURCHASE_DETAILS: "/get-purchase-details",
             GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
+            VERIFY_PURCHASE: "/verify-purchase",
 
             GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
             GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",

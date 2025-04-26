@@ -27,8 +27,19 @@ const purchase_schema = Joi.object({
       ).required()
 });
 
+const verify_purchase_schema = Joi.object({
+      oid: Joi.string().allow(null),
+      products: Joi.array().items(
+            Joi.object({
+                  oid: Joi.string().allow(null),
+                  verified_quantity: Joi.string().required(),
+                  verified_unit_price: Joi.string().required()
+            })
+      ).required()
+});
+
 const purchase_details_schema = Joi.object({
       oid: Joi.string().required(),
 });
 
-module.exports = { purchase_list_schema, purchase_schema, purchase_details_schema };
+module.exports = { purchase_list_schema, purchase_schema, purchase_details_schema, verify_purchase_schema };
