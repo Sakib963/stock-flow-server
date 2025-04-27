@@ -37,14 +37,11 @@ const generate_count_sql = (request) => {
 
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
-
-            query += `AND (LOWER(s.name) LIKE $${values.length + 1}
-                  OR LOWER(pr.name) LIKE $${values.length + 2}
-                  OR CAST(p.total_amount AS TEXT) LIKE $${values.length + 3})`;
-            values.push(searchText, searchText, searchText);
+            query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
+            values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status !== 'null' && request.query.status !== '') {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
@@ -53,32 +50,33 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count, to_char(p.created_on, 'DD/MM/YYYY') as created_on, p.created_by  FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
+      let query = `
+        SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count, to_char(p.created_on, 'DD/MM/YYYY') as created_on, p.created_by  
+        FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
+
       let values = [];
 
       if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
-            query += ` AND (LOWER(s.name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(p.name) LIKE $${values.length + 2} `;
-            query += `OR LOWER(p.total_amount) LIKE $${values.length + 3})`;
-            values.push(searchText, searchText, searchText);
+            const searchText = `%${request.query.search_text.toLowerCase()}%`; // fixed space
+            query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
+            values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status !== 'null' && request.query.status !== '') {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
 
       query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name, p.created_on`;
 
-      query += ` ORDER BY p.created_on ASC`
+      query += ` ORDER BY p.created_on ASC`;
 
-      if (request.query.offset) {
+      if (request.query.offset !== undefined) { // also safe checking
             query += ` OFFSET $${values.length + 1}`;
             values.push(Number(request.query.offset));
       }
 
-      if (request.query.limit) {
+      if (request.query.limit !== undefined) {
             query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
             values.push(Number(request.query.limit));
       }

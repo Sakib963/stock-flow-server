@@ -8,6 +8,7 @@ const get_purchase_list = require("./controller/get-purchase-list");
 const get_purchase_details = require("./controller/get-purchase-details");
 const update_purchase_details = require("./controller/update-purchase-details");
 const verify_purchase = require("./controller/verify-purchase");
+const cancel_purchase = require("./controller/cancel-purchase");
 
 const router = Router();
 
@@ -44,6 +45,13 @@ router.post(
       ROUTES.VERIFY_PURCHASE,
       [jwtMiddleware, validator.post(verify_purchase_schema)],
       verify_purchase
+);
+
+// Cancel Purchase
+router.get(
+      ROUTES.CANCEL_PURCHASE,
+      [jwtMiddleware, validator.get(purchase_details_schema)],
+      cancel_purchase
 );
 
 // Get Purchase Details
