@@ -32,8 +32,10 @@ const verify_purchase_schema = Joi.object({
       products: Joi.array().items(
             Joi.object({
                   oid: Joi.string().allow(null),
-                  verified_quantity: Joi.string().required(),
-                  verified_unit_price: Joi.string().required()
+                  product_oid: Joi.string().required(),
+                  verified_quantity: Joi.number().required(),
+                  verified_unit_price: Joi.number().required(),
+                  intended_use: Joi.string().required(),
             })
       ).required()
 });

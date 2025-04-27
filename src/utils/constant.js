@@ -15,8 +15,7 @@ module.exports = {
             AISLE: "aisle",
             PURCHASE: "purchase",
             PURCHASE_DETAILS: "purchase_details",
-            BATCH: "batch",
-            BATCH_DETAILS: "batch_details",
+            INVENTORY: "inventory",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
