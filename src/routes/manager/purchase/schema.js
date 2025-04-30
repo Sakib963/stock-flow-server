@@ -35,7 +35,17 @@ const verify_purchase_schema = Joi.object({
                   product_oid: Joi.string().required(),
                   verified_quantity: Joi.number().required(),
                   verified_unit_price: Joi.number().required(),
-                  intended_use: Joi.string().required(),
+                  intended_use: Joi.string().valid('for_sale', 'internal_use').required(),
+                  selling_price: Joi.number().when('intended_use', {
+                        is: 'for_sale',
+                        then: Joi.number().required(),
+                        otherwise: Joi.forbidden()
+                  }),
+                  maximum_discount: Joi.number().when('intended_use', {
+                        is: 'for_sale',
+                        then: Joi.number().required(),
+                        otherwise: Joi.forbidden()
+                  })
             })
       ).required()
 });

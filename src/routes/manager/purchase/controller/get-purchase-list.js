@@ -69,7 +69,7 @@ const generate_data_sql = (request) => {
 
       query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name, p.created_on`;
 
-      query += ` ORDER BY p.created_on ASC`;
+      query += ` ORDER BY p.created_on DESC`;
 
       if (request.query.offset !== undefined) { // also safe checking
             query += ` OFFSET $${values.length + 1}`;

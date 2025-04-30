@@ -6,13 +6,13 @@ const get_product_list = async (request, res) => {
       try {
             // Step 1: Generate SQL for total count
             const countSql = generate_count_sql(request);
-            
+
             const countResult = await get_data(countSql);
             const total = countResult[0]?.total || 0;
 
             // Step 2: Generate SQL for paginated data
             const dataSql = generate_data_sql(request);
-            
+
             const data_set = await get_data(dataSql);
             const data = data_set.length ? data_set : [];
 

@@ -33,7 +33,6 @@ module.exports = {
             AISLE: "/aisle",
             PURCHASE: "/purchase",
             INVENTORY_OVERVIEW: "/inventory-overview",
-            PRICE_FIXATION: "/price-fixation",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -93,9 +92,6 @@ module.exports = {
             GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
             VERIFY_PURCHASE: "/verify-purchase",
             CANCEL_PURCHASE: "/cancel-purchase",
-
-            GET_PRICE_FIXATION_PRODUCT_LIST: "/get-price-fixation-product-list",
-            GET_PRODUCT_BATCHES_FOR_PRICE_FIXATION: "/get-product-baches-for-price-fixation",
 
             GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
             GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",

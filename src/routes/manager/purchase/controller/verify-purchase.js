@@ -33,11 +33,12 @@ const verify_purchase = async (request, res) => {
                   if (product.intended_use === 'for_sale') status = 'pending_pricing'
                   // Insert into inventory
                   let inventory_sql = {
-                        text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        values: [uuidv4(), batch_code, product.product_oid, product.oid, product.verified_quantity, product.verified_quantity, product.verified_unit_price, product.intended_use, status, user_id
+                        text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, created_by, selling_price, maximum_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                        values: [uuidv4(), batch_code, product.product_oid, product.oid, product.verified_quantity, product.verified_quantity, product.verified_unit_price, product.intended_use, status, user_id, product.selling_price, product.maximum_discount
                         ]
                   }
                   inventory_insert_sql.push(inventory_sql)
+
             })
             await execute_values([purchase_sql, ...purchase_details_sql, ...inventory_insert_sql]);
       } catch (e) {

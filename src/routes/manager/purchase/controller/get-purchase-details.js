@@ -41,8 +41,9 @@ const generate_purchase_data_sql = (request) => {
 };
 
 const generate_products_data_sql = (request) => {
-      let query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price 
+      let query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price, CAST(i.selling_price AS INTEGER) AS selling_price, CAST(i.maximum_discount AS INTEGER) AS maximum_discount, i.status, i.intended_use
       FROM ${TABLE.PURCHASE_DETAILS} pd 
+      LEFT JOIN ${TABLE.INVENTORY} i ON pd.oid = i.purchase_details_oid 
       LEFT JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid 
       LEFT JOIN ${TABLE.WAREHOUSE} wr ON wr.oid = pd.warehouse_oid 
       LEFT JOIN ${TABLE.AISLE} ai ON ai.oid = pd.aisle_oid 
