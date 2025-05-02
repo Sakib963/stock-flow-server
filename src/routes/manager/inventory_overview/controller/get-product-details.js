@@ -50,13 +50,14 @@ const generate_product_data_sql = (request) => {
 };
 
 const generate_batch_data_sql = (request) => {
-      let query = `select CAST(bd.unit_price as INTEGER) as unit_price , CAST(bd.total_price as INTEGER) as total_price, CAST(bd.purchase_quantity as INTEGER) as purchase_quantity, CAST(bd.available_quantity as INTEGER) as available_quantity, s."name" as supplier_name, w."name" as warehouse_name, a."name" as aisle_name, b.batch_code
-            from ${TABLE.BATCH_DETAILS} bd 
-            left join ${TABLE.BATCH} b on b.oid = bd.batch_oid
-            left join ${TABLE.WAREHOUSE} w on w.oid = bd.warehouse_oid 
-            left join ${TABLE.AISLE} a on a.oid = bd.aisle_oid 
-            left join ${TABLE.SUPPLIER} s on s.oid = bd.supplier_oid 
-      where bd.product_oid = $1`;
+      let query = `select CAST(i.cost_price as INTEGER) as cost_price , CAST(i.selling_price as INTEGER) as selling_price, CAST(i.initial_quantity as INTEGER) as initial_quantity, CAST(i.quantity_available as INTEGER) as quantity_available, s."name" as supplier_name, w."name" as warehouse_name, a."name" as aisle_name, i.batch_code, i.intended_use
+            from ${TABLE.INVENTORY} i 
+            left join ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
+            left join ${TABLE.PURCHASE} p ON p.oid = pd.purchase_oid
+            left join ${TABLE.WAREHOUSE} w on w.oid = pd.warehouse_oid 
+            left join ${TABLE.AISLE} a on a.oid = pd.aisle_oid 
+            left join ${TABLE.SUPPLIER} s on s.oid = p.supplier_oid 
+      where i.product_oid = $1`;
       let values = [request.query.product_oid];
 
       return { text: query, values };

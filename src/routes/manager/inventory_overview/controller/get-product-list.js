@@ -29,16 +29,16 @@ const get_product_list = async (request, res) => {
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
 };
-
-const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(distinct p.oid) AS total from ${TABLE.PRODUCT} p left join ${TABLE.BATCH_DETAILS} bd ON bd.product_oid = p.oid left join ${TABLE.BATCH} b on b.oid = bd.batch_oid WHERE p.status = 'Active'`;
+// ----------- get list by product -------------
+/* const generate_count_sql = (request) => {
+      let query = `SELECT COUNT(distinct p.oid) AS total from ${TABLE.PRODUCT} p left join ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid WHERE p.status = 'Active'`;
       let values = [];
 
       if (request.query.search_text) {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
-                  OR LOWER(b.batch_code) LIKE $${values.length + 2}
+                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
             )`;
             values.push(searchText, searchText);
       }
@@ -52,7 +52,7 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `select p.oid as product_oid, p.name as product_name, p.restock_threshold, p.photo, COALESCE(COUNT(DISTINCT bd.batch_oid), 0) AS total_batches, COALESCE(SUM(bd.available_quantity)::INTEGER, 0) AS total_available_quantity from ${TABLE.PRODUCT} p left join ${TABLE.BATCH_DETAILS} bd ON bd.product_oid = p.oid left join ${TABLE.BATCH} b on b.oid = bd.batch_oid WHERE p.status = 'Active'`;
+      let query = `select p.oid as product_oid, p.name as product_name, p.restock_threshold, p.photo, COALESCE(COUNT(DISTINCT bd.batch_code), 0) AS total_batches, COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity from ${TABLE.PRODUCT} p left join ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  WHERE p.status = 'Active'`;
 
       let values = [];
 
@@ -60,7 +60,7 @@ const generate_data_sql = (request) => {
             const searchText = `%${request.query.search_text.toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
-                  OR LOWER(b.batch_code) LIKE $${values.length + 2}
+                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
             )`;
             values.push(searchText, searchText);
       }
@@ -71,6 +71,74 @@ const generate_data_sql = (request) => {
       }
 
       query += ` GROUP BY p.oid, p.name, p.restock_threshold, p.photo, p.status ORDER BY total_available_quantity DESC`;
+
+      if (request.query.limit) {
+            query += ` LIMIT $${values.length + 1}`;
+            values.push(Number(request.query.limit));
+      }
+
+      if (request.query.offset) {
+            query += ` OFFSET $${values.length + 1}`;
+            values.push(Number(request.query.offset));
+      }
+
+      return { text: query, values };
+}; */
+
+const generate_count_sql = (request) => {
+      let query = `SELECT COUNT(distinct p.oid) AS total 
+                   FROM ${TABLE.PRODUCT} p 
+                   INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid 
+                   WHERE p.status = 'Active'`;
+      let values = [];
+
+      if (request.query.search_text) {
+            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+            query += ` AND (
+                  LOWER(p.name) LIKE $${values.length + 1} 
+                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
+            )`;
+            values.push(searchText, searchText);
+      }
+
+      if (request.query.status) {
+            query += ` AND p.status = $${values.length + 1}`;
+            values.push(request.query.status);
+      }
+
+      return { text: query, values };
+};
+
+const generate_data_sql = (request) => {
+      let query = `SELECT 
+                        p.oid AS product_oid,
+                        p.name AS product_name,
+                        p.restock_threshold,
+                        p.photo,
+                        COALESCE(COUNT(DISTINCT bd.batch_code), 0) AS total_batches,
+                        COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity
+                   FROM ${TABLE.PRODUCT} p 
+                   INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  
+                   WHERE p.status = 'Active'`;
+
+      let values = [];
+
+      if (request.query.search_text) {
+            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+            query += ` AND (
+                  LOWER(p.name) LIKE $${values.length + 1} 
+                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
+            )`;
+            values.push(searchText, searchText);
+      }
+
+      if (request.query.status) {
+            query += ` AND p.status = $${values.length + 1}`;
+            values.push(request.query.status);
+      }
+
+      query += ` GROUP BY p.oid, p.name, p.restock_threshold, p.photo, p.status 
+                 ORDER BY p.name ASC`;
 
       if (request.query.limit) {
             query += ` LIMIT $${values.length + 1}`;
