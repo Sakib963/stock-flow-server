@@ -95,6 +95,7 @@ module.exports = {
 
             GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
             GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",
+            UPDATE_PRICING: "/update-pricing",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

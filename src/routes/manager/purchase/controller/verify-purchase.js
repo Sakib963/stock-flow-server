@@ -30,7 +30,11 @@ const verify_purchase = async (request, res) => {
                   purchase_details_sql.push(details_sql);
 
                   let status = 'internal_use';
-                  if (product.intended_use === 'for_sale') status = 'pending_pricing'
+                  if (product.intended_use === 'for_sale' && product.selling_price) {
+                        status = 'ready_for_sale'
+                  } else {
+                        status = 'pending_pricing'
+                  }
                   // Insert into inventory
                   let inventory_sql = {
                         text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, created_by, selling_price, maximum_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,

@@ -11,4 +11,10 @@ const overview_details_schema = Joi.object({
       product_oid: Joi.string().required(),
 });
 
-module.exports = { overview_list_schema, overview_details_schema };
+const update_pricing_schema = Joi.object({
+      oid: Joi.string().required(),
+      selling_price: Joi.number().required(),
+      maximum_discount: Joi.number().required(),
+});
+
+module.exports = { overview_list_schema, overview_details_schema, update_pricing_schema };
