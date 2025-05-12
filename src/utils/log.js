@@ -2,7 +2,7 @@ require("winston-daily-rotate-file");
 const path = require("path");
 const winston = require("winston");
 
-const isFileLoggingEnabled = false;
+const isFileLoggingEnabled = true;
 const PROJECT_ROOT = path.join(__dirname, "..");
 const transports = [];
 

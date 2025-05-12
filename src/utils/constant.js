@@ -16,11 +16,13 @@ module.exports = {
             PURCHASE: "purchase",
             PURCHASE_DETAILS: "purchase_details",
             INVENTORY: "inventory",
+            ATTENDANCE: "attendance",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
             ADMIN: "/api/v1/admin",
-            MANAGER: "/api/v1/manager"
+            MANAGER: "/api/v1/manager",
+            SALESMAN: "/api/v1/salesman"
       },
       SUB_CONTEXTS: {
             USER: "/user",
@@ -33,6 +35,7 @@ module.exports = {
             AISLE: "/aisle",
             PURCHASE: "/purchase",
             INVENTORY_OVERVIEW: "/inventory-overview",
+            ATTENDANCE: "/attendance",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -96,6 +99,11 @@ module.exports = {
             GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
             GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",
             UPDATE_PRICING: "/update-pricing",
+
+            GET_ATTENDANCE_LIST: "/get-attendance-list",
+            UPDATE_ATTENDANCE: "/update-attendance",
+            GET_ATTENDANCE_DETAILS: "/get-attendance-details",
+            CHECK_CURRENT_ATTENDANCE_STATUS: "/check-current-attendance-status",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
