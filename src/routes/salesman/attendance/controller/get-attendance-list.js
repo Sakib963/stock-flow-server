@@ -44,7 +44,7 @@ const generate_count_sql = (request) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT a.oid, a.attendance_date, a.sign_in_time, a.sign_in_location, a.sign_out_time, a.sign_out_location, a.created_by, a.created_on, a.edited_by, a.edited_on FROM ${TABLE.ATTENDANCE} a WHERE 1 = 1`;
+      let query = `SELECT a.oid, a.attendance_date, to_char(a.attendance_date, 'DD/MM/YYYY') as parsed_attendance_date, a.sign_in_time, a.sign_in_location, a.sign_out_time, a.sign_out_location, a.created_by, a.created_on, a.edited_by, a.edited_on, a.sign_in_time AS sign_in_time_bd, a.sign_out_time AS sign_out_time_bd, l.name as employee_name FROM ${TABLE.ATTENDANCE} a LEFT JOIN ${TABLE.LOGIN} l ON l.email = a.created_by WHERE 1 = 1`;
       let values = [];
 
       if (request.query.month) {
@@ -52,7 +52,7 @@ const generate_data_sql = (request) => {
             values.push(request.query.month);
       }
 
-      query += ` ORDER BY a.attendance_date ASC`
+      query += ` ORDER BY a.attendance_date DESC`
 
       if (request.query.offset) {
             query += ` OFFSET $${values.length + 1}`;
