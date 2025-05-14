@@ -104,6 +104,10 @@ module.exports = {
             UPDATE_ATTENDANCE: "/update-attendance",
             GET_ATTENDANCE_DETAILS: "/get-attendance-details",
             CHECK_CURRENT_ATTENDANCE_STATUS: "/check-current-attendance-status",
+
+            GET_EMPLOYEE_ATTENDANCE_LIST: "/get-employee-attendance-list",
+            UPDATE_EMPLOYEE_ATTENDANCE: "/update-employee-attendance",
+            GET_EMPLOYEE_ATTENDANCE_DETAILS: "/get-employee-attendance-details",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
