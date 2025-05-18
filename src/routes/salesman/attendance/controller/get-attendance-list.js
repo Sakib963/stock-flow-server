@@ -36,7 +36,7 @@ const generate_count_sql = (request) => {
       let values = [request.credentials.user_id];
 
       if (request.query.month) {
-            query += ` AND TO_CHAR(attendance_date, 'YYYY-MM') = $2`;
+            query += ` AND TO_CHAR(attendance_date, 'YYYY-MM') = $${values.length + 1}`;
             values.push(request.query.month);
       }
 
@@ -45,10 +45,10 @@ const generate_count_sql = (request) => {
 
 const generate_data_sql = (request) => {
       let query = `SELECT a.oid, a.attendance_date, to_char(a.attendance_date, 'DD/MM/YYYY') as parsed_attendance_date, a.sign_in_time, a.sign_in_location, a.sign_out_time, a.sign_out_location, a.created_by, a.created_on, a.edited_by, a.edited_on, a.sign_in_time AS sign_in_time_bd, a.sign_out_time AS sign_out_time_bd, l.name as employee_name FROM ${TABLE.ATTENDANCE} a LEFT JOIN ${TABLE.LOGIN} l ON l.email = a.created_by WHERE 1 = 1 AND a.created_by = $1`;
-      let values = [];
+      let values = [request.credentials.user_id];
 
       if (request.query.month) {
-            query += ` AND TO_CHAR(attendance_date, 'YYYY-MM') = $1`;
+            query += ` AND TO_CHAR(attendance_date, 'YYYY-MM') = $${values.length + 1}`;
             values.push(request.query.month);
       }
 

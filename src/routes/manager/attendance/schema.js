@@ -14,9 +14,10 @@ const attendance_status_schema = Joi.object({
 const attendance_schema = Joi.object({
       oid: Joi.string().allow(null),
       attendance_date: Joi.date().required(),
-      attendance_time: Joi.date().allow(null),
-      attendance_location: Joi.string().allow(null),
-      action: Joi.string().required()
+      sign_in_time: Joi.date().required(),
+      sign_in_location: Joi.string().required(),
+      sign_out_time: Joi.date().required(),
+      sign_out_location: Joi.string().required(),
 });
 
 
