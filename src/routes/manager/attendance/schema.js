@@ -19,5 +19,11 @@ const attendance_schema = Joi.object({
       action: Joi.string().required()
 });
 
-module.exports = { attendance_schema, attendance_list_schema, attendance_status_schema };
+
+
+const attendance_details_schema = Joi.object({
+      oid: Joi.string().required(),
+});
+
+module.exports = { attendance_schema, attendance_list_schema, attendance_status_schema, attendance_details_schema };
 
