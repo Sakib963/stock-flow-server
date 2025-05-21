@@ -17,6 +17,7 @@ module.exports = {
             PURCHASE_DETAILS: "purchase_details",
             INVENTORY: "inventory",
             ATTENDANCE: "attendance",
+            PRODUCT_STATS: "product_stats",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -36,6 +37,7 @@ module.exports = {
             PURCHASE: "/purchase",
             INVENTORY_OVERVIEW: "/inventory-overview",
             ATTENDANCE: "/attendance",
+            SALE: "/sale",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
