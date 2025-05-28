@@ -18,6 +18,8 @@ module.exports = {
             INVENTORY: "inventory",
             ATTENDANCE: "attendance",
             PRODUCT_STATS: "product_stats",
+            SALES: "sales",
+            SALE_DETAILS: "sale_details",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -110,6 +112,8 @@ module.exports = {
             GET_EMPLOYEE_ATTENDANCE_LIST: "/get-employee-attendance-list",
             UPDATE_EMPLOYEE_ATTENDANCE: "/update-employee-attendance",
             GET_EMPLOYEE_ATTENDANCE_DETAILS: "/get-employee-attendance-details",
+
+            GET_INVOICE_NUMBER: "/get-invoice-number",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
