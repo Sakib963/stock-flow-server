@@ -2,9 +2,12 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require('../../../utils/validate-jwt');
 const { validator } = require("../../../utils/validator");
-const { product_list_schema } = require("./schema");
+const { product_list_schema, sales_schema, invoice_details_schema } = require("./schema");
 const get_product_list = require("./controller/get-product-list");
 const get_invoice_number = require("./controller/get-invoice-number");
+const get_sale_details = require("./controller/get-sale-details");
+const save_invoice_in_draft = require("./controller/save-invoice-in-draft");
+const confirm_sales_invoice = require("./controller/confirm-sales-invoice");
 
 const router = Router();
 
@@ -21,18 +24,26 @@ router.get(
       [jwtMiddleware],
       get_invoice_number
 );
-// Check Current Product Status
-/* router.get(
-      ROUTES.CHECK_CURRENT_ATTENDANCE_STATUS,
-      [jwtMiddleware, validator.get(attendance_status_schema)],
-      check_current_attendance_status
+
+// Get Invoice Details
+router.get(
+      ROUTES.GET_INVOICE_DETAILS,
+      [jwtMiddleware, validator.get(invoice_details_schema)],
+      get_sale_details
 );
- */
-// Create A New Attendance
-/* router.post(
-      ROUTES.UPDATE_ATTENDANCE,
-      [jwtMiddleware, validator.post(attendance_schema)],
-      update_attendance
-); */
+
+// SAVE INVOICE IN DRAFT
+router.post(
+      ROUTES.SAVE_INVOICE_IN_DRAFT,
+      [jwtMiddleware, validator.post(sales_schema)],
+      save_invoice_in_draft
+);
+
+// Confirm Invoice
+router.post(
+      ROUTES.CONFIRM_SALES_INVOICE,
+      [jwtMiddleware, validator.post(sales_schema)],
+      confirm_sales_invoice
+);
 
 module.exports = { saleRouter: router };
