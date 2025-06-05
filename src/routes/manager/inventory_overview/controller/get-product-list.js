@@ -116,7 +116,9 @@ const generate_data_sql = (request) => {
                         p.restock_threshold,
                         p.photo,
                         COALESCE(COUNT(DISTINCT bd.batch_code), 0) AS total_batches,
-                        COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity
+                        COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity,
+                        bool_or(bd.status = 'pending_pricing') AS has_pending_pricing,
+                        BOOL_OR(bd.intended_use = 'for_sale') AS has_for_sale_batch
                    FROM ${TABLE.PRODUCT} p 
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  
                    WHERE p.status = 'Active'`;

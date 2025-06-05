@@ -29,35 +29,35 @@ const generate_data_sql = (request) => {
       const invoice_oid = request.query.oid;
 
       const sql = {
-            text: `
-      SELECT
-        s.oid,
-        s.invoice_no,
-        s.customer_name,
-        s.customer_phone,
-        s.customer_address,
-        s.customer_email,
-        s.payment_method,
-        s.payment_reference,
-        s.payment_status,
-        s.notes,
-        s.status,
-        s.total_amount,
-        json_agg(json_build_object(
-          'inventory_oid', sd.inventory_oid,
-          'product_oid', sd.product_oid,
-          'product_name', sd.product_name,
-          'quantity_available', sd.available_stock,
-          'quantity', sd.quantity,
-          'unit_price', sd.unit_price,
-          'discount', sd.discount,
-          'total', sd.total
-        )) AS products
-      FROM ${TABLE.SALES} s
-      LEFT JOIN ${TABLE.SALE_DETAILS} sd ON s.oid = sd.sales_oid
-      WHERE s.oid = $1
-      GROUP BY s.oid
-    `,
+            text: `SELECT
+                        s.oid,
+                        s.invoice_no,
+                        s.customer_name,
+                        s.customer_phone,
+                        s.customer_address,
+                        s.customer_email,
+                        s.payment_method,
+                        s.payment_reference,
+                        s.payment_status,
+                        s.notes,
+                        s.status,
+                        CAST(s.total_amount AS INTEGER) AS total_amount,
+                        json_agg(
+                        json_build_object(
+                              'inventory_oid', sd.inventory_oid,
+                              'product_oid', sd.product_oid,
+                              'product_name', sd.product_name,
+                              'quantity_available', sd.available_stock,
+                              'quantity', CAST(sd.quantity AS INTEGER),
+                              'unit_price', CAST(sd.unit_price AS NUMERIC),
+                              'discount', CAST(sd.discount AS NUMERIC),
+                              'total', CAST(sd.total AS NUMERIC)
+                        )
+                        ) AS products
+                  FROM ${TABLE.SALES} s
+                  LEFT JOIN ${TABLE.SALE_DETAILS} sd ON s.oid = sd.sales_oid
+                  WHERE s.oid = $1
+                  GROUP BY s.oid`,
             values: [invoice_oid]
       };
 
