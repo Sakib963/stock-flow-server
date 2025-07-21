@@ -121,6 +121,7 @@ module.exports = {
 
             GET_INVOICE_LIST: "/get-invoice-list",
             DELETE_INVOICE: "/delete-invoice",
+            GET_INVOICE_DETAILS: "/get-invoice-details",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

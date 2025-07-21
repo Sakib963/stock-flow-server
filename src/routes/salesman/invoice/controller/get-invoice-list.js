@@ -39,7 +39,7 @@ const generate_count_sql = (request) => {
             values.push(request.query.status);
       }
 
-      if (request.query.selected_date) {
+      if (request.query.selected_date && request.query.selected_date !== "null") {
             const selectedDate = new Date(request.query.selected_date);
             query += ` AND s.created_on::date = $${values.length + 1}`;
             values.push(selectedDate.toISOString().split("T")[0]);
@@ -63,7 +63,7 @@ const generate_data_sql = (request) => {
             values.push(request.query.status);
       }
 
-      if (request.query.selected_date) {
+      if (request.query.selected_date && request.query.selected_date !== "null") {
             const selectedDate = new Date(request.query.selected_date);
             query += ` AND s.created_on::date = $${values.length + 1}`;
             values.push(selectedDate.toISOString().split("T")[0]);
