@@ -39,8 +39,8 @@ const generate_count_sql = (request) => {
             values.push(request.query.status);
       }
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER( s.invoice_no) LIKE $${values.length + 1}) `;
             values.push(searchText);
       }
@@ -67,8 +67,8 @@ const generate_data_sql = (request) => {
             values.push(request.query.status);
       }
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER( s.invoice_no) LIKE $${values.length + 1}) `;
             values.push(searchText);
       }

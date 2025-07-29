@@ -34,8 +34,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.CATEGORIES} WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
@@ -53,8 +53,8 @@ const generate_data_sql = (request) => {
       let query = `SELECT oid, name, description, status, category_code FROM ${TABLE.CATEGORIES} WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);

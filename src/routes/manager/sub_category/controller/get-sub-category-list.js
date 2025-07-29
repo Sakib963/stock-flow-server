@@ -34,8 +34,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(sc.name) LIKE $${values.length + 1} `;
             query += `OR LOWER(sc.category_code) LIKE $${values.length + 2} `;
             query += `OR LOWER(c.name) LIKE $${values.length + 3})`;
@@ -54,8 +54,8 @@ const generate_data_sql = (request) => {
       let query = `SELECT sc.oid, sc.name, sc.description, sc.status, sc.category_code, c.name as category_name FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE 1 = 1 `;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(sc.name) LIKE $${values.length + 1} `;
             query += `OR LOWER(sc.category_code) LIKE $${values.length + 2} `;
             query += `OR LOWER(c.name) LIKE $${values.length + 3})`;

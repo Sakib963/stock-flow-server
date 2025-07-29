@@ -39,9 +39,9 @@ const generate_count_sql = (request) => {
             values.push(request.query.month);
       }
 
-      if (request.query.search_text) {
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
             query += ` AND l.name = $${values.length + 1}`;
-            values.push(request.query.search_text);
+            values.push(request.query.search_text.trim());
       }
 
       return { text: query, values };
@@ -56,9 +56,9 @@ const generate_data_sql = (request) => {
             values.push(request.query.month);
       }
 
-      if (request.query.search_text) {
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
             query += ` AND l.name = $${values.length + 1}`;
-            values.push(request.query.search_text);
+            values.push(request.query.search_text.trim().toLowerCase());
       }
 
       query += ` ORDER BY a.attendance_date DESC`

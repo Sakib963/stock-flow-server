@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { get_data, execute_value, execute_values } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require('uuid');
 
@@ -14,12 +14,18 @@ const create_product = async (request, res) => {
                   return res.status(409).json({ code: 409, message: "SKU Already Exists!" });
             }
 
+            const product_oid = uuidv4();
             const sql = {
                   text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, unit_type, description, photo, product_nature, restock_threshold, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                  values: [uuidv4(), payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id]
+                  values: [product_oid, payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id]
             }
 
-            await execute_value(sql);
+            const product_stat_sql = {
+                  text: `INSERT INTO ${TABLE.PRODUCT_STATS} (oid, product_oid) VALUES ($1, $2)`,
+                  values: [uuidv4(), product_oid]
+            }
+
+            await execute_values([sql, product_stat_sql]);
       } catch (e) {
             log.error(`An exception occurred while creating product : ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });

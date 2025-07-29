@@ -34,8 +34,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.LOGIN} WHERE 1 = 1 `;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(email) LIKE $${values.length + 2} `;
             query += `OR LOWER(designation) LIKE $${values.length + 3}) `;
@@ -49,8 +49,8 @@ const generate_data_sql = (request) => {
       let query = `SELECT oid, name, email, status, designation, photo FROM ${TABLE.LOGIN} WHERE 1 = 1 `;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(email) LIKE $${values.length + 2} `;
             query += `OR LOWER(designation) LIKE $${values.length + 3}) `;

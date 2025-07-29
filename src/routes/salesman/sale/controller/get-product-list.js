@@ -53,8 +53,8 @@ const generate_data_sql = (request) => {
 
       const values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             values.push(searchText, searchText, searchText, searchText, searchText, searchText, searchText);
 
             query += `

@@ -20,6 +20,8 @@ module.exports = {
             PRODUCT_STATS: "product_stats",
             SALES: "sales",
             SALE_DETAILS: "sales_details",
+            PRODUCT_RETURN: "product_return",
+            RETURN_DETAILS: "return_details",
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -41,6 +43,7 @@ module.exports = {
             ATTENDANCE: "/attendance",
             SALE: "/sale",
             INVOICE: "/invoice",
+            PRODUCT_RETURN: "/product-return",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -121,7 +124,10 @@ module.exports = {
 
             GET_INVOICE_LIST: "/get-invoice-list",
             DELETE_INVOICE: "/delete-invoice",
-            GET_INVOICE_DETAILS: "/get-invoice-details",
+
+            GET_PRODUCT_RETURN_LIST: "/get-product-return-list",
+            SAVE_PRODUCT_RETURN: "/save-product-return",
+            GET_PRODUCT_RETURN_DETAILS: "/get-product-return-details",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

@@ -34,8 +34,8 @@ const get_product_list = async (request, res) => {
       let query = `SELECT COUNT(distinct p.oid) AS total from ${TABLE.PRODUCT} p left join ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid WHERE p.status = 'Active'`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
                   OR LOWER(bd.batch_code) LIKE $${values.length + 2}
@@ -56,8 +56,8 @@ const generate_data_sql = (request) => {
 
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
                   OR LOWER(bd.batch_code) LIKE $${values.length + 2}
@@ -92,8 +92,8 @@ const generate_count_sql = (request) => {
                    WHERE p.status = 'Active'`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
                   OR LOWER(bd.batch_code) LIKE $${values.length + 2}
@@ -125,8 +125,8 @@ const generate_data_sql = (request) => {
 
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (
                   LOWER(p.name) LIKE $${values.length + 1} 
                   OR LOWER(bd.batch_code) LIKE $${values.length + 2}

@@ -34,8 +34,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.AISLE} WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
@@ -53,8 +53,8 @@ const generate_data_sql = (request) => {
       let query = `SELECT a.oid, a.name, a.code, a.warehouse_oid, a.capacity, a.type_of_storage, a.special_notes, a.status, w.name as warehouse_name FROM ${TABLE.AISLE} a LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = a.warehouse_oid WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(a.name) LIKE $${values.length + 1} `;
             query += `OR LOWER(a.code) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);

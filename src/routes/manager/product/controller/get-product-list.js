@@ -34,8 +34,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.PRODUCT} WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
             query += `OR LOWER(sku) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
@@ -53,8 +53,8 @@ const generate_data_sql = (request) => {
       let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.sub_category_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(p.name) LIKE $${values.length + 1} `;
             query += `OR LOWER(p.sku) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);

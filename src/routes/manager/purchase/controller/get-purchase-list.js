@@ -35,8 +35,8 @@ const generate_count_sql = (request) => {
 
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`;
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
@@ -56,8 +56,8 @@ const generate_data_sql = (request) => {
 
       let values = [];
 
-      if (request.query.search_text) {
-            const searchText = `%${request.query.search_text.toLowerCase()}%`; // fixed space
+      if (request.query.search_text && request.query.search_text.trim() !== "") {
+            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`; // fixed space
             query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
