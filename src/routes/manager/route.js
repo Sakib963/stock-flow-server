@@ -11,6 +11,7 @@ const { purchaseRouter } = require("./purchase/route");
 const { inventoryOverviewRouter } = require("./inventory_overview/route");
 const { attendanceRouter } = require("./attendance/route");
 const { invoiceRouter } = require("./invoice/route");
+const { productReturnRouter } = require("./product-return/route");
 
 const router = Router();
 
@@ -25,7 +26,8 @@ router.use(SUB_CONTEXTS.AISLE, aisleRouter);
 router.use(SUB_CONTEXTS.PURCHASE, purchaseRouter);
 router.use(SUB_CONTEXTS.INVENTORY_OVERVIEW, inventoryOverviewRouter);
 router.use(SUB_CONTEXTS.ATTENDANCE, attendanceRouter);
-router.use(SUB_CONTEXTS.INVOICE, invoiceRouter)
+router.use(SUB_CONTEXTS.INVOICE, invoiceRouter);
+router.use(SUB_CONTEXTS.PRODUCT_RETURN, productReturnRouter);
 
 // If you have other routes, you can add them here.
 // Example: adminRouter.use("/other-module", otherModuleRouter);

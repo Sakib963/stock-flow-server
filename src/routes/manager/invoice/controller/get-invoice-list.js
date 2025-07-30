@@ -57,12 +57,12 @@ const generate_count_sql = (request) => {
 
 const generate_data_sql = (request) => {
       let query = `SELECT s.oid, s.invoice_no, s.customer_name, s.customer_phone, s.total_amount, s.status, s.notes, s.created_by, s.created_on, s.edited_on, s.edited_by, COUNT(sd.oid) AS product_count, s.created_by
-    FROM ${TABLE.SALES} s
-    LEFT JOIN ${TABLE.SALE_DETAILS} sd ON sd.sales_oid = s.oid
-    WHERE  s.status != 'Draft' `;
+      FROM ${TABLE.SALES} s
+      LEFT JOIN ${TABLE.SALE_DETAILS} sd ON sd.sales_oid = s.oid
+      WHERE  s.status != 'Draft' `;
       let values = [];
 
-      if (request.query.status) {
+      if (request.query.status && request.query.status.trim() !== "") {
             query += ` AND s.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
