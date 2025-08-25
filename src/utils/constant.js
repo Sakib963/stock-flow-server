@@ -23,12 +23,14 @@ module.exports = {
             PRODUCT_RETURN: "product_return",
             RETURN_DETAILS: "return_details",
             PRODUCT_DISPOSE: "product_dispose",
+            OTP_LOG: "otp_log"
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
             ADMIN: "/api/v1/admin",
             MANAGER: "/api/v1/manager",
-            SALESMAN: "/api/v1/salesman"
+            SALESMAN: "/api/v1/salesman",
+            PROFILE: "/api/v1/profile"
       },
       SUB_CONTEXTS: {
             USER: "/user",
@@ -46,6 +48,7 @@ module.exports = {
             INVOICE: "/invoice",
             PRODUCT_RETURN: "/product-return",
             PRODUCT_DISPOSE: "/product-dispose",
+            CHANGE_PASSWORD: "/change-password",
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -135,6 +138,9 @@ module.exports = {
             CREATE_PRODUCT_DISPOSE: "/create-product-dispose",
             GET_PRODUCT_DISPOSE_DETAILS: "/get-product-dispose-details",
             GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN: "/get-product-list-for-dispose-dropdown",
+
+            CHANGE_PASSWORD: "/change-user-password",
+            VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change"
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
