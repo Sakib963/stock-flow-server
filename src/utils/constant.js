@@ -49,6 +49,7 @@ module.exports = {
             PRODUCT_RETURN: "/product-return",
             PRODUCT_DISPOSE: "/product-dispose",
             CHANGE_PASSWORD: "/change-password",
+            PROFILE_INFO: "/profile-info"
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -140,7 +141,9 @@ module.exports = {
             GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN: "/get-product-list-for-dispose-dropdown",
 
             CHANGE_PASSWORD: "/change-user-password",
-            VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change"
+            VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change",
+
+            GET_PROFILE_INFO: "/get-profile-info"
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
