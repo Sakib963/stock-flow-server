@@ -49,7 +49,8 @@ module.exports = {
             PRODUCT_RETURN: "/product-return",
             PRODUCT_DISPOSE: "/product-dispose",
             CHANGE_PASSWORD: "/change-password",
-            PROFILE_INFO: "/profile-info"
+            PROFILE_INFO: "/profile-info",
+            DASHBOARD: "/dashboard"
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -143,7 +144,9 @@ module.exports = {
             CHANGE_PASSWORD: "/change-user-password",
             VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change",
 
-            GET_PROFILE_INFO: "/get-profile-info"
+            GET_PROFILE_INFO: "/get-profile-info",
+
+            GET_DASHBOARD_DATA_FOR_MANAGER: "/get-dashboard-data-for-manager",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
