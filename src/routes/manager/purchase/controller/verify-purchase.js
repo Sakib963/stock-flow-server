@@ -32,7 +32,7 @@ const verify_purchase = async (request, res) => {
                   let status = 'internal_use';
                   if (product.intended_use === 'for_sale' && product.selling_price) {
                         status = 'ready_for_sale'
-                  } else {
+                  } else if (product.intended_use === 'for_sale' && !product.selling_price) {
                         status = 'pending_pricing'
                   }
                   // Insert into inventory

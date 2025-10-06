@@ -35,7 +35,7 @@ const create_sub_category = async (request, res) => {
 const check_existing_category = async (name) => {
       let count = 0;
       const sql = {
-            text: `select count(oid)::int4 as total from ${TABLE.CATEGORIES} where name = $1`,
+            text: `select count(oid)::int4 as total from ${TABLE.SUB_CATEGORIES} where name = $1`,
             values: [name]
       }
       try {

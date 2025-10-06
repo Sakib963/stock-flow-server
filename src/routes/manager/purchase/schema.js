@@ -39,12 +39,12 @@ const verify_purchase_schema = Joi.object({
                   selling_price: Joi.number().when('intended_use', {
                         is: 'for_sale',
                         then: Joi.number().required(),
-                        otherwise: Joi.forbidden()
+                        otherwise: Joi.number().optional().allow(null)
                   }),
                   maximum_discount: Joi.number().when('intended_use', {
                         is: 'for_sale',
                         then: Joi.number().required(),
-                        otherwise: Joi.forbidden()
+                        otherwise: Joi.number().optional().allow(null)
                   })
             })
       ).required()
