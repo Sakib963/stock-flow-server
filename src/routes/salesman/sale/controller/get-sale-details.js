@@ -41,6 +41,7 @@ const generate_data_sql = (request) => {
                         s.payment_status,
                         s.notes,
                         s.status,
+                        s.created_on,
                         CAST(s.total_amount AS INTEGER) AS total_amount,
                         json_agg(
                         json_build_object(

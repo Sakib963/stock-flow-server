@@ -89,6 +89,8 @@ const generate_count_sql = (request) => {
       let query = `SELECT COUNT(distinct p.oid) AS total 
                    FROM ${TABLE.PRODUCT} p 
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid 
+                  LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
+                  LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
                    WHERE p.status = 'Active'`;
       let values = [];
 
@@ -101,9 +103,19 @@ const generate_count_sql = (request) => {
             values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status.trim().toLowerCase() !== "null") {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
+      }
+
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND c.oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
+      }
+
+      if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND s.oid = $${values.length + 1}`;
+            values.push(request.query.sub_category_oid);
       }
 
       return { text: query, values };
@@ -121,6 +133,8 @@ const generate_data_sql = (request) => {
                         BOOL_OR(bd.intended_use = 'for_sale') AS has_for_sale_batch
                    FROM ${TABLE.PRODUCT} p 
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  
+                  LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
+                  LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
                    WHERE p.status = 'Active'`;
 
       let values = [];
@@ -134,9 +148,19 @@ const generate_data_sql = (request) => {
             values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status.trim().toLowerCase() !== "null") {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
+      }
+
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND c.oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
+      }
+
+      if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND s.oid = $${values.length + 1}`;
+            values.push(request.query.sub_category_oid);
       }
 
       query += ` GROUP BY p.oid, p.name, p.restock_threshold, p.photo, p.status 

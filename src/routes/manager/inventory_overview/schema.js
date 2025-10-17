@@ -5,6 +5,8 @@ const overview_list_schema = Joi.object({
       limit: Joi.number().required(),
       search_text: Joi.string().trim().allow(null, "").optional(),
       status: Joi.string().trim().allow(null, "").optional(),
+      category_oid: Joi.string().trim().allow(null, "").optional(),
+      sub_category_oid: Joi.string().trim().allow(null, "").optional(),
 });
 
 const overview_details_schema = Joi.object({

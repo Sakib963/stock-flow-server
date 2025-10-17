@@ -31,19 +31,29 @@ const get_product_list = async (request, res) => {
 };
 
 const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total FROM ${TABLE.PRODUCT} WHERE 1 = 1`;
+      let query = `SELECT COUNT(*) AS total  FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
             const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-            query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(sku) LIKE $${values.length + 2})`;
+            query += ` AND (LOWER(p.name) LIKE $${values.length + 1} `;
+            query += `OR LOWER(p.sku) LIKE $${values.length + 2})`;
             values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
-            query += `AND status = $${values.length + 1}`
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status.trim().toLowerCase() !== "null") {
+            query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
+      }
+
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND c.oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
+      }
+
+      if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND s.oid = $${values.length + 1}`;
+            values.push(request.query.sub_category_oid);
       }
 
       return { text: query, values };
@@ -60,9 +70,19 @@ const generate_data_sql = (request) => {
             values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status.trim().toLowerCase() !== "null") {
             query += ` AND p.status = $${values.length + 1}`;
             values.push(request.query.status);
+      }
+
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND c.oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
+      }
+
+      if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
+            query += ` AND s.oid = $${values.length + 1}`;
+            values.push(request.query.sub_category_oid);
       }
 
       query += ` ORDER BY p.created_on ASC`
