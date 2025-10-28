@@ -14,6 +14,7 @@ const { invoiceRouter } = require("./invoice/route");
 const { productReturnRouter } = require("./product-return/route");
 const { disposeRouter } = require("./product_dispose/route");
 const { managerDashboardRouter } = require("./dashboard/route");
+const { reportsRouter } = require("./reports/route");
 
 const router = Router();
 
