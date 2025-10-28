@@ -31,7 +31,8 @@ router.use(SUB_CONTEXTS.ATTENDANCE, attendanceRouter);
 router.use(SUB_CONTEXTS.INVOICE, invoiceRouter);
 router.use(SUB_CONTEXTS.PRODUCT_RETURN, productReturnRouter);
 router.use(SUB_CONTEXTS.PRODUCT_DISPOSE, disposeRouter);
-router.use(SUB_CONTEXTS.DASHBOARD, managerDashboardRouter)
+router.use(SUB_CONTEXTS.DASHBOARD, managerDashboardRouter);
+router.use(SUB_CONTEXTS.REPORTS, reportsRouter);
 
 // If you have other routes, you can add them here.
 // Example: adminRouter.use("/other-module", otherModuleRouter);

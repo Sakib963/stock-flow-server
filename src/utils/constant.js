@@ -50,7 +50,8 @@ module.exports = {
             PRODUCT_DISPOSE: "/product-dispose",
             CHANGE_PASSWORD: "/change-password",
             PROFILE_INFO: "/profile-info",
-            DASHBOARD: "/dashboard"
+            DASHBOARD: "/dashboard",
+            REPORTS: "/reports"
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -147,6 +148,10 @@ module.exports = {
             GET_PROFILE_INFO: "/get-profile-info",
 
             GET_DASHBOARD_DATA_FOR_MANAGER: "/get-dashboard-data-for-manager",
+
+            GET_CURRENT_STOCK_REPORT: "/get-current-stock-report",
+            GET_LOW_STOCK_REPORT: "/get-low-stock-report",
+            GET_PRODUCT_WISE_STOCK_REPORT: "/get-product-wise-stock-report",
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
