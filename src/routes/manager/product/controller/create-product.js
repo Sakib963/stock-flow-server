@@ -8,16 +8,16 @@ const create_product = async (request, res) => {
       let user_id = request.credentials.user_id;
       try {
             // Check product
-            const exiting_product = await check_existing_product(payload.sku)
+            const exiting_product = await check_existing_product(payload.name)
             if (exiting_product) {
-                  log.warn(`SKU already exists [${payload.sku}]`);
-                  return res.status(409).json({ code: 409, message: "SKU Already Exists!" });
+                  log.warn(`Name already exists [${payload.name}]`);
+                  return res.status(409).json({ code: 409, message: "Name Already Exists!" });
             }
 
             const product_oid = uuidv4();
             const sql = {
-                  text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, unit_type, description, photo, product_nature, restock_threshold, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                  values: [product_oid, payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id]
+                  text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, unit_type, description, photo, product_nature, restock_threshold, status, created_by, brand_oid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                  values: [product_oid, payload.name, payload.sku, payload.category_oid, payload.sub_category_oid, payload.unit_type, payload.description, payload.photo, payload.product_nature, payload.restock_threshold, payload.status, user_id, payload.brand_oid]
             }
 
             const product_stat_sql = {
@@ -38,11 +38,11 @@ const create_product = async (request, res) => {
       });
 }
 
-const check_existing_product = async (sku) => {
+const check_existing_product = async (name) => {
       let count = 0;
       const sql = {
-            text: `select count(oid)::int4 as total from ${TABLE.PRODUCT} where sku = $1`,
-            values: [sku]
+            text: `select count(oid)::int4 as total from ${TABLE.PRODUCT} where name = $1`,
+            values: [name]
       }
       try {
             let data_set = await get_data(sql);

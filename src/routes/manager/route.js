@@ -15,12 +15,14 @@ const { productReturnRouter } = require("./product-return/route");
 const { disposeRouter } = require("./product_dispose/route");
 const { managerDashboardRouter } = require("./dashboard/route");
 const { reportsRouter } = require("./reports/route");
+const { brandRouter } = require("./brand/route");
 
 const router = Router();
 
 // Nest user routes under `/user`
 router.use(SUB_CONTEXTS.CATEGORY, categoryRouter);
 router.use(SUB_CONTEXTS.SUB_CATEGORY, subCategoryRouter);
+router.use(SUB_CONTEXTS.BRANDS, brandRouter);
 router.use(SUB_CONTEXTS.SUPPLIER, supplier_router);
 router.use(SUB_CONTEXTS.SUPPLIER_DEALER, supplier_dealer_router);
 router.use(SUB_CONTEXTS.PRODUCT, productRouter);

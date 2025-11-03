@@ -23,7 +23,7 @@ const get_product_details = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.name, p.sku, p.category_oid, p.sub_category_oid, p.unit_type, p.description, p.photo, p.product_nature, p.restock_threshold, p.status, c.name as category_name, sc.name as sub_category_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid WHERE p.oid = $1`;
+      let query = `SELECT p.oid, p.name, p.sku, p.category_oid, p.sub_category_oid, p.unit_type, p.description, p.photo, p.product_nature, p.restock_threshold, p.status, c.name as category_name, sc.name as sub_category_name, p.brand_oid, b.name as brand_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid WHERE p.oid = $1`;
       let values = [request.query.oid];
 
       return { text: query, values };

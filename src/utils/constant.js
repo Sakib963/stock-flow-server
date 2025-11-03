@@ -8,6 +8,7 @@ module.exports = {
             LOGIN_LOG: "login_log",
             CATEGORIES: "categories",
             SUB_CATEGORIES: "sub_categories",
+            BRANDS: "brands",
             SUPPLIER: "supplier",
             SOURCE: "source",
             PRODUCT: 'product',
@@ -36,6 +37,7 @@ module.exports = {
             USER: "/user",
             CATEGORY: "/category",
             SUB_CATEGORY: "/sub-category",
+            BRANDS: "/brands",
             SUPPLIER: "/supplier",
             SUPPLIER_DEALER: "/supplier-dealer",
             PRODUCT: "/product",
@@ -73,6 +75,12 @@ module.exports = {
             UPDATE_SUB_CATEGORY_DETAILS: "/update-sub-category-details",
             GET_SUB_CATEGORY_DETAILS: "/get-sub-category-details",
             GET_SUB_CATEGORY_LIST_FOR_DROPDOWN: "/get-sub-category-list-for-dropdown",
+
+            GET_BRANDS_LIST: "/get-brand-list",
+            CREATE_BRANDS: "/create-brand",
+            UPDATE_BRANDS_DETAILS: "/update-brand-details",
+            GET_BRANDS_DETAILS: "/get-brand-details",
+            GET_BRANDS_LIST_FOR_DROPDOWN: "/get-brand-list-for-dropdown",
 
             GET_SUPPLIER_LIST: "/get-supplier-list",
             CREATE_SUPPLIER: "/create-supplier",

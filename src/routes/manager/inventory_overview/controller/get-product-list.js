@@ -91,6 +91,7 @@ const generate_count_sql = (request) => {
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid 
                   LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
                   LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
+                  LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
                    WHERE p.status = 'Active'`;
       let values = [];
 
@@ -116,6 +117,11 @@ const generate_count_sql = (request) => {
       if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
             query += ` AND s.oid = $${values.length + 1}`;
             values.push(request.query.sub_category_oid);
+      }
+
+      if (request.query.brand_oid && request.query.brand_oid.trim() !== "" && request.query.brand_oid.trim().toLowerCase() !== "null") {
+            query += ` AND b.oid = $${values.length + 1}`;
+            values.push(request.query.brand_oid);
       }
 
       return { text: query, values };
@@ -135,6 +141,7 @@ const generate_data_sql = (request) => {
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  
                   LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
                   LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
+                  LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
                    WHERE p.status = 'Active'`;
 
       let values = [];
@@ -161,6 +168,11 @@ const generate_data_sql = (request) => {
       if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
             query += ` AND s.oid = $${values.length + 1}`;
             values.push(request.query.sub_category_oid);
+      }
+
+      if (request.query.brand_oid && request.query.brand_oid.trim() !== "" && request.query.brand_oid.trim().toLowerCase() !== "null") {
+            query += ` AND b.oid = $${values.length + 1}`;
+            values.push(request.query.brand_oid);
       }
 
       query += ` GROUP BY p.oid, p.name, p.restock_threshold, p.photo, p.status 

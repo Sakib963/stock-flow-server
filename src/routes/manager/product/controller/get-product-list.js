@@ -31,7 +31,7 @@ const get_product_list = async (request, res) => {
 };
 
 const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total  FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
+      let query = `SELECT COUNT(*) AS total  FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
@@ -54,13 +54,18 @@ const generate_count_sql = (request) => {
       if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
             query += ` AND s.oid = $${values.length + 1}`;
             values.push(request.query.sub_category_oid);
+      }
+
+      if (request.query.brand_oid && request.query.brand_oid.trim() !== "" && request.query.brand_oid.trim().toLowerCase() !== "null") {
+            query += ` AND b.oid = $${values.length + 1}`;
+            values.push(request.query.brand_oid);
       }
 
       return { text: query, values };
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.sub_category_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid WHERE 1 = 1`;
+      let query = `SELECT p.oid, p.name, p.status, p.category_oid, p.sub_category_oid, p.sku, p.photo, c.name as category_name, s.name as source_name FROM ${TABLE.PRODUCT} p LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
@@ -83,6 +88,11 @@ const generate_data_sql = (request) => {
       if (request.query.sub_category_oid && request.query.sub_category_oid.trim() !== "" && request.query.sub_category_oid.trim().toLowerCase() !== "null") {
             query += ` AND s.oid = $${values.length + 1}`;
             values.push(request.query.sub_category_oid);
+      }
+
+      if (request.query.brand_oid && request.query.brand_oid.trim() !== "" && request.query.brand_oid.trim().toLowerCase() !== "null") {
+            query += ` AND b.oid = $${values.length + 1}`;
+            values.push(request.query.brand_oid);
       }
 
       query += ` ORDER BY p.created_on ASC`

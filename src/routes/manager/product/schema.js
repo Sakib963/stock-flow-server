@@ -7,6 +7,7 @@ const product_list_schema = Joi.object({
       status: Joi.string().trim().allow(null, "").optional(),
       category_oid: Joi.string().trim().allow(null, "").optional(),
       sub_category_oid: Joi.string().trim().allow(null, "").optional(),
+      brand_oid: Joi.string().trim().allow(null, "").optional(),
 });
 
 const product_schema = Joi.object({
@@ -15,6 +16,7 @@ const product_schema = Joi.object({
       sku: Joi.string().allow(null),
       category_oid: Joi.string().required(),
       sub_category_oid: Joi.string().required(),
+      brand_oid: Joi.string().allow(null),
       unit_type: Joi.string().allow(null),
       product_nature: Joi.string().required(),
       restock_threshold: Joi.number().required(),

@@ -7,6 +7,7 @@ const overview_list_schema = Joi.object({
       status: Joi.string().trim().allow(null, "").optional(),
       category_oid: Joi.string().trim().allow(null, "").optional(),
       sub_category_oid: Joi.string().trim().allow(null, "").optional(),
+      brand_oid: Joi.string().trim().allow(null, "").optional(),
 });
 
 const overview_details_schema = Joi.object({
