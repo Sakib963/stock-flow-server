@@ -29,61 +29,6 @@ const get_product_list = async (request, res) => {
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
 };
-// ----------- get list by product -------------
-/* const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(distinct p.oid) AS total from ${TABLE.PRODUCT} p left join ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid WHERE p.status = 'Active'`;
-      let values = [];
-
-      if (request.query.search_text && request.query.search_text.trim() !== "") {
-            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-            query += ` AND (
-                  LOWER(p.name) LIKE $${values.length + 1} 
-                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
-            )`;
-            values.push(searchText, searchText);
-      }
-
-      if (request.query.status) {
-            query += ` AND p.status = $${values.length + 1}`;
-            values.push(request.query.status);
-      }
-
-      return { text: query, values };
-};
-
-const generate_data_sql = (request) => {
-      let query = `select p.oid as product_oid, p.name as product_name, p.restock_threshold, p.photo, COALESCE(COUNT(DISTINCT bd.batch_code), 0) AS total_batches, COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity from ${TABLE.PRODUCT} p left join ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  WHERE p.status = 'Active'`;
-
-      let values = [];
-
-      if (request.query.search_text && request.query.search_text.trim() !== "") {
-            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-            query += ` AND (
-                  LOWER(p.name) LIKE $${values.length + 1} 
-                  OR LOWER(bd.batch_code) LIKE $${values.length + 2}
-            )`;
-            values.push(searchText, searchText);
-      }
-
-      if (request.query.status) {
-            query += ` AND p.status = $${values.length + 1}`;
-            values.push(request.query.status);
-      }
-
-      query += ` GROUP BY p.oid, p.name, p.restock_threshold, p.photo, p.status ORDER BY total_available_quantity DESC`;
-
-      if (request.query.limit) {
-            query += ` LIMIT $${values.length + 1}`;
-            values.push(Number(request.query.limit));
-      }
-
-      if (request.query.offset) {
-            query += ` OFFSET $${values.length + 1}`;
-            values.push(Number(request.query.offset));
-      }
-
-      return { text: query, values };
-}; */
 
 const generate_count_sql = (request) => {
       let query = `SELECT COUNT(distinct p.oid) AS total 
@@ -136,7 +81,38 @@ const generate_data_sql = (request) => {
                         COALESCE(COUNT(DISTINCT bd.batch_code), 0) AS total_batches,
                         COALESCE(SUM(bd.quantity_available)::INTEGER, 0) AS total_available_quantity,
                         bool_or(bd.status = 'pending_pricing') AS has_pending_pricing,
-                        BOOL_OR(bd.intended_use = 'for_sale') AS has_for_sale_batch
+                        BOOL_OR(bd.intended_use = 'for_sale') AS has_for_sale_batch,
+                        COALESCE(SUM(bd.quantity_available * bd.cost_price), 0) AS total_stock_cost,
+                        COALESCE(SUM(
+                              CASE 
+                                    WHEN bd.intended_use = 'for_sale' 
+                                    AND bd.status = 'ready_for_sale'
+                                    AND bd.selling_price IS NOT NULL
+                                    THEN bd.quantity_available * bd.selling_price
+                                    ELSE 0
+                              END
+                        ), 0) AS expected_revenue,
+                        COALESCE(
+                              SUM(
+                                    CASE 
+                                    WHEN bd.intended_use = 'for_sale' 
+                                          AND bd.status = 'ready_for_sale' 
+                                          AND bd.selling_price IS NOT NULL
+                                    THEN (bd.quantity_available * bd.selling_price)
+                                    ELSE 0
+                                    END
+                              ), 0
+                        )
+                        -
+                        COALESCE(
+                              SUM(
+                                    CASE 
+                                    WHEN bd.intended_use = 'for_sale'
+                                    THEN (bd.quantity_available * bd.cost_price)
+                                    ELSE 0
+                                    END
+                              ), 0
+                        ) AS potential_profit
                    FROM ${TABLE.PRODUCT} p 
                    INNER JOIN ${TABLE.INVENTORY} bd ON bd.product_oid = p.oid  
                   LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 

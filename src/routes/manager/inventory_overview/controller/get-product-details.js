@@ -50,7 +50,22 @@ const generate_product_data_sql = (request) => {
 };
 
 const generate_batch_data_sql = (request) => {
-      let query = `select i.oid as inventory_oid, CAST(i.cost_price as INTEGER) as cost_price , CAST(i.selling_price as INTEGER) as selling_price, CAST(i.initial_quantity as INTEGER) as initial_quantity, CAST(i.quantity_available as INTEGER) as quantity_available, s."name" as supplier_name, w."name" as warehouse_name, a."name" as aisle_name, i.batch_code, i.intended_use, i.maximum_discount, i.status 
+      let query = `select i.oid as inventory_oid, CAST(i.cost_price as INTEGER) as cost_price , CAST(i.selling_price as INTEGER) as selling_price, CAST(i.initial_quantity as INTEGER) as initial_quantity, CAST(i.quantity_available as INTEGER) as quantity_available, s."name" as supplier_name, w."name" as warehouse_name, a."name" as aisle_name, i.batch_code, i.intended_use, i.maximum_discount, i.status ,
+      (i.quantity_available * i.cost_price) AS total_stock_cost,
+      CASE 
+            WHEN i.intended_use = 'for_sale'
+                  AND i.status = 'ready_for_sale'
+                  AND i.selling_price IS NOT NULL
+            THEN (i.quantity_available * i.selling_price)
+            ELSE 0
+      END AS expected_revenue,
+      CASE 
+            WHEN i.intended_use = 'for_sale'
+                  AND i.status = 'ready_for_sale'
+                  AND i.selling_price IS NOT NULL
+            THEN (i.quantity_available * (i.selling_price - i.cost_price))
+            ELSE 0
+      END AS potential_profit
             from ${TABLE.INVENTORY} i 
             left join ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
             left join ${TABLE.PURCHASE} p ON p.oid = pd.purchase_oid
