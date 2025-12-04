@@ -25,7 +25,7 @@ const get_dashboard_data = async (req, res) => {
                               (SELECT COUNT(*) FROM ${TABLE.CATEGORIES}) AS total_categories,
                               (SELECT COUNT(*) FROM ${TABLE.SUPPLIER}) AS total_suppliers,
                               (SELECT COUNT(*) FROM ${TABLE.WAREHOUSE}) AS total_warehouses,
-                              (SELECT COUNT(*) FROM ${TABLE.PRODUCT}) AS total_products
+                              (SELECT COUNT(*) FROM ${TABLE.PRODUCT} WHERE is_deleted = FALSE) AS total_products
                         ),
                         recent_sales AS (
                         SELECT json_agg(row_to_json(s)) AS recent_sales

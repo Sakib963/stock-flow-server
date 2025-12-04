@@ -99,6 +99,7 @@ module.exports = {
             UPDATE_PRODUCT_DETAILS: "/update-product-details",
             GET_PRODUCT_DETAILS: "/get-product-details",
             GET_PRODUCT_LIST_FOR_DROPDOWN: "/get-product-list-for-dropdown",
+            DELETE_PRODUCT: "/delete-product",
 
             GET_WAREHOUSE_LIST: "/get-warehouse-list",
             CREATE_WAREHOUSE: "/create-warehouse",

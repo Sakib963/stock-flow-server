@@ -92,7 +92,7 @@ const generate_count_sql = (request) => {
                   LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
                   LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
                   LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
-                   WHERE p.status = 'Active'`;
+                   WHERE p.status = 'Active' AND p.is_deleted = FALSE`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
@@ -142,7 +142,7 @@ const generate_data_sql = (request) => {
                   LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid 
                   LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
                   LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
-                   WHERE p.status = 'Active'`;
+                   WHERE p.status = 'Active' AND p.is_deleted = FALSE`;
 
       let values = [];
 

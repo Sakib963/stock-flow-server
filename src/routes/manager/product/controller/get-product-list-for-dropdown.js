@@ -23,7 +23,7 @@ const get_product_list_for_dropdown = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT oid as value, name as label  FROM ${TABLE.PRODUCT} WHERE status = 'Active' ORDER BY created_on ASC`;
+      let query = `SELECT oid as value, name as label  FROM ${TABLE.PRODUCT} WHERE status = 'Active' AND is_deleted = FALSE ORDER BY created_on ASC`;
       let values = [];
       return { text: query, values };
 };
