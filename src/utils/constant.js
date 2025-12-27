@@ -24,7 +24,8 @@ module.exports = {
             PRODUCT_RETURN: "product_return",
             RETURN_DETAILS: "return_details",
             PRODUCT_DISPOSE: "product_dispose",
-            OTP_LOG: "otp_log"
+            OTP_LOG: "otp_log",
+            USER_NOTES: "user_notes"
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -53,7 +54,8 @@ module.exports = {
             CHANGE_PASSWORD: "/change-password",
             PROFILE_INFO: "/profile-info",
             DASHBOARD: "/dashboard",
-            REPORTS: "/reports"
+            REPORTS: "/reports",
+            NOTES: "/notes"
       },
       ROUTES: {
             SIGN_IN: "/sign-in",
@@ -161,6 +163,13 @@ module.exports = {
             GET_CURRENT_STOCK_REPORT: "/get-current-stock-report",
             GET_LOW_STOCK_REPORT: "/get-low-stock-report",
             GET_PRODUCT_WISE_STOCK_REPORT: "/get-product-wise-stock-report",
+
+            // Notes
+            GET_USER_NOTE_LIST: "/get-note-list",
+            GET_USER_NOTE_DETAILS: "/get-note-details",
+            CREATE_USER_NOTE: "/create-note",
+            UPDATE_USER_NOTE: "/update-note",
+            DELETE_USER_NOTE: "/delete-note/:oid"
       },
       IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
