@@ -163,6 +163,8 @@ module.exports = {
             GET_CURRENT_STOCK_REPORT: "/get-current-stock-report",
             GET_LOW_STOCK_REPORT: "/get-low-stock-report",
             GET_PRODUCT_WISE_STOCK_REPORT: "/get-product-wise-stock-report",
+            
+            GET_PURCHASE_ORDER_REPORT: "/get-purchase-order-report",
 
             // Notes
             GET_USER_NOTE_LIST: "/get-note-list",
