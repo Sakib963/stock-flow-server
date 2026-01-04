@@ -32,7 +32,8 @@ module.exports = {
             ADMIN: "/api/v1/admin",
             MANAGER: "/api/v1/manager",
             SALESMAN: "/api/v1/salesman",
-            PROFILE: "/api/v1/profile"
+            PROFILE: "/api/v1/profile",
+            CONFIGURATION: "/api/v1/configuration",
       },
       SUB_CONTEXTS: {
             USER: "/user",

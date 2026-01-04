@@ -11,7 +11,7 @@ const category_schema = Joi.object({
       oid: Joi.string().allow(null),
       name: Joi.string().required(),
       category_code: Joi.string().required(),
-      description: Joi.string().allow(null),
+      description: Joi.string().allow(null, ""),
       status: Joi.string().required(),
 });
 

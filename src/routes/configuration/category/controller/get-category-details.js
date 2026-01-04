@@ -11,7 +11,7 @@ const get_category_details = async (request, res) => {
             const data = data_set.length ? data_set[0] : null;
 
             // Step 2: Respond with data
-            log.info(`Category details Found for oid: ${request.query.oid}`);
+            log.info(`Category details Found for oid: ${request.params.oid}`);
             return res.status(200).json({
                   code: 200,
                   message: "Category details Found",
@@ -24,8 +24,8 @@ const get_category_details = async (request, res) => {
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT oid, name, description, status, category_code FROM ${TABLE.CATEGORIES} WHERE oid = $1`;
-      let values = [request.query.oid];
+      let query = `SELECT oid, name, description, status, category_code, created_by, created_on, edited_by, edited_on FROM ${TABLE.CATEGORIES} WHERE oid = $1`;
+      let values = [request.params.oid];
 
       return { text: query, values };
 };

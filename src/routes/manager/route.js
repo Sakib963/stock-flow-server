@@ -1,6 +1,5 @@
 const { Router } = require("express");
 const { SUB_CONTEXTS } = require("../../utils/constant");
-const { categoryRouter } = require("./category/route");
 const { supplier_dealer_router } = require("./supplier_dealer/route");
 const { productRouter } = require("./product/route");
 const { warehouse_router } = require("./warehouse/route");
@@ -20,7 +19,6 @@ const { brandRouter } = require("./brand/route");
 const router = Router();
 
 // Nest user routes under `/user`
-router.use(SUB_CONTEXTS.CATEGORY, categoryRouter);
 router.use(SUB_CONTEXTS.SUB_CATEGORY, subCategoryRouter);
 router.use(SUB_CONTEXTS.BRANDS, brandRouter);
 router.use(SUB_CONTEXTS.SUPPLIER, supplier_router);

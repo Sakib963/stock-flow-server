@@ -41,8 +41,8 @@ router.post(
 
 // Get Category Details
 router.get(
-      ROUTES.GET_CATEGORY_DETAILS,
-      [jwtMiddleware, validator.get(category_details_schema)],
+      ROUTES.GET_CATEGORY_DETAILS + "/:oid",
+      [jwtMiddleware],
       get_category_details
 );
 
