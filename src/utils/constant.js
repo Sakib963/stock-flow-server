@@ -25,7 +25,8 @@ module.exports = {
             RETURN_DETAILS: "return_details",
             PRODUCT_DISPOSE: "product_dispose",
             OTP_LOG: "otp_log",
-            USER_NOTES: "user_notes"
+            USER_NOTES: "user_notes",
+            ACTIVITY_LOG: "activity_log"
       },
       CONTEXTS: {
             AUTH: "/api/v1/auth",
@@ -72,6 +73,8 @@ module.exports = {
             UPDATE_CATEGORY_DETAILS: "/update-category-details",
             GET_CATEGORY_DETAILS: "/get-category-details",
             GET_CATEGORY_LIST_FOR_DROPDOWN: "/get-category-list-for-dropdown",
+            GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY: "/generate-product-list-report-by-category",
+            GENERATE_INVENTORY_REPORT_BY_CATEGORY: "/generate-inventory-report-by-category",
 
             GET_SUB_CATEGORY_LIST: "/get-sub-category-list",
             CREATE_SUB_CATEGORY: "/create-sub-category",

@@ -4,7 +4,7 @@
   "description": "This is the server-side API for the StockFlow Inventory/Warehouse Management System. It is built using Express.js and connected to a PostgreSQL database to handle inventory, product, and sales data.",
   "main": "index.js",
   "scripts": {
-    "loc": "nodemon ./server.js",
+    "dev": "nodemon ./server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

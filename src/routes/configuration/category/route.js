@@ -8,6 +8,9 @@ const create_category = require("./controller/create-category");
 const update_category_details = require("./controller/update-category-details");
 const get_category_details = require("./controller/get-category-details");
 const get_category_list_for_dropdown = require("./controller/get-category-list-for-dropdown");
+const ExcelJS = require("exceljs");
+const generate_product_list_by_category = require("./controller/get-product-list-by-cateogory");
+const generate_inventory_report_by_category = require("./controller/generate-inventory-report-by-category");
 
 const router = Router();
 
@@ -44,6 +47,20 @@ router.get(
       ROUTES.GET_CATEGORY_DETAILS + "/:oid",
       [jwtMiddleware],
       get_category_details
+);
+
+// Generate Product List Report by Category
+router.post(
+      ROUTES.GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY,
+      [jwtMiddleware, validator.post(category_details_schema)],
+      generate_product_list_by_category
+);
+
+// Generate Inventory Report by Category
+router.post(
+      ROUTES.GENERATE_INVENTORY_REPORT_BY_CATEGORY,
+      [jwtMiddleware, validator.post(category_details_schema)],
+      generate_inventory_report_by_category
 );
 
 module.exports = { categoryRouter: router };

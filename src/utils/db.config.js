@@ -7,21 +7,70 @@ const pool = new Pool({
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    max: 5, // Reduced for serverless (Vercel creates multiple instances)
+    min: 0, // Allow scaling down to 0 for serverless
+    idleTimeoutMillis: 60000, // 60 seconds before closing idle connections
+    connectionTimeoutMillis: 10000, // 10 seconds - increased for cloud databases
     maxUses: 7500,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    // Add query timeout to prevent hanging queries
+    query_timeout: 30000, // 30 seconds query timeout
+    statement_timeout: 30000, // 30 seconds statement timeout
+    // Enable keep-alive to prevent connection drops
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000 // 10 seconds
 });
 
-// Test the database connection
-pool.connect()
-    .then(client => {
-        console.log("✅ Database connected successfully!");
-        client.release(); // Release the client back to the pool
-    })
-    .catch(err => {
-        console.error("❌ Database connection error:", err);
-    });
+// Handle pool errors to prevent crashes
+pool.on('error', (err, client) => {
+    console.error('❌ Unexpected error on idle client', err);
+    // Don't exit the process, just log the error
+});
+
+// Handle connection events
+pool.on('connect', (client) => {
+    console.log('🔗 New client connected to database');
+});
+
+pool.on('remove', (client) => {
+    console.log('🔌 Client removed from pool');
+});
+
+// Test the database connection with retry logic
+const testConnection = async (retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const client = await pool.connect();
+            console.log("✅ Database connected successfully!");
+            client.release();
+            return;
+        } catch (err) {
+            console.error(`❌ Database connection error (attempt ${i + 1}/${retries}):`, err.message);
+            if (i === retries - 1) {
+                console.error('Failed to connect after', retries, 'attempts');
+            } else {
+                // Wait before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+            }
+        }
+    }
+};
+
+testConnection();
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    await pool.end();
+    console.log('✅ Database pool closed');
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    await pool.end();
+    console.log('✅ Database pool closed');
+    process.exit(0);
+});
 
 module.exports = pool;

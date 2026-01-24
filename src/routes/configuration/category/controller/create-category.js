@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data, execute_value } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
+const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { v4: uuidv4 } = require('uuid');
 
 const create_category = async (request, res) => {
@@ -14,12 +15,22 @@ const create_category = async (request, res) => {
                   return res.status(409).json({ code: 409, message: "Name Already Exists!" });
             }
 
+            const categoryOid = uuidv4();
             const sql = {
                   text: `INSERT INTO ${TABLE.CATEGORIES} (oid, name, category_code, description, status, created_by) VALUES ($1, $2, $3, $4, $5, $6)`,
-                  values: [uuidv4(), payload.name, payload.category_code, payload.description, payload.status, user_id]
+                  values: [categoryOid, payload.name, payload.category_code, payload.description, payload.status, user_id]
             }
 
             await execute_value(sql);
+            
+            // Log activity (non-blocking - fire and forget)
+            saveLogActivity({
+                  reference_type: 'category',
+                  reference_oid: categoryOid,
+                  title: 'Created category',
+                  performed_by: user_id,
+                  description: `Created category "${payload.name}" with code ${payload.category_code}`
+            });
       } catch (e) {
             log.error(`An exception occurred while creating category : ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
