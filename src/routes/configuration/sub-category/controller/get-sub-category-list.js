@@ -17,58 +17,65 @@ const get_sub_category_list = async (request, res) => {
             const data = data_set.length ? data_set : [];
 
             // Step 3: Respond with total count and paginated data
-            log.info(`Sub Category list Found: ${data?.length} of ${total}`);
+            log.info(`Sub-Category list Found: ${data?.length} of ${total}`);
             return res.status(200).json({
                   code: 200,
-                  message: "Sub Category list Found",
+                  message: "Sub-Category list Found",
                   total,
                   data,
             });
       } catch (e) {
-            log.error(`An exception occurred while getting sub category information: ${e?.message}`);
+            log.error(`An exception occurred while getting sub-category information: ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
 };
 
 const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE 1 = 1`;
+      let query = `SELECT COUNT(*) AS total FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON sc.category_oid = c.oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
             const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(sc.name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(sc.category_code) LIKE $${values.length + 2} `;
-            query += `OR LOWER(c.name) LIKE $${values.length + 3})`;
-            values.push(searchText, searchText, searchText);
+            query += `OR LOWER(sc.category_code) LIKE $${values.length + 2})`;
+            values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
-            query += `AND sc.status = $${values.length + 1}`
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status !== 'null') {
+            query += ` AND sc.status = $${values.length + 1}`;
             values.push(request.query.status);
+      }
+
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid !== 'null') {
+            query += ` AND sc.category_oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
       }
 
       return { text: query, values };
 };
 
 const generate_data_sql = (request) => {
-      let query = `SELECT sc.oid, sc.name, sc.description, sc.status, sc.category_code, c.name as category_name FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid WHERE 1 = 1 `;
+      let query = `SELECT sc.oid, sc.name, sc.description, sc.status, sc.category_code, c.name as category_name FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON sc.category_oid = c.oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.search_text && request.query.search_text.trim() !== "") {
             const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(sc.name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(sc.category_code) LIKE $${values.length + 2} `;
-            query += `OR LOWER(c.name) LIKE $${values.length + 3})`;
-            values.push(searchText, searchText, searchText);
+            query += `OR LOWER(sc.category_code) LIKE $${values.length + 2})`;
+            values.push(searchText, searchText);
       }
 
-      if (request.query.status) {
+      if (request.query.status && request.query.status.trim() !== "" && request.query.status !== 'null') {
             query += ` AND sc.status = $${values.length + 1}`;
             values.push(request.query.status);
       }
 
-      query += ` ORDER BY sc.created_on ASC`
+      if (request.query.category_oid && request.query.category_oid.trim() !== "" && request.query.category_oid !== 'null') {
+            query += ` AND sc.category_oid = $${values.length + 1}`;
+            values.push(request.query.category_oid);
+      }
 
+      query += ` ORDER BY sc.created_on ASC`
       if (request.query.offset) {
             query += ` OFFSET $${values.length + 1}`;
             values.push(Number(request.query.offset));
@@ -78,7 +85,6 @@ const generate_data_sql = (request) => {
             query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
             values.push(Number(request.query.limit));
       }
-
       return { text: query, values };
 };
 

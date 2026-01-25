@@ -9,8 +9,8 @@ const update_category_details = require("./controller/update-category-details");
 const get_category_details = require("./controller/get-category-details");
 const get_category_list_for_dropdown = require("./controller/get-category-list-for-dropdown");
 const ExcelJS = require("exceljs");
-const generate_product_list_by_category = require("./controller/get-product-list-by-cateogory");
 const generate_inventory_report_by_category = require("./controller/generate-inventory-report-by-category");
+const generate_product_list_report_by_category = require("./controller/generate-product-list-report-by-category");
 
 const router = Router();
 
@@ -53,7 +53,7 @@ router.get(
 router.post(
       ROUTES.GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY,
       [jwtMiddleware, validator.post(category_details_schema)],
-      generate_product_list_by_category
+      generate_product_list_report_by_category
 );
 
 // Generate Inventory Report by Category

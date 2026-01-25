@@ -42,57 +42,68 @@ const saveLogActivity = ({ reference_type, reference_oid, title, performed_by, d
       });
 };
 
-/**Detect changes between old and new objects and generate descriptive text
+/**
+ * Generate human-readable label from field name
+ * Handles common conventions: snake_case, _oid suffix, has_ prefix
+ * @param {string} fieldName - Field name to convert
+ * @returns {string} - Human-readable label
+ */
+const generateFieldLabel = (fieldName) => {
+      let label = fieldName;
+      
+      // Remove _oid suffix (e.g., warehouse_oid -> warehouse)
+      label = label.replace(/_oid$/i, '');
+      
+      // Split by underscores and capitalize each word
+      label = label.split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+      
+      return label;
+};
+
+/**
+ * Detect changes between old and new objects and generate descriptive text
+ * Automatically loops through all fields and generates labels from field names
  * @param {Object} oldData - Previous state of the object
- * @param {Object} newData - New state of the object
- * @param {Object} fieldLabels - Human-readable labels for fields (optional)
+ * @param {Object} newData - New state of the object (can be full object or partial updates)
+ * @param {Object} fieldLabels - Custom human-readable labels for specific fields (optional)
  * @returns {Array<string>} - Array of change descriptions
  */
 const detectChanges = (oldData, newData, fieldLabels = {}) => {
       const changes = [];
       
-      if (!oldData) {
+      if (!oldData || !newData) {
             return changes;
       }
 
-      // Define default field labels
-      const labels = {
-            name: 'Name',
-            description: 'Description',
-            status: 'Status',
-            category_code: 'Category Code',
-            email: 'Email',
-            phone_number: 'Phone Number',
-            address: 'Address',
-            price: 'Price',
-            quantity: 'Quantity',
-            ...fieldLabels
-      };
+      // System fields to skip
+      const skipFields = ['oid', 'created_by', 'created_on', 'edited_by', 'edited_on'];
 
-      // Check each field in newData
+      // Automatically loop through all fields in newData
       for (const field in newData) {
-            if (newData.hasOwnProperty(field) && oldData.hasOwnProperty(field)) {
-                  const oldValue = oldData[field];
-                  const newValue = newData[field];
-                  
-                  // Skip if values are the same
-                  if (oldValue === newValue) {
-                        continue;
-                  }
-                  
-                  // Skip system fields
-                  if (['oid', 'created_by', 'created_on', 'edited_by', 'edited_on'].includes(field)) {
-                        continue;
-                  }
-                  
-                  const fieldLabel = labels[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                  
-                  // Handle null/empty values
-                  const oldDisplay = oldValue === null || oldValue === '' ? 'empty' : `"${oldValue}"`;
-                  const newDisplay = newValue === null || newValue === '' ? 'empty' : `"${newValue}"`;
-                  
-                  changes.push(`${fieldLabel} changed from ${oldDisplay} to ${newDisplay}`);
-            }
+            if (!newData.hasOwnProperty(field)) continue;
+            
+            // Skip if field doesn't exist in oldData (new field)
+            if (!oldData.hasOwnProperty(field)) continue;
+            
+            // Skip system fields
+            if (skipFields.includes(field)) continue;
+            
+            const oldValue = oldData[field];
+            const newValue = newData[field];
+            
+            // Skip if values are the same
+            if (oldValue === newValue) continue;
+            
+            // Use custom label if provided, otherwise auto-generate
+            const fieldLabel = fieldLabels[field] || generateFieldLabel(field);
+            
+            // Handle null/empty values
+            const oldDisplay = oldValue === null || oldValue === '' ? 'empty' : `"${oldValue}"`;
+            const newDisplay = newValue === null || newValue === '' ? 'empty' : `"${newValue}"`;
+            
+            changes.push(`${fieldLabel} changed from ${oldDisplay} to ${newDisplay}`);
       }
 
       return changes;
@@ -159,5 +170,5 @@ module.exports = {
       getLogActivities,
       detectChanges,
       generateChangeDescription,
-      getLogActivities
+      generateFieldLabel
 };

@@ -4,47 +4,47 @@ const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
 
-const generate_inventory_report_by_category = async (request, res) => {
+const generate_inventory_report_by_sub_category = async (request, res) => {
       try {
             const payload = request.body;
-            const categoryOid = payload.oid;
+            const subCategoryOid = payload.oid;
 
-            if (!categoryOid) {
-                  log.warn('Category OID is required');
+            if (!subCategoryOid) {
+                  log.warn('Sub-Category OID is required');
                   return res.status(400).json({
                         code: 400,
-                        message: "Category OID is required",
+                        message: "Sub-Category OID is required",
                         data: null,
                   });
             }
 
-            // Get inventory with category details in a single query
-            const inventorySql = generate_inventory_sql(categoryOid);
+            // Get inventory with sub-category details in a single query
+            const inventorySql = generate_inventory_sql(subCategoryOid);
             const inventory = await get_data(inventorySql);
 
             if (!inventory || inventory.length === 0) {
-                  log.info(`No inventory found for category OID: ${categoryOid}`);
+                  log.info(`No inventory found for sub-category OID: ${subCategoryOid}`);
                   return res.status(404).json({
                         code: 404,
-                        message: "No inventory data found for this category",
+                        message: "No inventory data found for this sub-category",
                         data: null,
                   });
             }
 
-            // Extract category details from first row (same for all inventory items)
-            const categoryDetails = {
-                  name: inventory[0].category_name,
-                  description: inventory[0].category_description,
-                  status: inventory[0].category_status,
-                  category_code: inventory[0].category_code
+            // Extract sub-category details from first row (same for all inventory items)
+            const subCategoryDetails = {
+                  name: inventory[0].sub_category_name_detail,
+                  description: inventory[0].sub_category_description,
+                  status: inventory[0].sub_category_status,
+                  category_code: inventory[0].category_code,
+                  parent_category_name: inventory[0].parent_category_name
             };
             
-            const buffer = await generate_inventory_xlsx(inventory, categoryDetails);
+            const buffer = await generate_inventory_xlsx(inventory, subCategoryDetails);
             const timestamp = Date.now();
-            const file_name = `${categoryDetails.name.replace(/\s+/g, '_')}_inventory_report_${timestamp}.xlsx`;
+            const file_name = `${subCategoryDetails.name.replace(/\s+/g, '_')}_inventory_report_${timestamp}.xlsx`;
 
-            log.info(`Download inventory report for category [${categoryDetails.name}] - [${file_name}]`);
-
+            log.info(`Download inventory report for sub-category [${subCategoryDetails.name}] - [${file_name}]`);
             res
                   .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                   .set("Content-Disposition", `attachment; filename="${file_name}"`)
@@ -61,16 +61,17 @@ const generate_inventory_report_by_category = async (request, res) => {
       }
 };
 
-const generate_inventory_sql = (categoryOid) => {
+const generate_inventory_sql = (subCategoryOid) => {
       const query = `
             SELECT 
                   p.name AS product_name,
                   p.sku,
                   s.name AS sub_category_name,
-                  c.name AS category_name,
-                  c.description AS category_description,
-                  c.status AS category_status,
-                  c.category_code,
+                  s.name AS sub_category_name_detail,
+                  s.description AS sub_category_description,
+                  s.status AS sub_category_status,
+                  s.category_code,
+                  c.name AS parent_category_name,
                   i.batch_code,
                   CAST(i.initial_quantity AS INTEGER) AS initial_quantity,
                   CAST(i.quantity_available AS INTEGER) AS quantity_available,
@@ -88,20 +89,20 @@ const generate_inventory_sql = (categoryOid) => {
                   a.name AS aisle_name
             FROM ${TABLE.INVENTORY} i
             INNER JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
-            LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
-            INNER JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
+            INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
+            LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
             LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
             LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = pd.purchase_oid
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
             LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
             LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
-            WHERE p.category_oid = $1
+            WHERE p.sub_category_oid = $1
             ORDER BY p.name ASC, i.batch_code ASC
       `;
-      return { text: query, values: [categoryOid] };
+      return { text: query, values: [subCategoryOid] };
 };
 
-const generate_inventory_xlsx = async (inventory, categoryDetails) => {
+const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Inventory");
 
@@ -127,7 +128,7 @@ const generate_inventory_xlsx = async (inventory, categoryDetails) => {
       ];
 
       // Add report header (logo + company info + title)
-      addReportHeader(sheet, `Inventory Report - ${categoryDetails.name}`, titles.length);
+      addReportHeader(sheet, `Inventory Report - ${subCategoryDetails.name}`, titles.length);
 
       // Add column titles (bold)
       const headerRowIndex = 5; // Titles go on row 5
@@ -162,14 +163,16 @@ const generate_inventory_xlsx = async (inventory, categoryDetails) => {
             ]);
       });
 
-      // Add category details section
+      // Add sub-category details section
       sheet.addRow([]);
-      sheet.addRow(['CATEGORY INFORMATION']);
-      sheet.addRow(['Category Name:', categoryDetails.name]);
-      sheet.addRow(['Category Code:', categoryDetails.category_code]);
-      sheet.addRow(['Description:', categoryDetails.description || 'N/A']);
-      sheet.addRow(['Status:', categoryDetails.status]);
-      sheet.getRow(sheet.rowCount - 4).font = { bold: true, size: 12 };
+      sheet.addRow(['SUB-CATEGORY INFORMATION']);
+      sheet.addRow(['Sub-Category Name:', subCategoryDetails.name]);
+      sheet.addRow(['Parent Category:', subCategoryDetails.parent_category_name || 'N/A']);
+      sheet.addRow(['Category Code:', subCategoryDetails.category_code]);
+      sheet.addRow(['Description:', subCategoryDetails.description || 'N/A']);
+      sheet.addRow(['Status:', subCategoryDetails.status]);
+      sheet.getRow(sheet.rowCount - 5).font = { bold: true, size: 12 };
+      sheet.getRow(sheet.rowCount - 4).font = { bold: true };
       sheet.getRow(sheet.rowCount - 3).font = { bold: true };
       sheet.getRow(sheet.rowCount - 2).font = { bold: true };
       sheet.getRow(sheet.rowCount - 1).font = { bold: true };
@@ -209,4 +212,4 @@ const generate_inventory_xlsx = async (inventory, categoryDetails) => {
       return workbook.xlsx.writeBuffer();
 };
 
-module.exports = generate_inventory_report_by_category;
+module.exports = generate_inventory_report_by_sub_category;

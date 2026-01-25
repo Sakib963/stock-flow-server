@@ -81,6 +81,8 @@ module.exports = {
             UPDATE_SUB_CATEGORY_DETAILS: "/update-sub-category-details",
             GET_SUB_CATEGORY_DETAILS: "/get-sub-category-details",
             GET_SUB_CATEGORY_LIST_FOR_DROPDOWN: "/get-sub-category-list-for-dropdown",
+            GENERATE_PRODUCT_LIST_REPORT_BY_SUB_CATEGORY: "/generate-product-list-report-by-sub-category",
+            GENERATE_INVENTORY_REPORT_BY_SUB_CATEGORY: "/generate-inventory-report-by-sub-category",
 
             GET_BRANDS_LIST: "/get-brand-list",
             CREATE_BRANDS: "/create-brand",

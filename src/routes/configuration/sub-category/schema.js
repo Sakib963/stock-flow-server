@@ -5,10 +5,7 @@ const sub_category_list_schema = Joi.object({
       limit: Joi.number().required(),
       search_text: Joi.string().trim().allow(null, "").optional(),
       status: Joi.string().trim().allow(null, "").optional(),
-});
-
-const sub_category_dropdown_schema = Joi.object({
-      category_oid: Joi.string().trim().required()
+      category_oid: Joi.string().trim().allow(null, "").optional(),
 });
 
 const sub_category_schema = Joi.object({
@@ -24,4 +21,4 @@ const sub_category_details_schema = Joi.object({
       oid: Joi.string().required(),
 });
 
-module.exports = { sub_category_list_schema, sub_category_schema, sub_category_details_schema, sub_category_dropdown_schema };
+module.exports = { sub_category_list_schema, sub_category_schema, sub_category_details_schema };

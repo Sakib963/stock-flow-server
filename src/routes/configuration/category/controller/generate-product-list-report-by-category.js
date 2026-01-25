@@ -4,7 +4,7 @@ const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
 
-const generate_product_list_by_category = async (request, res) => {
+const generate_product_list_report_by_category = async (request, res) => {
       try {
             const payload = request.body;
             const categoryOid = payload.oid;
@@ -18,32 +18,26 @@ const generate_product_list_by_category = async (request, res) => {
                   });
             }
 
-            // Step 1: Get category details
-            const detailsSql = generate_category_details_sql(categoryOid);
-            const details_set = await get_data(detailsSql);
-            const categoryDetails = details_set.length ? details_set[0] : null;
-
-            if (!categoryDetails) {
-                  log.warn(`Category not found for oid: ${categoryOid}`);
-                  return res.status(404).json({
-                        code: 404,
-                        message: "Category not found",
-                        data: null,
-                  });
-            }
-
-            // Step 2: Get products for this category with inventory data
+            // Get products with category details in a single query
             const productsSql = generate_products_sql(categoryOid);
             const products = await get_data(productsSql);
 
             if (!products || products.length === 0) {
-                  log.info(`No products found for category: ${categoryDetails.name}`);
+                  log.info(`No products found for category OID: ${categoryOid}`);
                   return res.status(404).json({
                         code: 404,
                         message: "No products found for this category",
                         data: null,
                   });
             }
+
+            // Extract category details from first row (same for all products)
+            const categoryDetails = {
+                  name: products[0].category_name,
+                  description: products[0].category_description,
+                  status: products[0].category_status,
+                  category_code: products[0].category_code
+            };
             
             const buffer = await generate_products_xlsx(products, categoryDetails);
             const timestamp = Date.now();
@@ -67,20 +61,6 @@ const generate_product_list_by_category = async (request, res) => {
       }
 };
 
-const generate_category_details_sql = (categoryOid) => {
-      const query = `
-            SELECT 
-                  oid, 
-                  name, 
-                  description, 
-                  status, 
-                  category_code
-            FROM ${TABLE.CATEGORIES} 
-            WHERE oid = $1
-      `;
-      return { text: query, values: [categoryOid] };
-};
-
 const generate_products_sql = (categoryOid) => {
       const query = `
             SELECT 
@@ -91,6 +71,10 @@ const generate_products_sql = (categoryOid) => {
                   p.restock_threshold,
                   p.unit_type,
                   s.name AS sub_category_name,
+                  c.name AS category_name,
+                  c.description AS category_description,
+                  c.status AS category_status,
+                  c.category_code,
                   COALESCE(COUNT(DISTINCT i.batch_code), 0) AS total_batches,
                   COALESCE(SUM(CAST(i.quantity_available AS INTEGER)), 0) AS total_available_quantity,
                   COALESCE(ps.total_sold, 0) AS total_quantity_sold,
@@ -104,9 +88,10 @@ const generate_products_sql = (categoryOid) => {
             FROM ${TABLE.PRODUCT} p
             LEFT JOIN ${TABLE.INVENTORY} i ON i.product_oid = p.oid
             LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
+            INNER JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
             LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
             WHERE p.category_oid = $1
-            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, ps.total_sold, ps.total_returned
+            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, c.description, c.status, c.category_code, ps.total_sold, ps.total_returned
             ORDER BY p.name ASC
       `;
       return { text: query, values: [categoryOid] };
@@ -181,11 +166,24 @@ const generate_products_xlsx = async (products, categoryDetails) => {
             ]);
       });
 
+      // Add category details section
+      sheet.addRow([]);
+      sheet.addRow(['CATEGORY INFORMATION']);
+      sheet.addRow(['Category Name:', categoryDetails.name]);
+      sheet.addRow(['Category Code:', categoryDetails.category_code]);
+      sheet.addRow(['Description:', categoryDetails.description || 'N/A']);
+      sheet.addRow(['Status:', categoryDetails.status]);
+      sheet.getRow(sheet.rowCount - 4).font = { bold: true, size: 12 };
+      sheet.getRow(sheet.rowCount - 3).font = { bold: true };
+      sheet.getRow(sheet.rowCount - 2).font = { bold: true };
+      sheet.getRow(sheet.rowCount - 1).font = { bold: true };
+      sheet.getRow(sheet.rowCount).font = { bold: true };
+
       // Add summary rows
       const summaryRowIndex = sheet.rowCount + 2;
       sheet.addRow([]);
       sheet.addRow([
-            'CATEGORY SUMMARY',
+            'PRODUCTS SUMMARY',
             '',
             '',
             '',
@@ -253,4 +251,4 @@ const generate_products_xlsx = async (products, categoryDetails) => {
       return workbook.xlsx.writeBuffer();
 };
 
-module.exports = generate_product_list_by_category;
+module.exports = generate_product_list_report_by_category;
