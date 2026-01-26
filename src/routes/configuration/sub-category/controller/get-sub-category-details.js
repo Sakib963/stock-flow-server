@@ -35,7 +35,7 @@ const get_sub_category_details = async (request, res) => {
             };
 
             // Step 3: Get activity timeline (last 10 activities)
-            const activity_set = await getLogActivities('sub_category', subCategoryOid, 10);
+            const activity_set = await getLogActivities('sub-category', subCategoryOid, 10);
 
             // Step 4: Combine all data
             const responseData = {

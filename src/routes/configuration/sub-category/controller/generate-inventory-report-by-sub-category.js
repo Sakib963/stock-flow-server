@@ -43,12 +43,13 @@ const generate_inventory_report_by_sub_category = async (request, res) => {
             const buffer = await generate_inventory_xlsx(inventory, subCategoryDetails);
             const timestamp = Date.now();
             const file_name = `${subCategoryDetails.name.replace(/\s+/g, '_')}_inventory_report_${timestamp}.xlsx`;
-
+            console.log(`Generated inventory report for sub-category [${subCategoryDetails.name}] - [${file_name}]`);
             log.info(`Download inventory report for sub-category [${subCategoryDetails.name}] - [${file_name}]`);
             res
                   .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                   .set("Content-Disposition", `attachment; filename="${file_name}"`)
                   .set("X-Filename", file_name)
+                  .set("Access-Control-Expose-Headers", "X-Filename")
                   .set("Content-Length", buffer.length)
                   .send(buffer);
       } catch (e) {

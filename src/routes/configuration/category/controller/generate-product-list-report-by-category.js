@@ -49,6 +49,7 @@ const generate_product_list_report_by_category = async (request, res) => {
                   .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                   .set("Content-Disposition", `attachment; filename="${file_name}"`)
                   .set("X-Filename", file_name)
+                  .set("Access-Control-Expose-Headers", "X-Filename")
                   .set("Content-Length", buffer.length)
                   .send(buffer);
       } catch (e) {
