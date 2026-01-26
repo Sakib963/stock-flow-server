@@ -4,46 +4,44 @@ const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
 
-const generate_inventory_report_by_sub_category = async (request, res) => {
+const generate_inventory_report_by_brand = async (request, res) => {
       try {
             const payload = request.body;
-            const subCategoryOid = payload.oid;
-
-            if (!subCategoryOid) {
-                  log.warn('Sub-Category OID is required');
+            const brandOid = payload.oid;
+            
+            if (!brandOid) {
+                  log.warn('Brand OID is required');
                   return res.status(400).json({
                         code: 400,
-                        message: "Sub-Category OID is required",
+                        message: "Brand OID is required",
                         data: null,
                   });
             }
 
             // Get inventory with sub-category details in a single query
-            const inventorySql = generate_inventory_sql(subCategoryOid);
+            const inventorySql = generate_inventory_sql(brandOid);
             const inventory = await get_data(inventorySql);
 
             if (!inventory || inventory.length === 0) {
-                  log.info(`No inventory found for sub-category OID: ${subCategoryOid}`);
+                  log.info(`No inventory found for brand OID: ${brandOid}`);
                   return res.status(404).json({
                         code: 404,
-                        message: "No inventory data found for this sub-category",
+                        message: "No inventory data found for this brand",
                         data: null,
                   });
             }
 
-            // Extract sub-category details from first row (same for all inventory items)
-            const subCategoryDetails = {
-                  name: inventory[0].sub_category_name_detail,
-                  description: inventory[0].sub_category_description,
-                  status: inventory[0].sub_category_status,
-                  category_code: inventory[0].category_code,
-                  parent_category_name: inventory[0].parent_category_name
+            // Extract brand details from first row (same for all inventory items)
+            const brandDetails = {
+                  name: inventory[0].brand_name_detail,
+                  description: inventory[0].brand_description,
+                  status: inventory[0].brand_status
             };
             
-            const buffer = await generate_inventory_xlsx(inventory, subCategoryDetails);
+            const buffer = await generate_inventory_xlsx(inventory, brandDetails);
             const timestamp = Date.now();
-            const file_name = `${subCategoryDetails.name.replace(/\s+/g, '_')}_inventory_report_${timestamp}.xlsx`;
-            log.info(`Download inventory report for sub-category [${subCategoryDetails.name}] - [${file_name}]`);
+            const file_name = `${brandDetails.name.replace(/\s+/g, '_')}_inventory_report_${timestamp}.xlsx`;
+            log.info(`Download inventory report for brand [${brandDetails.name}] - [${file_name}]`);
             res
                   .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                   .set("Content-Disposition", `attachment; filename="${file_name}"`)
@@ -52,7 +50,7 @@ const generate_inventory_report_by_sub_category = async (request, res) => {
                   .set("Content-Length", buffer.length)
                   .send(buffer);
       } catch (e) {
-            log.error(`An exception occurred while generating inventory report: ${e?.message}`);
+            log.error(`An exception occurred while generating inventory report by brand: ${e?.message}`);
             console.error(e);
             return res.status(500).json({ 
                   code: 500, 
@@ -61,17 +59,16 @@ const generate_inventory_report_by_sub_category = async (request, res) => {
       }
 };
 
-const generate_inventory_sql = (subCategoryOid) => {
+const generate_inventory_sql = (brandOid) => {
       const query = `
             SELECT 
                   p.name AS product_name,
                   p.sku,
+                  b.name AS brand_name_detail,
+                  b.description AS brand_description,
+                  b.status AS brand_status,
+                  c.name AS category_name,
                   s.name AS sub_category_name,
-                  s.name AS sub_category_name_detail,
-                  s.description AS sub_category_description,
-                  s.status AS sub_category_status,
-                  s.category_code,
-                  c.name AS parent_category_name,
                   i.batch_code,
                   CAST(i.initial_quantity AS INTEGER) AS initial_quantity,
                   CAST(i.quantity_available AS INTEGER) AS quantity_available,
@@ -89,6 +86,7 @@ const generate_inventory_sql = (subCategoryOid) => {
                   a.name AS aisle_name
             FROM ${TABLE.INVENTORY} i
             INNER JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
+            INNER JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
             LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
@@ -96,19 +94,20 @@ const generate_inventory_sql = (subCategoryOid) => {
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
             LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
             LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
-            WHERE p.sub_category_oid = $1
+            WHERE p.brand_oid = $1
             ORDER BY p.name ASC, i.batch_code ASC
       `;
-      return { text: query, values: [subCategoryOid] };
+      return { text: query, values: [brandOid] };
 };
 
-const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
+const generate_inventory_xlsx = async (inventory, brandDetails) => {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Inventory");
 
       const titles = [
             "Product Name",
             "SKU",
+            "Category",
             "Sub Category",
             "Batch Code",
             "Initial Qty",
@@ -128,7 +127,7 @@ const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
       ];
 
       // Add report header (logo + company info + title)
-      addReportHeader(sheet, `Inventory Report - ${subCategoryDetails.name}`, titles.length);
+      addReportHeader(sheet, `Inventory Report - ${brandDetails.name}`, titles.length);
 
       // Add column titles (bold)
       const headerRowIndex = 5; // Titles go on row 5
@@ -144,6 +143,7 @@ const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
             sheet.addRow([
                   r.product_name,
                   r.sku || 'N/A',
+                  r.category_name || 'N/A',
                   r.sub_category_name || 'N/A',
                   r.batch_code,
                   r.initial_quantity,
@@ -163,16 +163,12 @@ const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
             ]);
       });
 
-      // Add sub-category details section
+      // Add brand details section
       sheet.addRow([]);
-      sheet.addRow(['SUB-CATEGORY INFORMATION']);
-      sheet.addRow(['Sub-Category Name:', subCategoryDetails.name]);
-      sheet.addRow(['Parent Category:', subCategoryDetails.parent_category_name || 'N/A']);
-      sheet.addRow(['Category Code:', subCategoryDetails.category_code]);
-      sheet.addRow(['Description:', subCategoryDetails.description || 'N/A']);
-      sheet.addRow(['Status:', subCategoryDetails.status]);
-      sheet.getRow(sheet.rowCount - 5).font = { bold: true, size: 12 };
-      sheet.getRow(sheet.rowCount - 4).font = { bold: true };
+      sheet.addRow(['BRAND INFORMATION']);
+      sheet.addRow(['Brand Name:', brandDetails.name]);
+      sheet.addRow(['Description:', brandDetails.description || 'N/A']);
+      sheet.addRow(['Status:', brandDetails.status]);
       sheet.getRow(sheet.rowCount - 3).font = { bold: true };
       sheet.getRow(sheet.rowCount - 2).font = { bold: true };
       sheet.getRow(sheet.rowCount - 1).font = { bold: true };
@@ -212,4 +208,4 @@ const generate_inventory_xlsx = async (inventory, subCategoryDetails) => {
       return workbook.xlsx.writeBuffer();
 };
 
-module.exports = generate_inventory_report_by_sub_category;
+module.exports = generate_inventory_report_by_brand;
