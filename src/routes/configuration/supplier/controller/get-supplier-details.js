@@ -21,17 +21,16 @@ const get_supplier_details = async (request, res) => {
                   });
             }
 
-            // Step 2: Get supplier statistics
+            // Step 2: Get supplier statistics (supplier-specific metrics)
             const statsSql = generate_stats_sql(supplierOid);
             const stats_set = await get_data(statsSql);
             const stats = stats_set.length ? stats_set[0] : {
                   totalProducts: 0,
-                  activeProducts: 0,
-                  totalInventoryValue: 0,
-                  totalAvailableQuantity: 0,
-                  lowStockItems: 0,
-                  outOfStockItems: 0,
-                  averageProductPrice: 0
+                  totalPurchaseValue: 0,
+                  activePurchaseOrders: 0,
+                  completedOrders: 0,
+                  averageLeadTime: 0,
+                  onTimeDeliveryRate: 0
             };
 
             // Step 3: Get activity timeline (last 10 activities)
@@ -41,13 +40,12 @@ const get_supplier_details = async (request, res) => {
             const responseData = {
                   details: details,
                   stats: {
-                        totalProducts: parseInt(stats.totalproducts) || 0,
-                        activeProducts: parseInt(stats.activeproducts) || 0,
-                        totalInventoryValue: parseFloat(stats.totalinventoryvalue) || 0,
-                        totalAvailableQuantity: parseInt(stats.totalavailablequantity) || 0,
-                        lowStockItems: parseInt(stats.lowstockitems) || 0,
-                        outOfStockItems: parseInt(stats.outofstockitems) || 0,
-                        averageProductPrice: parseFloat(stats.averageproductprice) || 0
+                        totalProducts: parseInt(stats.total_products) || 0,
+                        totalPurchaseValue: parseFloat(stats.total_purchase_value) || 0,
+                        activePurchaseOrders: parseInt(stats.active_orders) || 0,
+                        completedOrders: parseInt(stats.completed_orders) || 0,
+                        averageLeadTime: parseFloat(stats.average_lead_time) || 0,
+                        onTimeDeliveryRate: parseFloat(stats.on_time_delivery_rate) || 0
                   },
                   activity: activity_set.map(a => ({
                         date: a.performed_on,
@@ -66,9 +64,9 @@ const get_supplier_details = async (request, res) => {
       } catch (e) {
             log.error(`An exception occurred while getting supplier details: ${e?.message}`);
             console.error(e);
-            return res.status(500).json({ 
-                  code: 500, 
-                  message: "Something went wrong! Please try again later!" 
+            return res.status(500).json({
+                  code: 500,
+                  message: "Something went wrong! Please try again later!"
             });
       }
 };
@@ -95,42 +93,54 @@ const generate_details_sql = (supplierOid) => {
 
 const generate_stats_sql = (supplierOid) => {
       const query = `
-            WITH product_inventory AS (
+            WITH supplier_products AS (
+                  -- Get unique products purchased from this supplier
                   SELECT 
-                        p.oid as product_oid,
-                        p.status,
-                        p.is_deleted,
-                        p.restock_threshold,
-                        COALESCE(SUM(i.quantity_available), 0) as total_quantity,
-                        ROUND(COALESCE(SUM(i.quantity_available * i.selling_price), 0)::numeric, 2) as inventory_value,
-                        ROUND(COALESCE(AVG(i.selling_price), 0)::numeric, 2) as avg_price
-                  FROM ${TABLE.PRODUCT} p
-                  LEFT JOIN ${TABLE.INVENTORY} i ON p.oid = i.product_oid 
-                        AND i.status IN ('ready_for_sale', 'pending_pricing')
+                        COUNT(DISTINCT pd.product_oid) as total_products
+                  FROM ${TABLE.PURCHASE} p
+                  INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.purchase_oid = p.oid
                   WHERE p.supplier_oid = $1
-                        AND p.is_deleted = FALSE
-                  GROUP BY p.oid, p.status, p.is_deleted, p.restock_threshold
+            ),
+            purchase_stats AS (
+                  -- Get purchase statistics
+                  SELECT 
+                        COUNT(*) as total_orders,
+                        -- Active orders: Not completed/cancelled (assuming pending, in-progress, etc.)
+                        COUNT(CASE 
+                              WHEN p.cancelled_on IS NULL 
+                              AND (p.verified_on IS NULL OR p.status NOT IN ('Completed', 'Cancelled', 'Verified'))
+                              THEN 1 
+                        END) as active_orders,
+                        -- Completed orders: Has verified_on date or status is Completed/Verified
+                        COUNT(CASE 
+                              WHEN p.verified_on IS NOT NULL OR p.status IN ('Completed', 'Verified')
+                              THEN 1 
+                        END) as completed_orders,
+                        ROUND(COALESCE(SUM(p.total_amount), 0)::numeric, 2) as total_purchase_value,
+                        -- Average lead time: From order creation to verification (approximation)
+                        ROUND(COALESCE(AVG(
+                              CASE 
+                                    WHEN p.verified_on IS NOT NULL AND p.created_on IS NOT NULL
+                                    THEN EXTRACT(DAY FROM (p.verified_on - p.created_on))
+                              END
+                        ), 0)::numeric, 2) as avg_lead_time,
+                        -- Completion rate as proxy for "on-time" (without expected dates, we can't calculate true on-time rate)
+                        ROUND(COALESCE(
+                              (COUNT(CASE WHEN p.verified_on IS NOT NULL OR p.status IN ('Completed', 'Verified') THEN 1 END) * 100.0 
+                              / NULLIF(COUNT(CASE WHEN p.cancelled_on IS NULL THEN 1 END), 0))
+                        , 0)::numeric, 2) as on_time_delivery_rate
+                  FROM ${TABLE.PURCHASE} p
+                  WHERE p.supplier_oid = $1
             )
             SELECT 
-                  COUNT(*) as totalProducts,
-                  COUNT(CASE WHEN status = 'Active' AND is_deleted = FALSE THEN 1 END) as activeProducts,
-                  ROUND(COALESCE(SUM(inventory_value), 0)::numeric, 2) as totalInventoryValue,
-                  COALESCE(SUM(total_quantity), 0) as totalAvailableQuantity,
-                  COUNT(CASE 
-                        WHEN total_quantity > 0 
-                        AND total_quantity <= restock_threshold 
-                        AND status = 'Active' 
-                        AND is_deleted = FALSE
-                        THEN 1 
-                  END) as lowStockItems,
-                  COUNT(CASE 
-                        WHEN total_quantity = 0 
-                        AND status = 'Active' 
-                        AND is_deleted = FALSE
-                        THEN 1 
-                  END) as outOfStockItems,
-                  ROUND(COALESCE(AVG(NULLIF(avg_price, 0)), 0)::numeric, 2) as averageProductPrice
-            FROM product_inventory
+                  sp.total_products as total_products,
+                  ps.total_purchase_value as total_purchase_value,
+                  ps.active_orders as active_orders,
+                  ps.completed_orders as completed_orders,
+                  ps.avg_lead_time as average_lead_time,
+                  ps.on_time_delivery_rate as on_time_delivery_rate
+            FROM supplier_products sp
+            CROSS JOIN purchase_stats ps
       `;
       return { text: query, values: [supplierOid] };
 };

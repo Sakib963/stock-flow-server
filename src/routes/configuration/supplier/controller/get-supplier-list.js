@@ -15,7 +15,6 @@ const get_supplier_list = async (request, res) => {
 
             const data_set = await get_data(dataSql);
             const data = data_set.length ? data_set : [];
-            console.log("Fetched Data:", data.length);
 
             // Step 3: Respond with total count and paginated data
             log.info(`Supplier list Found: ${data?.length} of ${total}`);
@@ -38,9 +37,9 @@ const generate_count_sql = (request) => {
       if (request.query.search_text && request.query.search_text.trim() !== "") {
             const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(contact_person) LIKE $${values.length + 2}`;
-            query += `OR LOWER(email) LIKE $${values.length + 3}`;
-            query += `OR LOWER(phone_number) LIKE $${values.length + 4})`;
+            query += ` OR LOWER(contact_person) LIKE $${values.length + 2}`;
+            query += ` OR LOWER(email) LIKE $${values.length + 3}`;
+            query += ` OR LOWER(phone_number) LIKE $${values.length + 4})`;
             values.push(searchText, searchText, searchText, searchText);
       }
 
@@ -59,9 +58,9 @@ const generate_data_sql = (request) => {
       if (request.query.search_text && request.query.search_text.trim() !== "") {
             const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
             query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(contact_person) LIKE $${values.length + 2} `;
-            query += `OR LOWER(email) LIKE $${values.length + 3} `;
-            query += `OR LOWER(phone_number) LIKE $${values.length + 4})`;
+            query += ` OR LOWER(contact_person) LIKE $${values.length + 2} `;
+            query += ` OR LOWER(email) LIKE $${values.length + 3} `;
+            query += ` OR LOWER(phone_number) LIKE $${values.length + 4})`;
             values.push(searchText, searchText, searchText, searchText);
       }
 

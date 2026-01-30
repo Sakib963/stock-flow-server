@@ -15,7 +15,6 @@ const get_category_list = async (request, res) => {
 
             const data_set = await get_data(dataSql);
             const data = data_set.length ? data_set : [];
-            console.log("Fetched Data:", data.length);
 
             // Step 3: Respond with total count and paginated data
             log.info(`Category list Found: ${data?.length} of ${total}`);

@@ -8,6 +8,9 @@ const create_supplier = require("./controller/create-supplier");
 const get_supplier_list_for_dropdown = require("./controller/get-supplier-list-for-dropdown");
 const update_supplier_details = require("./controller/update-supplier-details");
 const get_supplier_details = require("./controller/get-supplier-details");
+const get_supplier_analytics = require("./controller/get-supplier-analytics");
+const generate_supplier_performance_report = require("./controller/generate-supplier-performance-report");
+const export_supplier_data = require("./controller/export-supplier-data");
 
 const router = Router();
 
@@ -42,22 +45,29 @@ router.post(
 // Get Supplier Details
 router.get(
       ROUTES.GET_SUPPLIER_DETAILS + "/:oid",
-      [jwtMiddleware, validator.get(supplier_details_schema)],
+      [jwtMiddleware],
       get_supplier_details
 );
 
-// // Generate Product List Report by Supplier
-// router.post(
-//       ROUTES.GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY,
-//       [jwtMiddleware, validator.post(category_details_schema)],
-//       generate_product_list_report_by_category
-// );
+// Get Supplier Analytics
+router.get(
+      ROUTES.GET_SUPPLIER_ANALYTICS + "/:oid",
+      [jwtMiddleware],
+      get_supplier_analytics
+);
 
-// // Generate Inventory Report by Category
-// router.post(
-//       ROUTES.GENERATE_INVENTORY_REPORT_BY_CATEGORY,
-//       [jwtMiddleware, validator.post(category_details_schema)],
-//       generate_inventory_report_by_category
-// );
+// Generate Supplier Performance Report
+router.post(
+      ROUTES.GENERATE_SUPPLIER_PERFORMANCE_REPORT,
+      [jwtMiddleware, validator.post(supplier_details_schema)],
+      generate_supplier_performance_report
+);
+
+// Export Supplier Data
+router.post(
+      ROUTES.EXPORT_SUPPLIER_DATA,
+      [jwtMiddleware, validator.post(supplier_details_schema)],
+      export_supplier_data
+);
 
 module.exports = { supplierRouter: router };
