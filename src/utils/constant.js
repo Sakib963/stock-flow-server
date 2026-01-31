@@ -97,7 +97,6 @@ module.exports = {
             UPDATE_SUPPLIER_DETAILS: "/update-supplier-details",
             GET_SUPPLIER_DETAILS: "/get-supplier-details",
             GET_SUPPLIER_LIST_FOR_DROPDOWN: "/get-supplier-list-for-dropdown",
-            GET_SUPPLIER_ANALYTICS: "/get-supplier-analytics",
             GENERATE_SUPPLIER_PERFORMANCE_REPORT: "/generate-supplier-performance-report",
             EXPORT_SUPPLIER_DATA: "/export-supplier-data",
 

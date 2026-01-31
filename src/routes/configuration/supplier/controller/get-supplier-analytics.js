@@ -25,33 +25,36 @@ const get_supplier_analytics = async (request, res) => {
 
             const responseData = {
                   verification: {
-                        totalOrdered: parseInt(verification?.total_ordered_qty || 0),
-                        totalVerified: parseInt(verification?.total_verified_qty || 0),
-                        verificationRate: parseFloat(verification?.verification_rate || 0),
-                        orderedValue: parseFloat(verification?.ordered_value || 0),
-                        verifiedValue: parseFloat(verification?.verified_value || 0),
-                        costVariance: parseFloat(verification?.cost_variance || 0)
+                        totalQuantityOrdered: parseInt(verification?.total_ordered_qty || 0),
+                        totalQuantityReceived: parseInt(verification?.total_verified_qty || 0),
+                        receivedPercentage: parseFloat(verification?.verification_rate || 0),
+                        totalOrderedAmount: parseFloat(verification?.ordered_value || 0),
+                        totalReceivedAmount: parseFloat(verification?.verified_value || 0),
+                        costDifference: parseFloat(verification?.cost_variance || 0)
                   },
                   profitability: profit_data.map(p => ({
                         productName: p.product_name,
-                        purchasePrice: parseFloat(p.avg_purchase_price || 0),
-                        sellingPrice: parseFloat(p.avg_selling_price || 0),
-                        unitProfit: parseFloat(p.unit_profit || 0),
-                        profitMargin: parseFloat(p.profit_margin_pct || 0),
-                        totalProfit: parseFloat(p.total_profit || 0),
-                        soldQty: parseInt(p.total_quantity_sold || 0)
+                        quantitySuppliedByThisSupplier: parseInt(p.supplier_quantity || 0),
+                        totalQuantitySoldAllSuppliers: parseInt(p.total_quantity_sold || 0),
+                        avgPurchasePriceFromThisSupplier: parseFloat(p.avg_purchase_price || 0),
+                        avgCurrentSellingPrice: parseFloat(p.avg_selling_price || 0),
+                        profitPerUnit: parseFloat(p.unit_profit || 0),
+                        markupPercentage: parseFloat(p.profit_margin_pct || 0),
+                        estimatedTotalProfitFromThisSupplier: parseFloat(p.estimated_total_profit || 0)
                   })),
                   topProducts: top_products.map(p => ({
-                        name: p.product_name,
-                        soldQty: parseInt(p.total_quantity_sold || 0),
-                        revenue: parseFloat(p.total_revenue || 0),
-                        profit: parseFloat(p.total_profit || 0),
-                        salesRate: parseFloat(p.sales_rate_pct || 0)
+                        productName: p.product_name,
+                        totalQuantitySoldAllSuppliers: parseInt(p.total_quantity_sold || 0),
+                        quantitySuppliedByThisSupplier: parseInt(p.supplier_quantity || 0),
+                        avgCurrentSellingPrice: parseFloat(p.avg_selling_price || 0),
+                        avgPurchasePriceFromThisSupplier: parseFloat(p.avg_purchase_price || 0),
+                        estimatedRevenueFromThisSupplier: parseFloat(p.estimated_revenue || 0),
+                        estimatedProfitFromThisSupplier: parseFloat(p.estimated_profit || 0)
                   })),
                   demandTrend: demand_trend.map(d => ({
-                        month: d.month,
-                        soldQty: parseInt(d.sold_qty || 0),
-                        revenue: parseFloat(d.revenue || 0)
+                        monthYear: d.month,
+                        totalQuantitySold: parseInt(d.sold_qty || 0),
+                        totalRevenue: parseFloat(d.revenue || 0)
                   }))
             };
 
@@ -91,12 +94,13 @@ const generate_profit_analytics_sql = (supplierOid) => {
       const query = `
             SELECT 
                   pr.name AS product_name,
+                  SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) as supplier_quantity,
+                  COALESCE(ps.total_sold, 0) AS total_quantity_sold,
                   ROUND(COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))::numeric, 2) as avg_purchase_price,
                   ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) AS avg_selling_price,
                   ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price)), 2) as unit_profit,
                   ROUND((COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))) * 100.0 / NULLIF(COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price)), 0), 2) as profit_margin_pct,
-                  COALESCE(ps.total_sold, 0) AS total_quantity_sold,
-                  ROUND(COALESCE(ps.total_sold, 0) * (COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))), 2) as total_profit
+                  ROUND(SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) * (COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))), 2) as estimated_total_profit
             FROM ${TABLE.PURCHASE} p
             INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.purchase_oid = p.oid
             INNER JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid
@@ -105,8 +109,8 @@ const generate_profit_analytics_sql = (supplierOid) => {
             WHERE p.supplier_oid = $1 AND pr.is_deleted = FALSE
             GROUP BY pr.name, ps.total_sold
             HAVING COALESCE(ps.total_sold, 0) > 0
-            ORDER BY total_profit DESC
-            LIMIT 10
+            ORDER BY estimated_total_profit DESC
+            LIMIT 5
       `;
       return { text: query, values: [supplierOid] };
 };
@@ -116,9 +120,11 @@ const generate_top_products_sql = (supplierOid) => {
             SELECT 
                   pr.name AS product_name,
                   COALESCE(ps.total_sold, 0) AS total_quantity_sold,
-                  ROUND(COALESCE(ps.total_sold, 0) * COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) as total_revenue,
-                  ROUND(COALESCE(ps.total_sold, 0) * (COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))), 2) as total_profit,
-                  ROUND((COALESCE(ps.total_sold, 0)::numeric / NULLIF(SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)), 0) * 100), 2) as sales_rate_pct
+                  SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) as supplier_quantity,
+                  ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) as avg_selling_price,
+                  ROUND(COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price)), 2) as avg_purchase_price,
+                  ROUND(SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) * COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) as estimated_revenue,
+                  ROUND(SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) * (COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))), 2) as estimated_profit
             FROM ${TABLE.PURCHASE} p
             INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.purchase_oid = p.oid
             INNER JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid

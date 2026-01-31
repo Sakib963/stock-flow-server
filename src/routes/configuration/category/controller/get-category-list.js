@@ -76,7 +76,6 @@ const generate_data_sql = (request) => {
             query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
             values.push(Number(request.query.limit));
       }
-      console.log("Final Data SQL Query:", query, values);
       return { text: query, values };
 };
 

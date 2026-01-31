@@ -92,13 +92,21 @@ const generate_products_detailed_sql = (supplierOid) => {
                   c.name AS category_name,
                   sc.name AS sub_category_name,
                   b.name AS brand_name,
-                  COALESCE(SUM(CAST(i.quantity_available AS INTEGER)), 0) AS total_available_quantity,
-                  ROUND(COALESCE(MIN(CAST(i.selling_price AS NUMERIC)), 0), 2) AS min_price,
-                  ROUND(COALESCE(MAX(CAST(i.selling_price AS NUMERIC)), 0), 2) AS max_price,
-                  ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) AS avg_price,
-                  ROUND(COALESCE(SUM(CAST(i.quantity_available AS INTEGER) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 0), 2) AS inventory_value,
-                  COALESCE(ps.total_sold, 0) AS total_quantity_sold,
-                  COALESCE(ps.total_returned, 0) AS total_quantity_returned,
+                  -- Supplier-Specific Purchase Data
+                  SUM(COALESCE(pd.verified_quantity, pd.ordered_quantity)) as qty_purchased_from_supplier,
+                  COUNT(DISTINCT pu.oid) as purchase_order_count,
+                  MIN(pu.created_on) as first_purchase_date,
+                  MAX(pu.created_on) as last_purchase_date,
+                  ROUND(COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price))::numeric, 2) as avg_purchase_price_from_supplier,
+                  ROUND(COALESCE(MIN(pd.verified_unit_price), MIN(pd.ordered_unit_price))::numeric, 2) as min_purchase_price,
+                  ROUND(COALESCE(MAX(pd.verified_unit_price), MAX(pd.ordered_unit_price))::numeric, 2) as max_purchase_price,
+                  -- Current Market Data (All Sources)
+                  ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) AS current_avg_selling_price,
+                  ROUND(COALESCE(MIN(CAST(i.selling_price AS NUMERIC)), 0), 2) AS current_min_selling_price,
+                  ROUND(COALESCE(MAX(CAST(i.selling_price AS NUMERIC)), 0), 2) AS current_max_selling_price,
+                  ROUND(COALESCE(SUM(CAST(i.quantity_available AS INTEGER) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 0), 2) AS total_inventory_value_all_sources,
+                  -- Potential Profit
+                  ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0) - COALESCE(AVG(pd.verified_unit_price), AVG(pd.ordered_unit_price)), 2) as potential_profit_per_unit,
                   p.created_on,
                   p.created_by
             FROM ${TABLE.PRODUCT} p
@@ -108,10 +116,9 @@ const generate_products_detailed_sql = (supplierOid) => {
             LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid
             LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             LEFT JOIN ${TABLE.INVENTORY} i ON i.product_oid = p.oid AND i.status IN ('ready_for_sale', 'pending_pricing')
-            LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
             WHERE p.is_deleted = FALSE
             GROUP BY p.oid, p.name, p.sku, p.description, p.status, p.unit_type, p.restock_threshold,
-                     c.name, sc.name, b.name, ps.total_sold, ps.total_returned, p.created_on, p.created_by
+                     c.name, sc.name, b.name, p.created_on, p.created_by
             ORDER BY p.name ASC
       `;
       return { text: query, values: [supplierOid] };
@@ -157,7 +164,6 @@ const generate_export_xlsx = async (supplierDetails, products, purchaseHistory) 
       infoSheet.getRow(infoStartRow).values = ["Field", "Value"];
       infoSheet.getRow(infoStartRow).font = { bold: true };
       
-      infoSheet.addRow(["Supplier OID", supplierDetails.oid]);
       infoSheet.addRow(["Supplier Name", supplierDetails.name]);
       infoSheet.addRow(["Contact Person", supplierDetails.contact_person || 'N/A']);
       infoSheet.addRow(["Phone", supplierDetails.phone_number || 'N/A']);
@@ -172,72 +178,138 @@ const generate_export_xlsx = async (supplierDetails, products, purchaseHistory) 
       infoSheet.addRow(["Last Edited On", supplierDetails.edited_on ? new Date(supplierDetails.edited_on).toLocaleString() : 'N/A']);
 
       // Sheet 2: Products
-      const productsSheet = workbook.addWorksheet("Products");
+      const productsSheet = workbook.addWorksheet("Products from Supplier");
+      
+      addReportHeader(productsSheet, "Products Sourced from This Supplier", 22);
+      
+      // Add important note section
+      let currentRow = 5;
+      productsSheet.mergeCells(`A${currentRow}:V${currentRow}`);
+      productsSheet.getCell(`A${currentRow}`).value = "⚠️ IMPORTANT: Purchase quantities and prices are specific to THIS SUPPLIER ONLY. Inventory and selling prices reflect current market data from ALL sources.";
+      productsSheet.getCell(`A${currentRow}`).font = { bold: true, size: 11, color: { argb: 'FFFF0000' } };
+      productsSheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF4CC' } };
+      productsSheet.getCell(`A${currentRow}`).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      productsSheet.getRow(currentRow).height = 35;
+      currentRow++;
+      
+      // Add spacing
+      currentRow++;
+      
+      // Add column headers
       const productTitles = [
-            "Product OID",
             "Product Name",
             "SKU",
-            "Description",
             "Category",
             "Sub Category",
             "Brand",
             "Status",
             "Unit Type",
-            "Restock Threshold",
-            "Available Qty",
-            "Min Price",
-            "Max Price",
-            "Avg Price",
-            "Inventory Value",
-            "Qty Sold",
-            "Qty Returned",
+            "Restock\nThreshold",
+            "Qty Purchased\n(This Supplier)",
+            "Purchase\nOrders Count",
+            "First Purchase\nDate",
+            "Last Purchase\nDate",
+            "Avg Purchase Price\n(This Supplier)",
+            "Min Purchase\nPrice",
+            "Max Purchase\nPrice",
+            "Current Avg\nSelling Price",
+            "Current Min\nSelling Price",
+            "Current Max\nSelling Price",
+            "Potential\nProfit/Unit",
+            "Total Inventory Value\n(All Sources)",
             "Created By",
             "Created On"
       ];
       
-      addReportHeader(productsSheet, "Supplier Products", productTitles.length);
-      productsSheet.addRow(productTitles);
-      productsSheet.getRow(5).font = { bold: true };
+      productsSheet.getRow(currentRow).values = productTitles;
+      productsSheet.getRow(currentRow).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      productsSheet.getRow(currentRow).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+      productsSheet.getRow(currentRow).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      productsSheet.getRow(currentRow).height = 40;
+      
+      // Add borders to header
+      for (let col = 1; col <= 22; col++) {
+            productsSheet.getCell(currentRow, col).border = {
+                  top: { style: 'thin' },
+                  left: { style: 'thin' },
+                  bottom: { style: 'thin' },
+                  right: { style: 'thin' }
+            };
+      }
+      
+      const headerRow = currentRow;
+      currentRow++;
 
       let totalInventoryValue = 0;
-      let totalAvailableQty = 0;
-      let totalSold = 0;
-      let totalReturned = 0;
+      let totalPurchasedQty = 0;
+      const dataStartRow = currentRow;
 
-      products.forEach(p => {
-            totalInventoryValue += parseFloat(p.inventory_value || 0);
-            totalAvailableQty += parseInt(p.total_available_quantity || 0);
-            totalSold += parseInt(p.total_quantity_sold || 0);
-            totalReturned += parseInt(p.total_quantity_returned || 0);
+      products.forEach((p, index) => {
+            totalInventoryValue += parseFloat(p.total_inventory_value_all_sources || 0);
+            totalPurchasedQty += parseInt(p.qty_purchased_from_supplier || 0);
 
-            productsSheet.addRow([
-                  p.oid,
+            const row = productsSheet.getRow(currentRow);
+            row.values = [
                   p.product_name,
                   p.sku,
-                  p.description || 'N/A',
                   p.category_name || 'N/A',
                   p.sub_category_name || 'N/A',
                   p.brand_name || 'N/A',
                   p.status,
                   p.unit_type || 'N/A',
                   parseInt(p.restock_threshold || 0),
-                  parseInt(p.total_available_quantity || 0),
-                  parseFloat(p.min_price || 0).toFixed(2),
-                  parseFloat(p.max_price || 0).toFixed(2),
-                  parseFloat(p.avg_price || 0).toFixed(2),
-                  parseFloat(p.inventory_value || 0).toFixed(2),
-                  parseInt(p.total_quantity_sold || 0),
-                  parseInt(p.total_quantity_returned || 0),
+                  parseInt(p.qty_purchased_from_supplier || 0),
+                  parseInt(p.purchase_order_count || 0),
+                  p.first_purchase_date ? new Date(p.first_purchase_date).toLocaleDateString() : 'N/A',
+                  p.last_purchase_date ? new Date(p.last_purchase_date).toLocaleDateString() : 'N/A',
+                  parseFloat(p.avg_purchase_price_from_supplier || 0).toFixed(2),
+                  parseFloat(p.min_purchase_price || 0).toFixed(2),
+                  parseFloat(p.max_purchase_price || 0).toFixed(2),
+                  parseFloat(p.current_avg_selling_price || 0).toFixed(2),
+                  parseFloat(p.current_min_selling_price || 0).toFixed(2),
+                  parseFloat(p.current_max_selling_price || 0).toFixed(2),
+                  parseFloat(p.potential_profit_per_unit || 0).toFixed(2),
+                  parseFloat(p.total_inventory_value_all_sources || 0).toFixed(2),
                   p.created_by,
                   p.created_on ? new Date(p.created_on).toLocaleDateString() : 'N/A'
-            ]);
+            ];
+            
+            // Alternating row colors
+            if (index % 2 === 0) {
+                  row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+            }
+            
+            // Add borders
+            for (let col = 1; col <= 22; col++) {
+                  productsSheet.getCell(currentRow, col).border = {
+                        top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                        left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                        right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+                  };
+            }
+            
+            // Align numbers to right
+            for (let col = 8; col <= 20; col++) {
+                  productsSheet.getCell(currentRow, col).alignment = { horizontal: 'right' };
+            }
+            
+            currentRow++;
       });
 
       // Add summary row
-      productsSheet.addRow([]);
-      const productSummaryRow = productsSheet.addRow([
-            "SUMMARY",
-            `Total: ${products.length} Products`,
+      currentRow++;
+      const summaryRow = productsSheet.getRow(currentRow);
+      summaryRow.values = [
+            "TOTAL",
+            `${products.length} Products`,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            totalPurchasedQty,
             "",
             "",
             "",
@@ -245,23 +317,129 @@ const generate_export_xlsx = async (supplierDetails, products, purchaseHistory) 
             "",
             "",
             "",
-            "",
-            totalAvailableQty,
             "",
             "",
             "",
             totalInventoryValue.toFixed(2),
-            totalSold,
-            totalReturned,
             "",
             ""
-      ]);
-      productSummaryRow.font = { bold: true };
+      ];
+      summaryRow.font = { bold: true, size: 11 };
+      summaryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD966' } };
+      
+      // Add borders to summary
+      for (let col = 1; col <= 22; col++) {
+            productsSheet.getCell(currentRow, col).border = {
+                  top: { style: 'double' },
+                  bottom: { style: 'double' }
+            };
+            productsSheet.getCell(currentRow, col).alignment = { horizontal: col >= 8 ? 'right' : 'left' };
+      }
+      
+      // Set column widths
+      productsSheet.getColumn(1).width = 30; // Product Name
+      productsSheet.getColumn(2).width = 15; // SKU
+      productsSheet.getColumn(3).width = 20; // Category
+      productsSheet.getColumn(4).width = 20; // Sub Category
+      productsSheet.getColumn(5).width = 20; // Brand
+      productsSheet.getColumn(6).width = 12; // Status
+      productsSheet.getColumn(7).width = 12; // Unit Type
+      productsSheet.getColumn(8).width = 12; // Restock Threshold
+      productsSheet.getColumn(9).width = 15; // Qty Purchased
+      productsSheet.getColumn(10).width = 15; // PO Count
+      productsSheet.getColumn(11).width = 15; // First Purchase
+      productsSheet.getColumn(12).width = 15; // Last Purchase
+      productsSheet.getColumn(13).width = 18; // Avg Purchase Price
+      productsSheet.getColumn(14).width = 15; // Min Purchase Price
+      productsSheet.getColumn(15).width = 15; // Max Purchase Price
+      productsSheet.getColumn(16).width = 18; // Current Avg Selling
+      productsSheet.getColumn(17).width = 18; // Current Min Selling
+      productsSheet.getColumn(18).width = 18; // Current Max Selling
+      productsSheet.getColumn(19).width = 15; // Profit/Unit
+      productsSheet.getColumn(20).width = 20; // Inventory Value
+      productsSheet.getColumn(21).width = 15; // Created By
+      productsSheet.getColumn(22).width = 15; // Created On
+      
+      // Add field explanations section after data
+      currentRow += 3;
+      productsSheet.mergeCells(`A${currentRow}:V${currentRow}`);
+      productsSheet.getCell(`A${currentRow}`).value = "FIELD EXPLANATIONS:";
+      productsSheet.getCell(`A${currentRow}`).font = { bold: true, size: 12 };
+      productsSheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+      productsSheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
+      currentRow++;
+      
+      const explanations = [
+            ["Product Name", "Name of the product"],
+            ["SKU", "Stock Keeping Unit - Unique product identifier"],
+            ["Category", "Product category classification"],
+            ["Sub Category", "Product sub-category classification"],
+            ["Brand", "Product brand name"],
+            ["Status", "Current product status (Active/Inactive/Discontinued)"],
+            ["Unit Type", "Unit of measurement (pieces, kg, liters, etc.)"],
+            ["Restock Threshold", "Minimum stock level before reorder alert"],
+            ["Qty Purchased (This Supplier)", "Total quantity purchased from THIS supplier only across all purchase orders"],
+            ["Purchase Orders Count", "Number of purchase orders placed with this supplier for this product"],
+            ["First Purchase Date", "Date of the first purchase from this supplier"],
+            ["Last Purchase Date", "Date of the most recent purchase from this supplier"],
+            ["Avg Purchase Price (This Supplier)", "Average price paid to THIS supplier per unit (weighted average)"],
+            ["Min Purchase Price", "Lowest unit price ever paid to this supplier"],
+            ["Max Purchase Price", "Highest unit price ever paid to this supplier"],
+            ["Current Avg Selling Price", "Current average selling price in market (from ALL inventory sources)"],
+            ["Current Min Selling Price", "Current minimum selling price in market (from ALL inventory sources)"],
+            ["Current Max Selling Price", "Current maximum selling price in market (from ALL inventory sources)"],
+            ["Potential Profit/Unit", "Estimated profit per unit (Current Selling Price - Avg Purchase Price from this supplier)"],
+            ["Total Inventory Value (All Sources)", "Total value of current inventory from ALL suppliers (not just this one)"],
+            ["Created By", "User who created this product record"],
+            ["Created On", "Date when this product was created in the system"]
+      ];
+      
+      explanations.forEach(([field, explanation]) => {
+            productsSheet.getCell(`A${currentRow}`).value = field;
+            productsSheet.getCell(`A${currentRow}`).font = { bold: true, size: 9 };
+            productsSheet.getCell(`B${currentRow}`).value = explanation;
+            productsSheet.getCell(`B${currentRow}`).font = { size: 9, italic: true };
+            productsSheet.mergeCells(`B${currentRow}:V${currentRow}`);
+            currentRow++;
+      });
+      
+      // Add borders to summary
+      for (let col = 1; col <= 23; col++) {
+            productsSheet.getCell(currentRow, col).border = {
+                  top: { style: 'double' },
+                  bottom: { style: 'double' }
+            };
+            productsSheet.getCell(currentRow, col).alignment = { horizontal: col >= 9 ? 'right' : 'left' };
+      }
+      
+      // Set column widths
+      productsSheet.getColumn(1).width = 30; // Product Name
+      productsSheet.getColumn(2).width = 15; // SKU
+      productsSheet.getColumn(3).width = 35; // Description
+      productsSheet.getColumn(4).width = 20; // Category
+      productsSheet.getColumn(5).width = 20; // Sub Category
+      productsSheet.getColumn(6).width = 20; // Brand
+      productsSheet.getColumn(7).width = 12; // Status
+      productsSheet.getColumn(8).width = 12; // Unit Type
+      productsSheet.getColumn(9).width = 12; // Restock Threshold
+      productsSheet.getColumn(10).width = 15; // Qty Purchased
+      productsSheet.getColumn(11).width = 15; // PO Count
+      productsSheet.getColumn(12).width = 15; // First Purchase
+      productsSheet.getColumn(13).width = 15; // Last Purchase
+      productsSheet.getColumn(14).width = 18; // Avg Purchase Price
+      productsSheet.getColumn(15).width = 15; // Min Purchase Price
+      productsSheet.getColumn(16).width = 15; // Max Purchase Price
+      productsSheet.getColumn(17).width = 18; // Current Avg Selling
+      productsSheet.getColumn(18).width = 18; // Current Min Selling
+      productsSheet.getColumn(19).width = 18; // Current Max Selling
+      productsSheet.getColumn(20).width = 15; // Profit/Unit
+      productsSheet.getColumn(21).width = 20; // Inventory Value
+      productsSheet.getColumn(22).width = 15; // Created By
+      productsSheet.getColumn(23).width = 15; // Created On
 
       // Sheet 3: Purchase History
       const historySheet = workbook.addWorksheet("Purchase History");
       const historyTitles = [
-            "Purchase ID",
             "Order Date",
             "Status",
             "Purchase Type",
@@ -285,7 +463,6 @@ const generate_export_xlsx = async (supplierDetails, products, purchaseHistory) 
             totalPurchaseAmount += parseFloat(po.total_amount || 0);
 
             historySheet.addRow([
-                  po.oid.substring(0, 12) + '...',
                   po.order_date ? new Date(po.order_date).toLocaleDateString() : 'N/A',
                   po.status,
                   po.purchase_type || 'N/A',

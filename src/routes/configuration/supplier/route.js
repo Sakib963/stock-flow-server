@@ -8,7 +8,6 @@ const create_supplier = require("./controller/create-supplier");
 const get_supplier_list_for_dropdown = require("./controller/get-supplier-list-for-dropdown");
 const update_supplier_details = require("./controller/update-supplier-details");
 const get_supplier_details = require("./controller/get-supplier-details");
-const get_supplier_analytics = require("./controller/get-supplier-analytics");
 const generate_supplier_performance_report = require("./controller/generate-supplier-performance-report");
 const export_supplier_data = require("./controller/export-supplier-data");
 
@@ -47,13 +46,6 @@ router.get(
       ROUTES.GET_SUPPLIER_DETAILS + "/:oid",
       [jwtMiddleware],
       get_supplier_details
-);
-
-// Get Supplier Analytics
-router.get(
-      ROUTES.GET_SUPPLIER_ANALYTICS + "/:oid",
-      [jwtMiddleware],
-      get_supplier_analytics
 );
 
 // Generate Supplier Performance Report
