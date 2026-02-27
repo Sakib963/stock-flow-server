@@ -127,12 +127,19 @@ module.exports = {
     UPDATE_WAREHOUSE_DETAILS: "/update-warehouse-details",
     GET_WAREHOUSE_DETAILS: "/get-warehouse-details",
     GET_WAREHOUSE_LIST_FOR_DROPDOWN: "/get-warehouse-list-for-dropdown",
+    GENERATE_PRODUCT_LIST_REPORT_BY_WAREHOUSE:
+      "/generate-product-list-report-by-warehouse",
+    GENERATE_INVENTORY_REPORT_BY_WAREHOUSE:
+      "/generate-inventory-report-by-warehouse",
 
     GET_AISLE_LIST: "/get-aisle-list",
     CREATE_AISLE: "/create-aisle",
     UPDATE_AISLE_DETAILS: "/update-aisle-details",
     GET_AISLE_DETAILS: "/get-aisle-details",
     GET_AISLE_LIST_FOR_DROPDOWN: "/get-aisle-list-for-dropdown",
+    GENERATE_PRODUCT_LIST_REPORT_BY_AISLE:
+      "/generate-product-list-report-by-aisle",
+    GENERATE_INVENTORY_REPORT_BY_AISLE: "/generate-inventory-report-by-aisle",
 
     GET_PURCHASE_LIST: "/get-purchase-list",
     CREATE_PURCHASE: "/create-purchase",

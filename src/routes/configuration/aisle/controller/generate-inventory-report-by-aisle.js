@@ -4,47 +4,52 @@ const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
 
-const generate_inventory_report_by_brand = async (request, res) => {
+const generate_inventory_report_by_aisle = async (request, res) => {
   try {
     const payload = request.body;
-    const brandOid = payload.oid;
+    const aisleOid = payload.oid;
 
-    if (!brandOid) {
-      log.warn("Brand OID is required");
+    if (!aisleOid) {
+      log.warn("Aisle OID is required");
       return res.status(400).json({
         code: 400,
-        message: "Brand OID is required",
+        message: "Aisle OID is required",
         data: null,
       });
     }
 
-    // Get inventory with sub-category details in a single query
-    const inventorySql = generate_inventory_sql(brandOid);
+    // Get inventory with aisle details in a single query
+    const inventorySql = generate_inventory_sql(aisleOid);
     const inventory = await get_data(inventorySql);
 
     if (!inventory || inventory.length === 0) {
-      log.info(`No inventory found for brand OID: ${brandOid}`);
+      log.info(`No inventory found for aisle OID: ${aisleOid}`);
       return res.status(404).json({
         code: 404,
-        message: "No inventory data found for this brand",
+        message: "No inventory data found for this aisle",
         data: null,
       });
     }
 
-    // Extract brand details from first row (same for all inventory items)
-    const brandDetails = {
-      name: inventory[0].brand_name_detail,
-      description: inventory[0].brand_description,
-      status: inventory[0].brand_status,
+    // Extract aisle details from first row (same for all inventory items)
+    const aisleDetails = {
+      name: inventory[0].aisle_name_detail,
+      code: inventory[0].aisle_code,
+      warehouse_name: inventory[0].warehouse_name,
+      capacity: inventory[0].aisle_capacity,
+      type_of_storage: inventory[0].type_of_storage,
+      status: inventory[0].aisle_status,
     };
 
-    const buffer = await generate_inventory_xlsx(inventory, brandDetails);
+    const buffer = await generate_inventory_xlsx(inventory, aisleDetails);
     const timestamp = Date.now();
-    const file_name = `${brandDetails.name.replace(/\s+/g, "_")}_inventory_report_${timestamp}.xlsx`;
+    const file_name = `${aisleDetails.name.replace(/\s+/g, "_")}_inventory_report_${timestamp}.xlsx`;
+    // Create ASCII-safe fallback filename by removing non-ASCII characters
     const file_name_ascii = file_name.replace(/[^\x00-\x7F]/g, "");
+    // Encode filename for RFC 5987 (UTF-8 support in headers)
     const file_name_encoded = encodeURIComponent(file_name);
     log.info(
-      `Download inventory report for brand [${brandDetails.name}] - [${file_name}]`,
+      `Download inventory report for aisle [${aisleDetails.name}] - [${file_name}]`,
     );
     res
       .set(
@@ -61,7 +66,7 @@ const generate_inventory_report_by_brand = async (request, res) => {
       .send(buffer);
   } catch (e) {
     log.error(
-      `An exception occurred while generating inventory report by brand: ${e?.message}`,
+      `An exception occurred while generating inventory report by aisle: ${e?.message}`,
     );
     console.error(e);
     return res.status(500).json({
@@ -71,16 +76,20 @@ const generate_inventory_report_by_brand = async (request, res) => {
   }
 };
 
-const generate_inventory_sql = (brandOid) => {
+const generate_inventory_sql = (aisleOid) => {
   const query = `
             SELECT
                   p.name AS product_name,
                   p.sku,
-                  b.name AS brand_name_detail,
-                  b.description AS brand_description,
-                  b.status AS brand_status,
+                  b.name AS brand_name,
                   c.name AS category_name,
                   s.name AS sub_category_name,
+                  w.name AS warehouse_name,
+                  a.name AS aisle_name_detail,
+                  a.code AS aisle_code,
+                  a.capacity AS aisle_capacity,
+                  a.type_of_storage,
+                  a.status AS aisle_status,
                   i.batch_code,
                   CAST(i.initial_quantity AS INTEGER) AS initial_quantity,
                   CAST(i.quantity_available AS INTEGER) AS quantity_available,
@@ -93,34 +102,34 @@ const generate_inventory_sql = (brandOid) => {
                   i.intended_use,
                   TO_CHAR(pu.created_on, 'YYYY-MM-DD') AS purchase_date,
                   TO_CHAR(i.created_on, 'YYYY-MM-DD') AS batch_created_date,
-                  sup.name AS supplier_name,
-                  w.name AS warehouse_name,
-                  a.name AS aisle_name
+                  sup.name AS supplier_name
             FROM ${TABLE.INVENTORY} i
             INNER JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
-            INNER JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
+            LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
-            LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
+            INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
+            INNER JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
+            LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = a.warehouse_oid
             LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = pd.purchase_oid
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
-            LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
-            LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
-            WHERE p.brand_oid = $1
+            WHERE pd.aisle_oid = $1
             ORDER BY p.name ASC, i.batch_code ASC
       `;
-  return { text: query, values: [brandOid] };
+  return { text: query, values: [aisleOid] };
 };
 
-const generate_inventory_xlsx = async (inventory, brandDetails) => {
+const generate_inventory_xlsx = async (inventory, aisleDetails) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Inventory");
 
   const titles = [
     "Product Name",
     "SKU",
+    "Brand",
     "Category",
     "Sub Category",
+    "Warehouse",
     "Batch Code",
     "Initial Qty",
     "Available Qty",
@@ -132,8 +141,6 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
     "Batch Status",
     "Intended Use",
     "Supplier",
-    "Warehouse",
-    "Aisle",
     "Purchase Date",
     "Batch Created",
   ];
@@ -141,7 +148,7 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
   // Add report header (logo + company info + title)
   addReportHeader(
     sheet,
-    `Inventory Report - ${brandDetails.name}`,
+    `Inventory Report - ${aisleDetails.name}`,
     titles.length,
   );
 
@@ -159,8 +166,10 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
     sheet.addRow([
       r.product_name,
       r.sku || "N/A",
+      r.brand_name || "N/A",
       r.category_name || "N/A",
       r.sub_category_name || "N/A",
+      r.warehouse_name || "N/A",
       r.batch_code,
       r.initial_quantity,
       r.quantity_available,
@@ -172,19 +181,23 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
       r.batch_status,
       r.intended_use || "N/A",
       r.supplier_name || "N/A",
-      r.warehouse_name || "N/A",
-      r.aisle_name || "N/A",
       r.purchase_date || "N/A",
       r.batch_created_date || "N/A",
     ]);
   });
 
-  // Add brand details section
+  // Add aisle details section
   sheet.addRow([]);
-  sheet.addRow(["BRAND INFORMATION"]);
-  sheet.addRow(["Brand Name:", brandDetails.name]);
-  sheet.addRow(["Description:", brandDetails.description || "N/A"]);
-  sheet.addRow(["Status:", brandDetails.status]);
+  sheet.addRow(["AISLE INFORMATION"]);
+  sheet.addRow(["Aisle Name:", aisleDetails.name]);
+  sheet.addRow(["Aisle Code:", aisleDetails.code || "N/A"]);
+  sheet.addRow(["Warehouse:", aisleDetails.warehouse_name || "N/A"]);
+  sheet.addRow(["Capacity:", aisleDetails.capacity || "N/A"]);
+  sheet.addRow(["Type of Storage:", aisleDetails.type_of_storage || "N/A"]);
+  sheet.addRow(["Status:", aisleDetails.status]);
+  sheet.getRow(sheet.rowCount - 6).font = { bold: true };
+  sheet.getRow(sheet.rowCount - 5).font = { bold: true };
+  sheet.getRow(sheet.rowCount - 4).font = { bold: true };
   sheet.getRow(sheet.rowCount - 3).font = { bold: true };
   sheet.getRow(sheet.rowCount - 2).font = { bold: true };
   sheet.getRow(sheet.rowCount - 1).font = { bold: true };
@@ -211,13 +224,13 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
   // Auto-size columns
   sheet.columns.forEach((col) => {
     let max = 0;
-    col.eachCell({ includeEmpty: true }, (cell) => {
-      max = Math.max(max, (cell.value?.toString().length || 0) + 2);
+    col.eachCell({ includeEmpty: false }, (cell) => {
+      max = Math.max(max, (cell.value?.toString().length || 0) + 1);
     });
-    col.width = max;
+    col.width = Math.min(Math.max(max, 10), 30);
   });
 
   return workbook.xlsx.writeBuffer();
 };
 
-module.exports = generate_inventory_report_by_brand;
+module.exports = generate_inventory_report_by_aisle;

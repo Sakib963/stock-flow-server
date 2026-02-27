@@ -42,6 +42,8 @@ const generate_inventory_report_by_category = async (request, res) => {
     const buffer = await generate_inventory_xlsx(inventory, categoryDetails);
     const timestamp = Date.now();
     const file_name = `${categoryDetails.name.replace(/\s+/g, "_")}_inventory_report_${timestamp}.xlsx`;
+    const file_name_ascii = file_name.replace(/[^\x00-\x7F]/g, "");
+    const file_name_encoded = encodeURIComponent(file_name);
 
     log.info(
       `Download inventory report for category [${categoryDetails.name}] - [${file_name}]`,
@@ -52,8 +54,11 @@ const generate_inventory_report_by_category = async (request, res) => {
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       )
-      .set("Content-Disposition", `attachment; filename="${file_name}"`)
-      .set("X-Filename", file_name)
+      .set(
+        "Content-Disposition",
+        `attachment; filename="${file_name_ascii}"; filename*=UTF-8''${file_name_encoded}`,
+      )
+      .set("X-Filename", file_name_encoded)
       .set("Access-Control-Expose-Headers", "X-Filename")
       .set("Content-Length", buffer.length)
       .send(buffer);
