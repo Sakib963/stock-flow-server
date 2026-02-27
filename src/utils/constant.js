@@ -46,6 +46,7 @@ module.exports = {
     PRODUCT: "/product",
     WAREHOUSE: "/warehouse",
     AISLE: "/aisle",
+    ANALYTICS: "/analytics",
     PURCHASE: "/purchase",
     INVENTORY_OVERVIEW: "/inventory-overview",
     ATTENDANCE: "/attendance",
@@ -199,6 +200,15 @@ module.exports = {
     CREATE_USER_NOTE: "/create-note",
     UPDATE_USER_NOTE: "/update-note",
     DELETE_USER_NOTE: "/delete-note/:oid",
+
+    // Analytics
+    GET_ANALYTICS_METRICS: "/get-analytics-metrics",
+    GET_STOCK_TREND: "/get-stock-trend",
+    GET_INVENTORY_VALUE_TREND: "/get-inventory-value-trend",
+    GET_TOP_PRODUCTS: "/get-top-products",
+    GET_PRODUCT_PERFORMANCE: "/get-product-performance",
+    GET_STOCK_MOVEMENTS: "/get-stock-movements",
+    EXPORT_ANALYTICS_REPORT: "/export-analytics-report",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };
