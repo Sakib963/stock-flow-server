@@ -162,7 +162,7 @@ const getProductPerformance = async (filter) => {
               p.sku,
               p.restock_threshold as min_stock,
               SUM(CAST(i.quantity_available AS INTEGER)) as stock,
-              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) as value,
+              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, i.cost_price, 0) AS NUMERIC)), 2) as value,
               COALESCE(MAX(ps.total_sold), 0) as total_sold,
               COALESCE(MAX(ps.total_returned), 0) as total_returned,
               COALESCE(MAX(ps.total_damaged) + MAX(ps.total_wasted), 0) as total_disposed,
@@ -297,7 +297,7 @@ const getInventoryValueTrend = async (filter, dateFrom, dateTo) => {
   const query = `
         SELECT
               TO_CHAR(i.created_on, '${dateFormat}') as period,
-              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) as value
+                ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, i.cost_price, 0) AS NUMERIC)), 2) as value
         ${buildInventoryBaseQuery(filter.joins)}
         WHERE ${filter.whereConditions.join(" AND ")}
         GROUP BY period
@@ -314,7 +314,7 @@ const getTopProducts = async (filter) => {
               p.name as product_name,
               p.sku,
               SUM(CAST(i.quantity_available AS INTEGER)) as stock,
-              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) as value,
+              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, i.cost_price, 0) AS NUMERIC)), 2) as value,
               c.name as category_name,
               b.name as brand_name
         ${buildInventoryBaseQuery(filter.joins)}

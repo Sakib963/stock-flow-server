@@ -36,7 +36,7 @@ const get_analytics_metrics = async (request, res) => {
                   SELECT
                         product_oid,
                         SUM(CAST(quantity_available AS INTEGER)) as total_stock,
-                        SUM(CAST(quantity_available AS INTEGER) * CAST(COALESCE(selling_price, 0) AS NUMERIC)) as product_value,
+                    SUM(CAST(quantity_available AS INTEGER) * CAST(COALESCE(selling_price, cost_price, 0) AS NUMERIC)) as product_value,
                         MAX(restock_threshold) as min_stock,
                         MAX(total_sold) as sold,
                         MAX(total_returned) as returned

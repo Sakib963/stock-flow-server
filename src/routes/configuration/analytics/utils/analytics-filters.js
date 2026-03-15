@@ -56,6 +56,8 @@ const buildAnalyticsFilter = (type, id, dateFrom, dateTo) => {
         values.push(id);
         break;
     }
+  } else if (type && type !== "all" && !id) {
+    whereConditions.push("1=0");
   }
 
   // Date range filtering on inventory creation

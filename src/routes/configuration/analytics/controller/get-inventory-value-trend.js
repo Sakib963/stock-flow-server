@@ -33,7 +33,7 @@ const get_inventory_value_trend = async (request, res) => {
     const query = `
             SELECT
                   TO_CHAR(i.created_on, '${dateFormat}') as period,
-                  ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) as value
+          ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, i.cost_price, 0) AS NUMERIC)), 2) as value
             ${buildInventoryBaseQuery(filter.joins)}
             WHERE ${filter.whereConditions.join(" AND ")}
             GROUP BY period

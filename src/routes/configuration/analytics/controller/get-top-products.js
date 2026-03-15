@@ -21,7 +21,7 @@ const get_top_products = async (request, res) => {
                   p.oid,
                   p.name as product_name,
                   SUM(CAST(i.quantity_available AS INTEGER)) as stock,
-                  ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) as value
+              ROUND(SUM(CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, i.cost_price, 0) AS NUMERIC)), 2) as value
             ${buildInventoryBaseQuery(filter.joins)}
             WHERE ${filter.whereConditions.join(" AND ")}
             GROUP BY p.oid, p.name
