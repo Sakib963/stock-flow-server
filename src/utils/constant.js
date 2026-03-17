@@ -35,6 +35,7 @@ module.exports = {
     SALESMAN: "/api/v1/salesman",
     PROFILE: "/api/v1/profile",
     CONFIGURATION: "/api/v1/configuration",
+    ACTIVITY_LOG: "/api/v1/activity-log",
   },
   SUB_CONTEXTS: {
     USER: "/user",
@@ -187,6 +188,7 @@ module.exports = {
     GET_PROFILE_INFO: "/get-profile-info",
 
     GET_DASHBOARD_DATA_FOR_MANAGER: "/get-dashboard-data-for-manager",
+    GET_ACTIVITY_LOG_LIST: "/get-activity-log-list",
 
     GET_CURRENT_STOCK_REPORT: "/get-current-stock-report",
     GET_LOW_STOCK_REPORT: "/get-low-stock-report",
@@ -209,6 +211,7 @@ module.exports = {
     GET_PRODUCT_PERFORMANCE: "/get-product-performance",
     GET_STOCK_MOVEMENTS: "/get-stock-movements",
     EXPORT_ANALYTICS_REPORT: "/export-analytics-report",
+    GET_CONFIGURATION_DASHBOARD_SUMMARY: "/get-configuration-dashboard-summary",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

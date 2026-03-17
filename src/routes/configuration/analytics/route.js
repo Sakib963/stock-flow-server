@@ -8,6 +8,7 @@ const get_top_products = require("./controller/get-top-products");
 const get_product_performance = require("./controller/get-product-performance");
 const get_stock_movements = require("./controller/get-stock-movements");
 const export_analytics_report = require("./controller/export-analytics-report");
+const get_configuration_dashboard_summary = require("./controller/get-configuration-dashboard-summary");
 
 const router = Router();
 
@@ -34,6 +35,11 @@ router.post(
   ROUTES.EXPORT_ANALYTICS_REPORT,
   [jwtMiddleware],
   export_analytics_report,
+);
+router.post(
+  ROUTES.GET_CONFIGURATION_DASHBOARD_SUMMARY,
+  [jwtMiddleware],
+  get_configuration_dashboard_summary,
 );
 
 module.exports = { analyticsRouter: router };
