@@ -35,6 +35,7 @@ module.exports = {
     SALESMAN: "/api/v1/salesman",
     PROFILE: "/api/v1/profile",
     CONFIGURATION: "/api/v1/configuration",
+    INVENTORY: "/api/v1/inventory",
     ACTIVITY_LOG: "/api/v1/activity-log",
   },
   SUB_CONTEXTS: {
@@ -49,6 +50,7 @@ module.exports = {
     AISLE: "/aisle",
     ANALYTICS: "/analytics",
     PURCHASE: "/purchase",
+    PURCHASE_ORDER: "/purchase-order",
     INVENTORY_OVERVIEW: "/inventory-overview",
     ATTENDANCE: "/attendance",
     SALE: "/sale",
@@ -195,6 +197,7 @@ module.exports = {
     GET_PRODUCT_WISE_STOCK_REPORT: "/get-product-wise-stock-report",
 
     GET_PURCHASE_ORDER_REPORT: "/get-purchase-order-report",
+    GET_PURCHASE_ORDER_PRODUCTS_REPORT: "/get-purchase-order-products-report",
 
     // Notes
     GET_USER_NOTE_LIST: "/get-note-list",
