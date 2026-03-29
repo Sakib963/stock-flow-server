@@ -16,6 +16,7 @@ module.exports = {
     AISLE: "aisle",
     PURCHASE: "purchase",
     PURCHASE_DETAILS: "purchase_details",
+    PURCHASE_DETAILS_COST_PROFILE: "purchase_details_cost_profile",
     INVENTORY: "inventory",
     ATTENDANCE: "attendance",
     PRODUCT_STATS: "product_stats",

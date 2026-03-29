@@ -59,12 +59,10 @@ const get_purchase_order_details = async (request, res) => {
     log.error(
       `An exception occurred while getting purchase order details: ${e?.message}`,
     );
-    return res
-      .status(500)
-      .json({
-        code: 500,
-        message: "Something Went Wrong! Please try again later!",
-      });
+    return res.status(500).json({
+      code: 500,
+      message: "Something Went Wrong! Please try again later!",
+    });
   }
 };
 
@@ -74,9 +72,16 @@ const generate_purchase_data_sql = (purchaseOid) => {
 };
 
 const generate_products_data_sql = (purchaseOid) => {
-  const query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price, CAST(pd.verified_quantity AS INTEGER) AS verified_quantity, CAST(pd.verified_unit_price as INTEGER) as verified_unit_price, CAST(i.selling_price AS INTEGER) AS selling_price, CAST(i.maximum_discount AS INTEGER) AS maximum_discount, i.status, i.intended_use
+  const query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price, CAST(pd.verified_quantity AS INTEGER) AS verified_quantity, CAST(pd.verified_unit_price as INTEGER) as verified_unit_price, CAST(i.selling_price AS INTEGER) AS selling_price, CAST(i.maximum_discount AS INTEGER) AS maximum_discount, i.status, i.intended_use,
+      CAST(pcp.ad_run_cost AS INTEGER) AS ad_run_cost,
+      CAST(pcp.packaging_cost AS INTEGER) AS packaging_cost,
+      CAST(pcp.gift_cost AS INTEGER) AS gift_cost,
+      CAST(pcp.content_creation_cost AS INTEGER) AS content_creation_cost,
+      CAST(pcp.influencer_cost AS INTEGER) AS influencer_cost,
+      pcp.cost_remarks
       FROM ${TABLE.PURCHASE_DETAILS} pd
       LEFT JOIN ${TABLE.INVENTORY} i ON pd.oid = i.purchase_details_oid
+      LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} pcp ON pcp.purchase_details_oid = pd.oid
       LEFT JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid
       LEFT JOIN ${TABLE.WAREHOUSE} wr ON wr.oid = pd.warehouse_oid
       LEFT JOIN ${TABLE.AISLE} ai ON ai.oid = pd.aisle_oid

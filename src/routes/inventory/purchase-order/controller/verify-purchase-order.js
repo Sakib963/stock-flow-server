@@ -45,6 +45,7 @@ const verify_purchase_order = async (request, res) => {
 
     const purchase_details_sql = [];
     const inventory_insert_sql = [];
+    const purchase_details_cost_profile_sql = [];
 
     payload.products.forEach((product) => {
       purchase_details_sql.push({
@@ -84,11 +85,48 @@ const verify_purchase_order = async (request, res) => {
           product.maximum_discount,
         ],
       });
+
+      const hasCostProfile =
+        product.ad_run_cost !== undefined ||
+        product.packaging_cost !== undefined ||
+        product.gift_cost !== undefined ||
+        product.content_creation_cost !== undefined ||
+        product.influencer_cost !== undefined ||
+        (product.cost_remarks && `${product.cost_remarks}`.trim().length > 0);
+
+      if (hasCostProfile) {
+        purchase_details_cost_profile_sql.push({
+          text: `INSERT INTO ${TABLE.PURCHASE_DETAILS_COST_PROFILE} (oid, purchase_details_oid, ad_run_cost, packaging_cost, gift_cost, content_creation_cost, influencer_cost, cost_remarks, created_by, created_on)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, clock_timestamp())
+                 ON CONFLICT (purchase_details_oid)
+                 DO UPDATE SET
+                   ad_run_cost = EXCLUDED.ad_run_cost,
+                   packaging_cost = EXCLUDED.packaging_cost,
+                   gift_cost = EXCLUDED.gift_cost,
+                   content_creation_cost = EXCLUDED.content_creation_cost,
+                   influencer_cost = EXCLUDED.influencer_cost,
+                   cost_remarks = EXCLUDED.cost_remarks,
+                   edited_by = EXCLUDED.created_by,
+                   edited_on = clock_timestamp()`,
+          values: [
+            uuidv4(),
+            product.oid,
+            product.ad_run_cost ?? null,
+            product.packaging_cost ?? null,
+            product.gift_cost ?? null,
+            product.content_creation_cost ?? null,
+            product.influencer_cost ?? null,
+            product.cost_remarks || null,
+            user_id,
+          ],
+        });
+      }
     });
 
     await execute_values([
       purchase_sql,
       ...purchase_details_sql,
+      ...purchase_details_cost_profile_sql,
       ...inventory_insert_sql,
     ]);
 
@@ -103,12 +141,10 @@ const verify_purchase_order = async (request, res) => {
     log.error(
       `An exception occurred while verifying purchase order: ${e?.message}`,
     );
-    return res
-      .status(500)
-      .json({
-        code: 500,
-        message: "Something Went Wrong! Please try again later!",
-      });
+    return res.status(500).json({
+      code: 500,
+      message: "Something Went Wrong! Please try again later!",
+    });
   }
 
   log.info(

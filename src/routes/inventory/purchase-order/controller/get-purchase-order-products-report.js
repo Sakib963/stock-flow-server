@@ -63,6 +63,22 @@ const get_products_report_data = async (oid) => {
             i.intended_use,
             i.selling_price,
             i.maximum_discount,
+            pcp.ad_run_cost,
+            pcp.packaging_cost,
+            pcp.gift_cost,
+            pcp.content_creation_cost,
+            pcp.influencer_cost,
+            pcp.cost_remarks,
+            CASE
+              WHEN i.intended_use = 'for_sale'
+              THEN COALESCE(i.selling_price, 0) - COALESCE(pd.verified_unit_price, 0)
+                - COALESCE(pcp.ad_run_cost, 0)
+                - COALESCE(pcp.packaging_cost, 0)
+                - COALESCE(pcp.gift_cost, 0)
+                - COALESCE(pcp.content_creation_cost, 0)
+                - COALESCE(pcp.influencer_cost, 0)
+              ELSE NULL
+            END as unit_profit_hint,
             i.status as inventory_status,
             i.batch_code
       FROM ${TABLE.PURCHASE} po
@@ -72,6 +88,7 @@ const get_products_report_data = async (oid) => {
       LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
       LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
       LEFT JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = pd.oid
+          LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} pcp ON pcp.purchase_details_oid = pd.oid
       WHERE po.oid = $1
       ORDER BY p.name ASC
   `;
@@ -111,6 +128,14 @@ const generate_products_report_xlsx = async (data) => {
     "Intended Use",
     "Selling Price",
     "Max Discount",
+    "Ad Run Cost",
+    "Packaging Cost",
+    "Gift Cost",
+    "Content Cost",
+    "Influencer Cost",
+    "Total Extra Cost / Unit",
+    "Unit Profit Hint",
+    "Cost Remarks",
     "Inventory Status",
     "Batch Code",
   ];
@@ -139,6 +164,18 @@ const generate_products_report_xlsx = async (data) => {
       item.intended_use,
       item.selling_price,
       item.maximum_discount,
+      item.ad_run_cost,
+      item.packaging_cost,
+      item.gift_cost,
+      item.content_creation_cost,
+      item.influencer_cost,
+      Number(item.ad_run_cost || 0) +
+        Number(item.packaging_cost || 0) +
+        Number(item.gift_cost || 0) +
+        Number(item.content_creation_cost || 0) +
+        Number(item.influencer_cost || 0),
+      item.unit_profit_hint,
+      item.cost_remarks,
       item.inventory_status,
       item.batch_code,
     ]);

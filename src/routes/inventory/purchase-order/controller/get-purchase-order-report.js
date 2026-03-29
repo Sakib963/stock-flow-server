@@ -59,13 +59,33 @@ const get_report_data = async (oid) => {
             'ordered_quantity', pd.ordered_quantity,
             'verified_quantity', pd.verified_quantity,
             'ordered_unit_price', pd.ordered_unit_price,
-            'verified_unit_price', pd.verified_unit_price
+            'verified_unit_price', pd.verified_unit_price,
+            'selling_price', i.selling_price,
+            'maximum_discount', i.maximum_discount,
+            'ad_run_cost', pcp.ad_run_cost,
+            'packaging_cost', pcp.packaging_cost,
+            'gift_cost', pcp.gift_cost,
+            'content_creation_cost', pcp.content_creation_cost,
+            'influencer_cost', pcp.influencer_cost,
+            'cost_remarks', pcp.cost_remarks,
+            'unit_profit_hint',
+              CASE
+                WHEN i.intended_use = 'for_sale'
+                THEN COALESCE(i.selling_price, 0) - COALESCE(pd.verified_unit_price, 0)
+                  - COALESCE(pcp.ad_run_cost, 0)
+                  - COALESCE(pcp.packaging_cost, 0)
+                  - COALESCE(pcp.gift_cost, 0)
+                  - COALESCE(pcp.content_creation_cost, 0)
+                  - COALESCE(pcp.influencer_cost, 0)
+                ELSE NULL
+              END
       )) AS purchase_details
       FROM ${TABLE.PURCHASE} AS po
       LEFT JOIN ${TABLE.SUPPLIER} AS s ON po.supplier_oid = s.oid
       LEFT JOIN ${TABLE.PURCHASE_DETAILS} AS pd ON po.oid = pd.purchase_oid
       LEFT JOIN ${TABLE.PRODUCT} AS p ON pd.product_oid = p.oid
       LEFT JOIN ${TABLE.INVENTORY} AS i ON pd.oid = i.purchase_details_oid
+          LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} AS pcp ON pcp.purchase_details_oid = pd.oid
       WHERE po.oid = $1
       GROUP BY po.oid, s.name
   `;
@@ -133,6 +153,16 @@ const generate_purchase_report_xlsx = async (data) => {
     "Verified Qty",
     "Ordered Price",
     "Verified Price",
+    "Selling Price",
+    "Max Discount (BDT)",
+    "Ad Run Cost",
+    "Packaging Cost",
+    "Gift Cost",
+    "Content Cost",
+    "Influencer Cost",
+    "Total Extra Cost / Unit",
+    "Unit Profit Hint",
+    "Cost Remarks",
   ];
 
   const headerRow = sheet.getRow(currentRow);
@@ -159,6 +189,20 @@ const generate_purchase_report_xlsx = async (data) => {
       detail.verified_quantity,
       detail.ordered_unit_price,
       detail.verified_unit_price,
+      detail.selling_price,
+      detail.maximum_discount,
+      detail.ad_run_cost,
+      detail.packaging_cost,
+      detail.gift_cost,
+      detail.content_creation_cost,
+      detail.influencer_cost,
+      Number(detail.ad_run_cost || 0) +
+        Number(detail.packaging_cost || 0) +
+        Number(detail.gift_cost || 0) +
+        Number(detail.content_creation_cost || 0) +
+        Number(detail.influencer_cost || 0),
+      detail.unit_profit_hint,
+      detail.cost_remarks,
     ]);
     currentRow++;
   });

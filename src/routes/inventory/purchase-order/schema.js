@@ -41,14 +41,20 @@ const verify_purchase_order_schema = Joi.object({
         intended_use: Joi.string().valid("for_sale", "internal_use").required(),
         selling_price: Joi.number().when("intended_use", {
           is: "for_sale",
-          then: Joi.number().required(),
+          then: Joi.number().min(0).required(),
           otherwise: Joi.number().optional().allow(null),
         }),
         maximum_discount: Joi.number().when("intended_use", {
           is: "for_sale",
-          then: Joi.number().required(),
+          then: Joi.number().min(0).required(),
           otherwise: Joi.number().optional().allow(null),
         }),
+        ad_run_cost: Joi.number().min(0).optional().allow(null),
+        packaging_cost: Joi.number().min(0).optional().allow(null),
+        gift_cost: Joi.number().min(0).optional().allow(null),
+        content_creation_cost: Joi.number().min(0).optional().allow(null),
+        influencer_cost: Joi.number().min(0).optional().allow(null),
+        cost_remarks: Joi.string().trim().max(500).optional().allow(null, ""),
       }),
     )
     .required(),
