@@ -1,23 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Static Template</title>
 
-<head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-      <title>Static Template</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
 
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
-            rel="stylesheet" />
-</head>
-
-<body style="
+  <body
+    style="
       margin: 0;
-      font-family: 'Poppins', sans-serif;
+      font-family: &quot;Poppins&quot;, sans-serif;
       background: #ffffff;
       font-size: 14px;
-    ">
-      <div style="
+    "
+  >
+    <div
+      style="
         max-width: 680px;
         margin: 0 auto;
         padding: 45px 30px 60px;
@@ -27,112 +31,141 @@
         background-position: top center;
         font-size: 14px;
         color: #434343;
-      ">
-            <header>
-                  <table style="width: 100%;">
-                        <tbody>
-                              <tr style="height: 0;">
-                                    <td style="display: flex; align-items: center; gap: 8px;">
-                                          <img alt="" src="https://sakib963.github.io/stock-flow-web/assets/icons/logo.svg" height="30px" />
-                                          <h2 style="color: #180B26; font-size: 24px;">StockFlow</h2>
-                                    </td>
-                                    <td style="text-align: right;">
-                                          <span style="font-size: 16px; line-height: 30px; color: #180B26;">{{CURRENT_DATE}}</span>
-                                    </td>
-                              </tr>
-                        </tbody>
-                  </table>
-            </header>
+      "
+    >
+      <header>
+        <table style="width: 100%">
+          <tbody>
+            <tr style="height: 0">
+              <td style="display: flex; align-items: center; gap: 8px">
+                <img alt="" src="{{LOGO_URL}}" height="30px" />
+                <h2 style="color: #180b26; font-size: 24px">{{APP_NAME}}</h2>
+              </td>
+              <td style="text-align: right">
+                <span style="font-size: 16px; line-height: 30px; color: #180b26"
+                  >{{CURRENT_DATE}}</span
+                >
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </header>
 
-            <main>
-                  <div style="
+      <main>
+        <div
+          style="
             margin: 0;
             margin-top: 50px;
             padding: 92px 30px 115px;
             background: #ffffff;
             border-radius: 30px;
             text-align: center;
-          ">
-                        <div style="width: 100%; max-width: 489px; margin: 0 auto;">
-                              <h1 style="
+          "
+        >
+          <div style="width: 100%; max-width: 489px; margin: 0 auto">
+            <h1
+              style="
                 margin: 0;
                 font-size: 24px;
                 font-weight: 500;
                 color: #1f1f1f;
-              ">
-                                    Your OTP
-                              </h1>
-                              <p style="
+              "
+            >
+              Your OTP
+            </h1>
+            <p
+              style="
                 margin: 0;
                 margin-top: 17px;
                 font-size: 16px;
                 font-weight: 500;
-              ">
-                                    Hey {{USER_NAME}},
-                              </p>
-                              <p style="
+              "
+            >
+              Hey {{USER_NAME}},
+            </p>
+            <p
+              style="
                 margin: 0;
                 margin-top: 17px;
                 font-weight: 500;
                 letter-spacing: 0.56px;
-              ">
-                                    Thank you for using our platform. To ensure your account’s security, please use the
-                                    following OTP to verify your identity and proceed with changing your password. This
-                                    OTP is valid for <span style="font-weight: 600; color: #1f1f1f;">5 minutes</span>.
-                                    For your safety, do not share this code with anyone, including other employees.
-                              </p>
-                              <p style="
+              "
+            >
+              Thank you for using our platform. To ensure your account’s
+              security, please use the following OTP to verify your identity and
+              proceed with changing your password. This OTP is valid for
+              <span style="font-weight: 600; color: #1f1f1f">5 minutes</span>.
+              For your safety, do not share this code with anyone, including
+              other employees.
+            </p>
+            <p
+              style="
                 margin: 0;
                 margin-top: 60px;
                 font-size: 40px;
                 font-weight: 600;
                 letter-spacing: 25px;
-                color: #DF1463;
-              ">{{OTP}}</p>
-                        </div>
-                  </div>
+                color: #df1463;
+              "
+            >
+              {{OTP}}
+            </p>
+          </div>
+        </div>
 
-                  <p style="
+        <p
+          style="
             max-width: 400px;
             margin: 0 auto;
             margin-top: 90px;
             text-align: center;
             font-weight: 500;
             color: #8c8c8c;
-          ">
-                        Need help? Ask at
-                        <a href="mailto:app.automation.service@gmail.com"
-                              style="color: #594ED1; text-decoration: none;">app.automation.service@gmail.com</a>
-                        or visit our
-                        <a href="https://sakib963.github.io/stock-flow-web/" target="_blank"
-                              style="color: #594ED1; text-decoration: none;">Help Center</a>
-                  </p>
-            </main>
+          "
+        >
+          Need help? Ask at
+          <a
+            href="mailto:{{SUPPORT_EMAIL}}"
+            style="color: #594ed1; text-decoration: none"
+            >{{SUPPORT_EMAIL}}</a
+          >
+          or visit our
+          <a
+            href="{{HELP_CENTER_URL}}"
+            target="_blank"
+            style="color: #594ed1; text-decoration: none"
+            >Help Center</a
+          >
+        </p>
+      </main>
 
-            <footer style="
+      <footer
+        style="
           width: 100%;
           max-width: 490px;
           margin: 20px auto 0;
           text-align: center;
           border-top: 1px solid #e6ebf1;
-        ">
-                  <p style="
+        "
+      >
+        <p
+          style="
             margin: 0;
             margin-top: 40px;
             font-size: 16px;
             font-weight: 600;
             color: #434343;
-          ">
-                        StockFlow
-                  </p>
-                  <p style="margin: 0; margin-top: 8px; color: #434343;">
-                        Dhaka, Bangladesh
-                  </p>
-                  <p style="margin: 0; margin-top: 16px; color: #434343;">
-                        Copyright © {{YEAR}} StockFlow. All rights reserved.
-                  </p>
-            </footer>
-      </div>
-</body>
-
+          "
+        >
+          {{APP_NAME}}
+        </p>
+        <p style="margin: 0; margin-top: 8px; color: #434343">
+          Dhaka, Bangladesh
+        </p>
+        <p style="margin: 0; margin-top: 16px; color: #434343">
+          Copyright © {{YEAR}} {{APP_NAME}}. All rights reserved.
+        </p>
+      </footer>
+    </div>
+  </body>
 </html>
