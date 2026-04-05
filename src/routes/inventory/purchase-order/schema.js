@@ -30,14 +30,15 @@ const purchase_order_schema = Joi.object({
 });
 
 const verify_purchase_order_schema = Joi.object({
-  oid: Joi.string().allow(null),
+  oid: Joi.string().required(),
   products: Joi.array()
+    .min(1)
     .items(
       Joi.object({
-        oid: Joi.string().allow(null),
+        oid: Joi.string().required(),
         product_oid: Joi.string().required(),
-        verified_quantity: Joi.number().required(),
-        verified_unit_price: Joi.number().required(),
+        verified_quantity: Joi.number().min(0).required(),
+        verified_unit_price: Joi.number().min(0).required(),
         intended_use: Joi.string().valid("for_sale", "internal_use").required(),
         selling_price: Joi.number().when("intended_use", {
           is: "for_sale",

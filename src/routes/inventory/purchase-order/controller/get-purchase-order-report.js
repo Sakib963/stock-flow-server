@@ -153,16 +153,6 @@ const generate_purchase_report_xlsx = async (data) => {
     "Verified Qty",
     "Ordered Price",
     "Verified Price",
-    "Selling Price",
-    "Max Discount (BDT)",
-    "Ad Run Cost",
-    "Packaging Cost",
-    "Gift Cost",
-    "Content Cost",
-    "Influencer Cost",
-    "Total Extra Cost / Unit",
-    "Unit Profit Hint",
-    "Cost Remarks",
   ];
 
   const headerRow = sheet.getRow(currentRow);
@@ -189,20 +179,6 @@ const generate_purchase_report_xlsx = async (data) => {
       detail.verified_quantity,
       detail.ordered_unit_price,
       detail.verified_unit_price,
-      detail.selling_price,
-      detail.maximum_discount,
-      detail.ad_run_cost,
-      detail.packaging_cost,
-      detail.gift_cost,
-      detail.content_creation_cost,
-      detail.influencer_cost,
-      Number(detail.ad_run_cost || 0) +
-        Number(detail.packaging_cost || 0) +
-        Number(detail.gift_cost || 0) +
-        Number(detail.content_creation_cost || 0) +
-        Number(detail.influencer_cost || 0),
-      detail.unit_profit_hint,
-      detail.cost_remarks,
     ]);
     currentRow++;
   });
@@ -214,6 +190,119 @@ const generate_purchase_report_xlsx = async (data) => {
       max = Math.max(max, length + 2);
     });
     col.width = Math.min(max, 30);
+  });
+
+  const costSheet = workbook.addWorksheet("Cost Breakdown");
+  addReportHeader(costSheet, "Purchase Cost Breakdown", 14);
+
+  let costRow = 5;
+  costSheet.getCell(costRow, 1).value = "Cost Summary";
+  costSheet.getCell(costRow, 1).font = { bold: true, size: 14 };
+  costRow += 2;
+
+  const summaryInfo = [
+    ["Supplier:", purchaseOrder.supplier_name],
+    ["Purchase OID:", purchaseOrder.oid],
+  ];
+
+  summaryInfo.forEach(([label, value]) => {
+    costSheet.getCell(costRow, 1).value = label;
+    costSheet.getCell(costRow, 1).font = { bold: true };
+    costSheet.getCell(costRow, 2).value = value;
+    costSheet.mergeCells(costRow, 2, costRow, 6);
+    costRow++;
+  });
+
+  costRow += 2;
+  const hasAnyCostBreakdown = purchaseDetails.some(
+    (detail) =>
+      Number(detail.ad_run_cost || 0) > 0 ||
+      Number(detail.packaging_cost || 0) > 0 ||
+      Number(detail.gift_cost || 0) > 0 ||
+      Number(detail.content_creation_cost || 0) > 0 ||
+      Number(detail.influencer_cost || 0) > 0 ||
+      !!(detail.cost_remarks && `${detail.cost_remarks}`.trim()),
+  );
+
+  if (!hasAnyCostBreakdown) {
+    costSheet.getCell(costRow, 1).value =
+      "No cost breakdown data available for this purchase order.";
+    costSheet.getCell(costRow, 1).font = {
+      italic: true,
+      color: { argb: "FF666666" },
+    };
+    costSheet.mergeCells(costRow, 1, costRow, 8);
+  }
+
+  if (hasAnyCostBreakdown) {
+    const costColumns = [
+      "Product",
+      "Batch Code",
+      "Verified Qty",
+      "Verified Unit Price",
+      "Selling Price",
+      "Max Discount",
+      "Ad Run Cost",
+      "Packaging Cost",
+      "Gift Cost",
+      "Content Cost",
+      "Influencer Cost",
+      "Total Extra Cost / Unit",
+      "Probable Profit / Unit",
+      "Probable Profit (Batch)",
+      "Cost Remarks",
+    ];
+
+    const costHeaderRow = costSheet.getRow(costRow);
+    costColumns.forEach((col, idx) => {
+      costHeaderRow.getCell(idx + 1).value = col;
+    });
+    costHeaderRow.font = { bold: true };
+    costHeaderRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFD3D3D3" },
+    };
+    costRow++;
+
+    purchaseDetails.forEach((detail) => {
+      const totalExtraCostPerUnit =
+        Number(detail.ad_run_cost || 0) +
+        Number(detail.packaging_cost || 0) +
+        Number(detail.gift_cost || 0) +
+        Number(detail.content_creation_cost || 0) +
+        Number(detail.influencer_cost || 0);
+      const probableProfitPerUnit = Number(detail.unit_profit_hint || 0);
+      const probableProfitLine =
+        probableProfitPerUnit * Number(detail.verified_quantity || 0);
+
+      costSheet.addRow([
+        detail.product_name,
+        detail.batch_code,
+        detail.verified_quantity,
+        detail.verified_unit_price,
+        detail.selling_price,
+        detail.maximum_discount,
+        detail.ad_run_cost,
+        detail.packaging_cost,
+        detail.gift_cost,
+        detail.content_creation_cost,
+        detail.influencer_cost,
+        totalExtraCostPerUnit,
+        probableProfitPerUnit,
+        probableProfitLine,
+        detail.cost_remarks,
+      ]);
+    });
+  }
+
+  costSheet.columns.forEach((col) => {
+    let max = 10;
+    col.eachCell({ includeEmpty: true }, (cell) => {
+      const length = cell.value?.toString().length || 0;
+      max = Math.max(max, length + 2);
+    });
+    col.width = Math.min(max, 32);
   });
 
   return workbook.xlsx.writeBuffer();
