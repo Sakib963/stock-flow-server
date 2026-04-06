@@ -7,12 +7,7 @@ const get_purchase_order_details = async (request, res) => {
   try {
     const purchaseOid = request.params.oid || request.query.oid;
 
-    const detailsSql = generate_purchase_data_sql(purchaseOid);
-    const productsSql = generate_products_data_sql(purchaseOid);
-    const costDetailsSql = generate_cost_details_data_sql(purchaseOid);
-    const statsSql = generate_stats_sql(purchaseOid);
-
-    const details_set = await get_data(detailsSql);
+    const details_set = await get_data(generate_purchase_data_sql(purchaseOid));
     const details = details_set.length ? details_set[0] : null;
 
     if (!details) {
@@ -24,15 +19,15 @@ const get_purchase_order_details = async (request, res) => {
       });
     }
 
-    const products_set = await get_data(productsSql);
-    const cost_details_set = await get_data(costDetailsSql);
-    const stats_set = await get_data(statsSql);
+    const [products_set, cost_details_set, stats_set, activity_set] =
+      await Promise.all([
+        get_data(generate_products_data_sql(purchaseOid)),
+        get_data(generate_cost_details_data_sql(purchaseOid)),
+        get_data(generate_stats_sql(purchaseOid)),
+        getLogActivities("purchase-order", purchaseOid, 10),
+      ]);
+
     const stats = stats_set.length ? stats_set[0] : null;
-    const activity_set = await getLogActivities(
-      "purchase-order",
-      purchaseOid,
-      10,
-    );
 
     log.info(`Purchase order details found for oid: ${purchaseOid}`);
     return res.status(200).json({
@@ -75,41 +70,62 @@ const generate_purchase_data_sql = (purchaseOid) => {
 };
 
 const generate_products_data_sql = (purchaseOid) => {
-  const query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name, pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name, CAST(pd.ordered_quantity AS INTEGER) AS quantity, CAST(pd.ordered_unit_price as INTEGER) as unit_price, CAST(pd.verified_quantity AS INTEGER) AS verified_quantity, CAST(pd.verified_unit_price as INTEGER) as verified_unit_price, CAST(i.selling_price AS INTEGER) AS selling_price, CAST(i.maximum_discount AS INTEGER) AS maximum_discount, i.status, i.intended_use
+  const query = `
+      SELECT DISTINCT ON (pd.oid)
+            pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name,
+            pd.warehouse_oid, wr.name as warehouse_name, pd.aisle_oid, ai.name as aisle_name,
+            CAST(pd.ordered_quantity AS INTEGER) AS quantity,
+            CAST(pd.ordered_unit_price AS INTEGER) as unit_price,
+            CAST(pd.verified_quantity AS INTEGER) AS verified_quantity,
+            CAST(pd.verified_unit_price AS INTEGER) as verified_unit_price,
+            CAST(i.selling_price AS INTEGER) AS selling_price,
+            CAST(i.maximum_discount AS INTEGER) AS maximum_discount,
+            i.status, i.intended_use,
+            CAST(pcp.ad_run_cost AS INTEGER) AS ad_run_cost,
+            CAST(pcp.packaging_cost AS INTEGER) AS packaging_cost,
+            CAST(pcp.gift_cost AS INTEGER) AS gift_cost,
+            CAST(pcp.content_creation_cost AS INTEGER) AS content_creation_cost,
+            CAST(pcp.influencer_cost AS INTEGER) AS influencer_cost,
+            pcp.cost_remarks
       FROM ${TABLE.PURCHASE_DETAILS} pd
-      LEFT JOIN ${TABLE.INVENTORY} i ON pd.oid = i.purchase_details_oid
+      LEFT JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = pd.oid
       LEFT JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid
       LEFT JOIN ${TABLE.WAREHOUSE} wr ON wr.oid = pd.warehouse_oid
       LEFT JOIN ${TABLE.AISLE} ai ON ai.oid = pd.aisle_oid
-      WHERE pd.purchase_oid = $1`;
+      LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} pcp ON pcp.purchase_details_oid = pd.oid
+      WHERE pd.purchase_oid = $1
+      ORDER BY pd.oid`;
   return { text: query, values: [purchaseOid] };
 };
 
 const generate_cost_details_data_sql = (purchaseOid) => {
-  const query = `SELECT pd.oid, pd.purchase_oid, pd.product_oid, pr.name as product_name,
-      CAST(pd.verified_unit_price as INTEGER) as verified_unit_price,
-      CAST(i.selling_price AS INTEGER) AS selling_price,
-      CAST(i.maximum_discount AS INTEGER) AS maximum_discount,
-      i.intended_use,
-      CAST(pcp.ad_run_cost AS INTEGER) AS ad_run_cost,
-      CAST(pcp.packaging_cost AS INTEGER) AS packaging_cost,
-      CAST(pcp.gift_cost AS INTEGER) AS gift_cost,
-      CAST(pcp.content_creation_cost AS INTEGER) AS content_creation_cost,
-      CAST(pcp.influencer_cost AS INTEGER) AS influencer_cost,
-      pcp.cost_remarks
+  const query = `
+      SELECT DISTINCT ON (pd.oid)
+            pd.oid,
+            pr.name as product_name,
+            CAST(pd.verified_unit_price AS INTEGER) as verified_unit_price,
+            CAST(i.selling_price AS INTEGER) AS selling_price,
+            i.intended_use,
+            CAST(pcp.ad_run_cost AS INTEGER) AS ad_run_cost,
+            CAST(pcp.packaging_cost AS INTEGER) AS packaging_cost,
+            CAST(pcp.gift_cost AS INTEGER) AS gift_cost,
+            CAST(pcp.content_creation_cost AS INTEGER) AS content_creation_cost,
+            CAST(pcp.influencer_cost AS INTEGER) AS influencer_cost,
+            pcp.cost_remarks
       FROM ${TABLE.PURCHASE_DETAILS} pd
       INNER JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} pcp ON pcp.purchase_details_oid = pd.oid
-      LEFT JOIN ${TABLE.INVENTORY} i ON pd.oid = i.purchase_details_oid
+      LEFT JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = pd.oid
       LEFT JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid
       WHERE pd.purchase_oid = $1
       AND (
-        COALESCE(pcp.ad_run_cost, 0) > 0
-        OR COALESCE(pcp.packaging_cost, 0) > 0
-        OR COALESCE(pcp.gift_cost, 0) > 0
-        OR COALESCE(pcp.content_creation_cost, 0) > 0
-        OR COALESCE(pcp.influencer_cost, 0) > 0
-        OR COALESCE(TRIM(pcp.cost_remarks), '') <> ''
-      )`;
+            COALESCE(pcp.ad_run_cost, 0) > 0
+            OR COALESCE(pcp.packaging_cost, 0) > 0
+            OR COALESCE(pcp.gift_cost, 0) > 0
+            OR COALESCE(pcp.content_creation_cost, 0) > 0
+            OR COALESCE(pcp.influencer_cost, 0) > 0
+            OR COALESCE(TRIM(pcp.cost_remarks), '') <> ''
+      )
+      ORDER BY pd.oid`;
   return { text: query, values: [purchaseOid] };
 };
 
