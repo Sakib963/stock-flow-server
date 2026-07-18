@@ -25,6 +25,7 @@ module.exports = {
     PRODUCT_RETURN: "product_return",
     RETURN_DETAILS: "return_details",
     PRODUCT_DISPOSE: "product_dispose",
+    DISPOSE_DETAILS: "dispose_details",
     OTP_LOG: "otp_log",
     USER_NOTES: "user_notes",
     ACTIVITY_LOG: "activity_log",
@@ -181,7 +182,12 @@ module.exports = {
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",
+    UPDATE_PRODUCT_DISPOSE_DETAILS: "/update-product-dispose-details",
     GET_PRODUCT_DISPOSE_DETAILS: "/get-product-dispose-details",
+    APPROVE_PRODUCT_DISPOSE: "/approve-product-dispose",
+    REJECT_PRODUCT_DISPOSE: "/reject-product-dispose",
+    CANCEL_PRODUCT_DISPOSE: "/cancel-product-dispose",
+    REVERSE_PRODUCT_DISPOSE: "/reverse-product-dispose",
     GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN:
       "/get-product-list-for-dispose-dropdown",
 
