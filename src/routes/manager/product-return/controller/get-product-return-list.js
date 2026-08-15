@@ -32,7 +32,7 @@ const get_product_return_list = async (request, res) => {
 
 const generate_count_sql = (request) => {
       let query = `SELECT COUNT(*) AS total FROM ${TABLE.PRODUCT_RETURN} pr
-      LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.sales_oid WHERE 1 = 1`;
+      LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.order_oid WHERE 1 = 1`;
       let values = [];
 
       if (request.query.status) {
@@ -55,7 +55,7 @@ const generate_count_sql = (request) => {
 const generate_data_sql = (request) => {
       let query = `SELECT pr.oid, pr.invoice_no, pr.refund_amount, pr.status, to_char(pr.created_on, 'DD/MM/YYYY') as created_on, s.customer_name, s.customer_phone, s.total_amount, to_char(s.created_on, 'DD/MM/YYYY') as sales_date, l.name as sold_by 
       FROM ${TABLE.PRODUCT_RETURN} pr 
-      LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.sales_oid
+      LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.order_oid
       LEFT JOIN ${TABLE.LOGIN} l ON l.email = s.created_by
       WHERE  1 = 1`;
       let values = [];

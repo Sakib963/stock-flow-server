@@ -31,7 +31,7 @@ const generate_data_sql = (request) => {
       const sql = {
             text: `SELECT
                         pr.oid,
-                        pr.sales_oid,
+                        pr.order_oid,
                         pr.invoice_no,
                         pr.refund_amount,
                         pr.return_reason,
@@ -57,7 +57,7 @@ const generate_data_sql = (request) => {
                         )
                         ) AS products
                   FROM ${TABLE.PRODUCT_RETURN} pr
-                  LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.sales_oid
+                  LEFT JOIN ${TABLE.SALES} s ON s.oid = pr.order_oid
                   LEFT JOIN ${TABLE.RETURN_DETAILS} rd ON rd.return_oid = pr.oid
                   LEFT JOIN ${TABLE.PRODUCT} pd ON pd.oid = rd.product_oid
                   LEFT JOIN ${TABLE.INVENTORY} inv ON inv.oid = rd.inventory_oid
@@ -65,7 +65,7 @@ const generate_data_sql = (request) => {
                   LEFT JOIN ${TABLE.PURCHASE} pur ON pur.oid = prd.purchase_oid
                   LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pur.supplier_oid
                   WHERE pr.oid = $1
-                  GROUP BY pr.oid, pr.sales_oid, pr.invoice_no, pr.refund_amount, pr.return_reason, pr.status, pr.created_on, pr.created_by,
+                  GROUP BY pr.oid, pr.order_oid, pr.invoice_no, pr.refund_amount, pr.return_reason, pr.status, pr.created_on, pr.created_by,
                            s.total_amount, s.customer_name, s.customer_phone, s.created_on, s.created_by`,
             values: [return_oid]
       };

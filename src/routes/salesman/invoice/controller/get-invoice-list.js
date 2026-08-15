@@ -53,7 +53,7 @@ const generate_data_sql = (request) => {
       let query = `
     SELECT s.oid, s.invoice_no, s.customer_name, s.customer_phone, s.total_amount, s.status, s.notes, s.created_by, s.created_on, s.edited_on, s.edited_by, COUNT(sd.oid) AS product_count
     FROM ${TABLE.SALES} s
-    LEFT JOIN ${TABLE.SALE_DETAILS} sd ON sd.sales_oid = s.oid
+    LEFT JOIN ${TABLE.SALE_DETAILS} sd ON sd.order_oid = s.oid
     WHERE s.created_by = $1
   `;
       let values = [request.credentials.user_id];

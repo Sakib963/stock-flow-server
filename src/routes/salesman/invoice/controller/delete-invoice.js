@@ -15,7 +15,7 @@ const delete_invoice = async (request, res) => {
             sql_array.push(sales_sql);
 
             let sales_details_sql = {
-                  text: `DELETE FROM ${TABLE.SALE_DETAILS} WHERE sales_oid = $1`,
+                  text: `DELETE FROM ${TABLE.SALE_DETAILS} WHERE order_oid = $1`,
                   values: [payload.oid]
             }
             sql_array.push(sales_details_sql);

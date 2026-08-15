@@ -53,7 +53,7 @@ const get_dashboard_data = async (req, res) => {
                         FROM (
                               SELECT sd.product_oid, p.name AS product_name, SUM(sd.quantity) AS total_sold
                               FROM ${TABLE.SALE_DETAILS} sd
-                              LEFT JOIN ${TABLE.SALES} sa ON sd.sales_oid = sa.oid
+                              LEFT JOIN ${TABLE.SALES} sa ON sd.order_oid = sa.oid
                               LEFT JOIN ${TABLE.PRODUCT} p ON sd.product_oid = p.oid
                               WHERE EXTRACT(MONTH FROM sa.created_on) = EXTRACT(MONTH FROM CURRENT_DATE)
                               AND EXTRACT(YEAR FROM sa.created_on) = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -67,7 +67,7 @@ const get_dashboard_data = async (req, res) => {
                         FROM (
                               SELECT p.supplier_oid, s.name AS supplier_name, SUM(sd.quantity) AS total_sold
                               FROM ${TABLE.SALE_DETAILS} sd
-                              LEFT JOIN ${TABLE.SALES} sa ON sd.sales_oid = sa.oid
+                              LEFT JOIN ${TABLE.SALES} sa ON sd.order_oid = sa.oid
                               LEFT JOIN ${TABLE.INVENTORY} i ON sd.inventory_oid = i.oid
                               LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON i.purchase_details_oid = pd.oid
                               LEFT JOIN ${TABLE.PURCHASE} p ON pd.purchase_oid = p.oid

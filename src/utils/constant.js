@@ -20,8 +20,15 @@ module.exports = {
     INVENTORY: "inventory",
     ATTENDANCE: "attendance",
     PRODUCT_STATS: "product_stats",
-    SALES: "sales",
-    SALE_DETAILS: "sales_details",
+    // Order spine (renamed from sales/sales_details). SALES/SALE_DETAILS keys are
+    // kept as aliases so legacy controllers resolve to the renamed tables.
+    ORDERS: "orders",
+    ORDER_ITEMS: "order_items",
+    SALES: "orders",
+    SALE_DETAILS: "order_items",
+    CUSTOMERS: "customers",
+    STOCK_HOLD: "stock_hold",
+    ORDER_STATUS_HISTORY: "order_status_history",
     PRODUCT_RETURN: "product_return",
     RETURN_DETAILS: "return_details",
     PRODUCT_DISPOSE: "product_dispose",
@@ -39,6 +46,7 @@ module.exports = {
     CONFIGURATION: "/api/v1/configuration",
     INVENTORY: "/api/v1/inventory",
     ACTIVITY_LOG: "/api/v1/activity-log",
+    SALES: "/api/v1/sales",
   },
   SUB_CONTEXTS: {
     USER: "/user",
@@ -56,6 +64,12 @@ module.exports = {
     INVENTORY_OVERVIEW: "/inventory-overview",
     ATTENDANCE: "/attendance",
     SALE: "/sale",
+    // Sales & Orders module (revamp)
+    POS: "/pos",
+    ONLINE: "/online",
+    ORDER: "/order",
+    CUSTOMER: "/customer",
+    DELIVERY: "/delivery",
     INVOICE: "/invoice",
     PRODUCT_RETURN: "/product-return",
     PRODUCT_DISPOSE: "/product-dispose",
@@ -179,6 +193,28 @@ module.exports = {
     GET_PRODUCT_RETURN_LIST: "/get-product-return-list",
     SAVE_PRODUCT_RETURN: "/save-product-return",
     GET_PRODUCT_RETURN_DETAILS: "/get-product-return-details",
+
+    // --- Sales & Orders module (revamp; POS + online on the `orders` spine) ---
+    GET_POS_PRODUCT_LIST: "/get-product-list",
+    GET_ORDER_INVOICE_NUMBER: "/get-invoice-number",
+    CHECKOUT_POS_SALE: "/checkout",
+    SAVE_POS_DRAFT: "/save-draft",
+    GET_ORDER_LIST: "/get-order-list",
+    GET_ORDER_DETAILS: "/get-order-details",
+    // Online order page
+    SMART_FILL: "/smart-fill",
+    CREATE_ONLINE_ORDER: "/create-online-order",
+    SAVE_ONLINE_DRAFT: "/save-draft",
+    CONFIRM_ONLINE_ORDER: "/confirm",
+    CANCEL_ONLINE_ORDER: "/cancel",
+    MARK_DELIVERED: "/deliver",
+    // Send for Delivery (Pathao export) + pre-orders
+    SEND_FOR_DELIVERY: "/send-for-delivery",
+    CREATE_PREORDER: "/create-preorder",
+    CONVERT_PREORDER: "/convert-preorder",
+    GET_PREORDERS_FOR_PRODUCT: "/get-preorders-for-product",
+    EDIT_PENDING_ORDER: "/edit-pending",
+    CREATE_RETURN: "/create-return",
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",

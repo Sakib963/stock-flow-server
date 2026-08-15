@@ -149,7 +149,7 @@ const generate_demand_trend_sql = (supplierOid) => {
             INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.purchase_oid = p.oid
             INNER JOIN ${TABLE.PRODUCT} pr ON pr.oid = pd.product_oid
             INNER JOIN ${TABLE.SALE_DETAILS} sd ON sd.product_oid = pr.oid
-            INNER JOIN ${TABLE.SALES} s ON s.oid = sd.sales_oid
+            INNER JOIN ${TABLE.SALES} s ON s.oid = sd.order_oid
             WHERE p.supplier_oid = $1 
                   AND s.created_on >= CURRENT_DATE - INTERVAL '12 months'
                   AND pr.is_deleted = FALSE

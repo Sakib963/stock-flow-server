@@ -44,7 +44,7 @@ const generate_sql_array = (payload, user_id) => {
             }
             sql_array.push(invoice_sql);
             const delete_products_sql = {
-                  text: `DELETE FROM ${TABLE.SALE_DETAILS} WHERE sales_oid = $1`,
+                  text: `DELETE FROM ${TABLE.SALE_DETAILS} WHERE order_oid = $1`,
                   values: [payload.oid]
             }
             sql_array.push(delete_products_sql);
@@ -53,7 +53,7 @@ const generate_sql_array = (payload, user_id) => {
             if (Array.isArray(payload.products) && payload.products.length > 0) {
                   for (const product of payload.products) {
                         const insert_products_sql = {
-                              text: `INSERT INTO ${TABLE.SALE_DETAILS} (oid, sales_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                              text: `INSERT INTO ${TABLE.SALE_DETAILS} (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                               values: [
                                     uuidv4(),
                                     payload.oid,
@@ -117,7 +117,7 @@ const generate_sql_array = (payload, user_id) => {
             if (Array.isArray(payload.products) && payload.products.length > 0) {
                   for (const product of payload.products) {
                         const insert_products_sql = {
-                              text: `INSERT INTO ${TABLE.SALE_DETAILS} (oid, sales_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                              text: `INSERT INTO ${TABLE.SALE_DETAILS} (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                               values: [
                                     uuidv4(),
                                     invoice_oid,

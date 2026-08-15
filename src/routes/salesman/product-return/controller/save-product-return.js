@@ -25,7 +25,7 @@ const generate_sql = (payload, user_id) => {
       const return_oid = uuidv4();
 
       const return_sql = {
-            text: `INSERT INTO ${TABLE.PRODUCT_RETURN} (oid, sales_oid, invoice_no, refund_amount, return_reason, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            text: `INSERT INTO ${TABLE.PRODUCT_RETURN} (oid, order_oid, invoice_no, refund_amount, return_reason, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             values: [return_oid, payload.invoice_oid, payload.invoice_no, payload.refund_amount, payload.return_reason, "Returned", user_id]
       }
       sql_array.push(return_sql);

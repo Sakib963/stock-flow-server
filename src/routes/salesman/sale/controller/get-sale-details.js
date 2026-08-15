@@ -56,7 +56,7 @@ const generate_data_sql = (request) => {
                         )
                         ) AS products
                   FROM ${TABLE.SALES} s
-                  LEFT JOIN ${TABLE.SALE_DETAILS} sd ON s.oid = sd.sales_oid
+                  LEFT JOIN ${TABLE.SALE_DETAILS} sd ON s.oid = sd.order_oid
                   WHERE s.oid = $1
                   GROUP BY s.oid`,
             values: [invoice_oid]
