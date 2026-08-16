@@ -17,6 +17,7 @@ const get_order_details = async (request, res) => {
                           CAST(o.amount_paid AS INTEGER) AS amount_paid,
                           o.payment_type, o.payment_method, o.payment_reference, o.payment_status,
                           o.dispatched_on, o.delivered_on, o.cancelled_on, o.cancel_reason,
+                          o.tracking_token,
                           o.notes, o.created_by, o.created_on, o.edited_by, o.edited_on
                      FROM ${TABLE.ORDERS} o WHERE o.oid = $1`,
             values: [oid],

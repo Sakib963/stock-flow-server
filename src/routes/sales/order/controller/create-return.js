@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
 const pool = require("../../../../utils/db.config");
 const { get_data } = require("../../../../utils/database");
@@ -114,7 +115,7 @@ const create_return = async (request, res) => {
         // Full vs partial: fully returned iff every line's returned_qty == quantity.
         const remainingRes = await client.query({ text: `SELECT COALESCE(SUM(quantity - returned_qty), 0)::int AS remaining FROM ${TABLE.ORDER_ITEMS} WHERE order_oid = $1`, values: [order_oid] });
         const new_status = remainingRes.rows[0].remaining === 0 ? "Returned" : "PartiallyReturned";
-        await client.query({ text: `UPDATE ${TABLE.ORDERS} SET status = $1, edited_by = $2, edited_on = clock_timestamp() WHERE oid = $3`, values: [new_status, user_id, order_oid] });
+        await client.query({ text: `UPDATE ${TABLE.ORDERS} SET status = $1, tracking_token = COALESCE(tracking_token, $4), edited_by = $2, edited_on = clock_timestamp() WHERE oid = $3`, values: [new_status, user_id, order_oid, crypto.randomBytes(16).toString("hex")] });
         await recordStatusHistory(client, { order_oid, from_status: order.status, to_status: new_status, reason: `Return ${return_no} (refund intent ${refund_amount})`, user_id });
 
         await client.query("COMMIT");

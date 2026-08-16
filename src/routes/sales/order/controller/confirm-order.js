@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
 const pool = require("../../../../utils/db.config");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
@@ -5,19 +6,21 @@ const { recordStatusHistory } = require("../../../../utils/order-utils");
 const { log } = require("../../../../utils/log");
 
 // Confirm a PENDING online order -> CONFIRMED. Acceptance, not a second hold:
-// stock is already held from creation, so this changes NO stock numbers.
+// stock is already held from creation, so this changes NO stock numbers. This is
+// also where we mint the public tracking_token (COALESCE keeps an existing one).
 const confirm_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     const order_oid = request.body.oid;
+    const tracking_token = crypto.randomBytes(16).toString("hex"); // 32-char, non-guessable
     const client = await pool.connect();
 
     try {
         await client.query("BEGIN");
         const result = await client.query({
             text: `UPDATE ${TABLE.ORDERS}
-                      SET status = 'Confirmed', edited_by = $1, edited_on = clock_timestamp()
+                      SET status = 'Confirmed', tracking_token = COALESCE(tracking_token, $3), edited_by = $1, edited_on = clock_timestamp()
                     WHERE oid = $2 AND status = 'Pending' RETURNING invoice_no`,
-            values: [user_id, order_oid],
+            values: [user_id, order_oid, tracking_token],
         });
 
         if (!result.rowCount) {

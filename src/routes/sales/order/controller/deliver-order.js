@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
 const pool = require("../../../../utils/db.config");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
@@ -19,10 +20,11 @@ const deliver_order = async (request, res) => {
             text: `UPDATE ${TABLE.ORDERS}
                       SET status = 'Delivered', delivered_on = clock_timestamp(),
                           payment_status = CASE WHEN $1 THEN 'paid' ELSE payment_status END,
+                          tracking_token = COALESCE(tracking_token, $4),
                           edited_by = $2, edited_on = clock_timestamp()
                     WHERE oid = $3 AND status = 'Confirmed' AND dispatched_on IS NOT NULL
                     RETURNING invoice_no`,
-            values: [collected, user_id, order_oid],
+            values: [collected, user_id, order_oid, crypto.randomBytes(16).toString("hex")],
         });
 
         if (!result.rowCount) {

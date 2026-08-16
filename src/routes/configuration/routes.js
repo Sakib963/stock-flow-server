@@ -8,6 +8,7 @@ const { productRouter } = require("./product/route");
 const { warehouseRouter } = require("./warehouse/route");
 const { aisleRouter } = require("./aisle/route");
 const { analyticsRouter } = require("./analytics/route");
+const { settingsRouter } = require("./settings/route");
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use(SUB_CONTEXTS.PRODUCT, productRouter);
 router.use(SUB_CONTEXTS.WAREHOUSE, warehouseRouter);
 router.use(SUB_CONTEXTS.AISLE, aisleRouter);
 router.use(SUB_CONTEXTS.ANALYTICS, analyticsRouter);
+router.use(SUB_CONTEXTS.SETTINGS, settingsRouter);
 
 module.exports = { configurationRouter: router };

@@ -36,6 +36,7 @@ module.exports = {
     OTP_LOG: "otp_log",
     USER_NOTES: "user_notes",
     ACTIVITY_LOG: "activity_log",
+    SETTINGS: "settings",
   },
   CONTEXTS: {
     AUTH: "/api/v1/auth",
@@ -59,6 +60,7 @@ module.exports = {
     WAREHOUSE: "/warehouse",
     AISLE: "/aisle",
     ANALYTICS: "/analytics",
+    SETTINGS: "/settings",
     PURCHASE: "/purchase",
     PURCHASE_ORDER: "/purchase-order",
     INVENTORY_OVERVIEW: "/inventory-overview",
@@ -258,6 +260,8 @@ module.exports = {
     GET_STOCK_MOVEMENTS: "/get-stock-movements",
     EXPORT_ANALYTICS_REPORT: "/export-analytics-report",
     GET_CONFIGURATION_DASHBOARD_SUMMARY: "/get-configuration-dashboard-summary",
+    GET_SETTINGS: "/get-settings",
+    UPDATE_SETTINGS: "/update-settings",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

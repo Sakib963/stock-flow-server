@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
 const pool = require("../../../../utils/db.config");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
@@ -61,9 +62,11 @@ const send_for_delivery = async (request, res) => {
                 await client.query("ROLLBACK");
                 return res.status(409).json({ code: 409, message: `Stock could not be deducted for ${o.invoice_no}. Nothing was dispatched.` });
             }
+            // Safety net: ensure a tracking token exists by dispatch time (COALESCE keeps
+            // one minted at confirm). The label's QR needs it.
             await client.query({
-                text: `UPDATE ${TABLE.ORDERS} SET dispatched_on = clock_timestamp(), edited_by = $1, edited_on = clock_timestamp() WHERE oid = $2`,
-                values: [user_id, o.oid],
+                text: `UPDATE ${TABLE.ORDERS} SET dispatched_on = clock_timestamp(), tracking_token = COALESCE(tracking_token, $3), edited_by = $1, edited_on = clock_timestamp() WHERE oid = $2`,
+                values: [user_id, o.oid, crypto.randomBytes(16).toString("hex")],
             });
             await recordStatusHistory(client, { order_oid: o.oid, from_status: "Confirmed", to_status: "Confirmed", reason: "Sent for delivery (dispatched)", user_id });
 
