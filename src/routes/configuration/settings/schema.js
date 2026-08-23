@@ -20,11 +20,14 @@ const update_settings_schema = Joi.object({
     facebook_url: s(),
     instagram_url: s(),
     invoice_footer: s(),
-    brand_color: Joi.string()
-        .pattern(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/)
+    invoice_logo_url: s(),
+    // Key of a tracker design (see stock-flow-tracker/src/templates). Validated as a
+    // slug, not an enum: the template list lives in the tracker repo and it falls
+    // back to its default for an unknown key.
+    tracker_template: Joi.string()
+        .pattern(/^[a-z0-9-]{1,32}$/)
         .allow(null, "")
         .optional(),
-    invoice_bg_url: s(),
     default_delivery_charge: Joi.number().min(0).optional(),
     order_system: Joi.string().valid("pos", "online", "both").optional(),
 });

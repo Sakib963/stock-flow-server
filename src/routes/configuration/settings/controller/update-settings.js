@@ -26,13 +26,14 @@ const update_settings = async (request, res) => {
                      name=$1, legal_name=$2, logo_url=$3, address=$4, phone_primary=$5, phone_secondary=$6,
                      email=$7, website=$8, bin=$9, tin=$10, trade_license=$11, bank_details=$12,
                      bkash_number=$13, nagad_number=$14, facebook_url=$15, instagram_url=$16, invoice_footer=$17,
-                     default_delivery_charge=$18, order_system=$19, brand_color=$20, invoice_bg_url=$21, edited_by=$22, edited_on=NOW()
+                     default_delivery_charge=$18, order_system=$19, invoice_logo_url=$20, tracker_template=$21,
+                     edited_by=$22, edited_on=NOW()
                    WHERE oid=$23`,
             values: [
                 nz(p.name), nz(p.legal_name), nz(p.logo_url), nz(p.address), nz(p.phone_primary), nz(p.phone_secondary),
                 nz(p.email), nz(p.website), nz(p.bin), nz(p.tin), nz(p.trade_license), nz(p.bank_details),
                 nz(p.bkash_number), nz(p.nagad_number), nz(p.facebook_url), nz(p.instagram_url), nz(p.invoice_footer),
-                Number(p.default_delivery_charge || 0), p.order_system || "both", nz(p.brand_color), nz(p.invoice_bg_url), user_id, oid,
+                Number(p.default_delivery_charge || 0), p.order_system || "both", nz(p.invoice_logo_url), p.tracker_template || "classic", user_id, oid,
             ],
         });
 
