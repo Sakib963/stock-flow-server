@@ -29,6 +29,12 @@ module.exports = {
     CUSTOMERS: "customers",
     STOCK_HOLD: "stock_hold",
     ORDER_STATUS_HISTORY: "order_status_history",
+    // Pre-order: a booking for stock not yet held. Deliberately NOT the orders
+    // spine -- a pre-order is part of the sales process but is neither a sale
+    // nor an order until it is converted.
+    PRE_ORDERS: "pre_orders",
+    PRE_ORDER_ITEMS: "pre_order_items",
+    PRE_ORDER_STATUS_HISTORY: "pre_order_status_history",
     PRODUCT_RETURN: "product_return",
     RETURN_DETAILS: "return_details",
     PRODUCT_DISPOSE: "product_dispose",
@@ -70,6 +76,7 @@ module.exports = {
     POS: "/pos",
     ONLINE: "/online",
     ORDER: "/order",
+    PRE_ORDER: "/pre-order",
     CUSTOMER: "/customer",
     DELIVERY: "/delivery",
     INVOICE: "/invoice",
@@ -210,13 +217,29 @@ module.exports = {
     CONFIRM_ONLINE_ORDER: "/confirm",
     CANCEL_ONLINE_ORDER: "/cancel",
     MARK_DELIVERED: "/deliver",
-    // Send for Delivery (Pathao export) + pre-orders
+    // Send for Delivery (Pathao export)
     SEND_FOR_DELIVERY: "/send-for-delivery",
-    CREATE_PREORDER: "/create-preorder",
-    CONVERT_PREORDER: "/convert-preorder",
-    GET_PREORDERS_FOR_PRODUCT: "/get-preorders-for-product",
     EDIT_PENDING_ORDER: "/edit-pending",
     CREATE_RETURN: "/create-return",
+
+    // --- Pre-Order feature (own tables; never the `orders` spine) ---
+    GET_PRE_ORDER_LIST: "/get-pre-order-list",
+    GET_PRE_ORDER_LIST_KPIS: "/get-pre-order-list-kpis",
+    GET_PRE_ORDER_DETAILS: "/get-pre-order-details",
+    CREATE_PRE_ORDER: "/create-pre-order",
+    UPDATE_PRE_ORDER_DETAILS: "/update-pre-order-details",
+    CONFIRM_PRE_ORDER: "/confirm-pre-order",
+    CANCEL_PRE_ORDER: "/cancel-pre-order",
+    RECORD_PRE_ORDER_ADVANCE: "/record-advance",
+    GET_PRE_ORDER_NUMBER: "/get-pre-order-number",
+    GET_PRE_ORDER_STOCK_READINESS: "/get-stock-readiness",
+    GET_BATCHES_FOR_PRODUCT: "/get-batches-for-product",
+    MARK_PRE_ORDER_CONVERTED: "/mark-converted",
+    GET_PRE_ORDERS_BY_PRODUCT: "/get-pre-orders-by-product",
+    GET_READY_TO_CONVERT: "/get-ready-to-convert",
+    GET_PRODUCT_LIST_FOR_PRE_ORDER: "/get-product-list-for-pre-order",
+    GENERATE_PRE_ORDER_REPORT: "/generate-pre-order-report",
+    EXPORT_PRE_ORDER_DATA: "/export-pre-order-data",
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",

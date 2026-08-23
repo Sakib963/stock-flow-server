@@ -66,35 +66,4 @@ const online_draft_schema = Joi.object({
     products: Joi.array().items(online_line_item).min(1).required(),
 });
 
-const create_preorder_schema = Joi.object({
-    invoice_no: Joi.string().allow(null, "").optional(),
-    customer: customer_schema,
-    payment_type: Joi.string().valid("COD", "PREPAID").optional(),
-    payment_status: Joi.string().valid("paid", "partially_paid", "unpaid").optional(),
-    delivery_charge: Joi.number().min(0).optional(),
-    discount_total: Joi.number().min(0).optional(),
-    note: Joi.string().allow(null, "").optional(),
-    products: Joi.array()
-        .items(
-            Joi.object({
-                product_oid: Joi.string().required(),
-                product_name: Joi.string().required(),
-                quantity: Joi.number().min(1).required(),
-                unit_price: Joi.number().min(0).required(),
-                discount: Joi.number().min(0).allow(null),
-                total: Joi.number().min(0).required(),
-            })
-        )
-        .min(1)
-        .required(),
-});
-
-const convert_preorder_schema = Joi.object({
-    oid: Joi.string().required(),
-    items: Joi.array()
-        .items(Joi.object({ order_item_oid: Joi.string().required(), inventory_oid: Joi.string().required() }))
-        .min(1)
-        .required(),
-});
-
-module.exports = { smart_fill_schema, create_online_order_schema, online_draft_schema, create_preorder_schema, convert_preorder_schema };
+module.exports = { smart_fill_schema, create_online_order_schema, online_draft_schema };

@@ -3,7 +3,6 @@ const Joi = require("joi");
 const order_list_schema = Joi.object({
     search_text: Joi.string().trim().allow(null, "").optional(),
     channel: Joi.string().valid("POS", "ONLINE").allow(null, "").optional(),
-    order_type: Joi.string().valid("Standard", "Preorder").allow(null, "").optional(),
     status: Joi.string().allow(null, "").optional(),
     date_from: Joi.string().allow(null, "").optional(),
     date_to: Joi.string().allow(null, "").optional(),

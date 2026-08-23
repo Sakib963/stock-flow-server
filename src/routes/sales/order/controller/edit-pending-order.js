@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require("uuid");
 
 // Edit an online order while it is still PENDING. Re-runs the hold math atomically
 // (release old holds, re-hold the new lines). Locks once Confirmed/dispatched.
-// Works for both Standard (re-holds) and Preorder (no holds) pending orders.
+// Works for Standard pending orders (re-holds stock).
 const edit_pending_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     const { oid, customer } = request.body;

@@ -2,8 +2,11 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 
-// Unified order list (POS + online). Filter by channel, status, order_type, date
-// range, and free text on invoice/customer.
+// Unified order list (POS + online). Filter by channel, status, date range, and
+// free text on invoice/customer.
+//
+// This reads `orders` only. Pre-orders are bookings on their own tables and are
+// therefore structurally absent here -- there is nothing to exclude.
 const get_order_list = async (request, res) => {
     try {
         const [countResult, data_set] = await Promise.all([
@@ -27,10 +30,6 @@ const build_filters = (query) => {
     if (query.channel && query.channel.trim() && query.channel.toLowerCase() !== "null") {
         values.push(query.channel);
         where += ` AND o.channel = $${values.length}`;
-    }
-    if (query.order_type && query.order_type.trim() && query.order_type.toLowerCase() !== "null") {
-        values.push(query.order_type);
-        where += ` AND o.order_type = $${values.length}`;
     }
     if (query.status && query.status.trim() && query.status.toLowerCase() !== "null") {
         values.push(query.status);

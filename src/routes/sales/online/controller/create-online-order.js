@@ -89,7 +89,7 @@ const create_online_order = async (request, res) => {
                 await client.query("ROLLBACK");
                 return res.status(409).json({
                     code: 409,
-                    message: `Not enough sellable stock to hold "${p.product_name}" (need ${p.quantity}, ${hold.sellable} sellable). Create it as a pre-order instead.`,
+                    message: `Not enough sellable stock to hold "${p.product_name}" (need ${p.quantity}, ${hold.sellable} sellable). Book it as a pre-order instead.`,
                 });
             }
         }
