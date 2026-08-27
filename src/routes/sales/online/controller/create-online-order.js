@@ -1,6 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const pool = require("../../../../utils/db.config");
-const { get_data } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, fail, get_data } = require("../../../../utils/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { holdStock } = require("../../../../utils/stock-movement");
 const { recordStatusHistory, nextInvoiceNo } = require("../../../../utils/order-utils");
@@ -45,57 +44,50 @@ const create_online_order = async (request, res) => {
 
     const order_oid = uuidv4();
     const customer_oid = uuidv4();
-    const client = await pool.connect();
 
     try {
-        await client.query("BEGIN");
-
-        await client.query({
-            text: `INSERT INTO ${TABLE.CUSTOMERS} (oid, name, phone, address, city, zone, area, postcode, social_handle, note, created_by)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-            values: [customer_oid, customer.name || null, customer.phone || null, customer.address, customer.city || null, customer.zone || null, customer.area || null, customer.postcode || null, customer.social_handle || null, customer.note || null, user_id],
-        });
-
-        const invoice_no = payload.invoice_no || (await nextInvoiceNo((q) => client.query(q).then((r) => r.rows)));
-
-        await client.query({
-            text: `INSERT INTO ${TABLE.ORDERS}
-                     (oid, invoice_no, channel, order_type, customer_oid, customer_name, customer_phone, customer_address, customer_email,
-                      delivery_city, delivery_zone, delivery_area, delivery_postcode,
-                      subtotal, discount_total, delivery_charge, total_amount, amount_paid,
-                      payment_type, payment_status, status, notes, created_by)
-                   VALUES ($1,$2,'ONLINE','Standard',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'Pending',$19,$20)`,
-            values: [
-                order_oid, invoice_no, customer_oid,
-                customer.name || null, customer.phone || null, customer.address, customer.email || null,
-                customer.city || null, customer.zone || null, customer.area || null, customer.postcode || null,
-                subtotal, discount_total, delivery_charge, total_amount, amount_paid,
-                payload.payment_type || "COD", payload.payment_status || "unpaid",
-                payload.note || null, user_id,
-            ],
-        });
-
-        for (const p of products) {
-            const order_item_oid = uuidv4();
-            await client.query({
-                text: `INSERT INTO ${TABLE.ORDER_ITEMS}
-                         (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total, returned_qty)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0)`,
-                values: [order_item_oid, order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
+        const invoice_no = await execute_transaction(async (tx) => {
+            await tx.execute_value({
+                text: `INSERT INTO ${TABLE.CUSTOMERS} (oid, name, phone, address, city, zone, area, postcode, social_handle, note, created_by)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                values: [customer_oid, customer.name || null, customer.phone || null, customer.address, customer.city || null, customer.zone || null, customer.area || null, customer.postcode || null, customer.social_handle || null, customer.note || null, user_id],
             });
 
-            const hold = await holdStock(client, { order_oid, order_item_oid, product_oid: p.product_oid, inventory_oid: p.inventory_oid, quantity: p.quantity, user_id });
-            if (!hold.ok) {
-                await client.query("ROLLBACK");
-                return res.status(409).json({
-                    code: 409,
-                    message: `Not enough sellable stock to hold "${p.product_name}" (need ${p.quantity}, ${hold.sellable} sellable). Book it as a pre-order instead.`,
-                });
-            }
-        }
+            const invoice_no = payload.invoice_no || (await nextInvoiceNo(tx.get_data));
 
-        await recordStatusHistory(client, { order_oid, from_status: null, to_status: "Pending", reason: "Online order created", user_id });
-        await client.query("COMMIT");
+            await tx.execute_value({
+                text: `INSERT INTO ${TABLE.ORDERS}
+                         (oid, invoice_no, channel, order_type, customer_oid, customer_name, customer_phone, customer_address, customer_email,
+                          delivery_city, delivery_zone, delivery_area, delivery_postcode,
+                          subtotal, discount_total, delivery_charge, total_amount, amount_paid,
+                          payment_type, payment_status, status, notes, created_by)
+                       VALUES ($1,$2,'ONLINE','Standard',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'Pending',$19,$20)`,
+                values: [
+                    order_oid, invoice_no, customer_oid,
+                    customer.name || null, customer.phone || null, customer.address, customer.email || null,
+                    customer.city || null, customer.zone || null, customer.area || null, customer.postcode || null,
+                    subtotal, discount_total, delivery_charge, total_amount, amount_paid,
+                    payload.payment_type || "COD", payload.payment_status || "unpaid",
+                    payload.note || null, user_id,
+                ],
+            });
+
+            for (const p of products) {
+                const order_item_oid = uuidv4();
+                await tx.execute_value({
+                    text: `INSERT INTO ${TABLE.ORDER_ITEMS}
+                             (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total, returned_qty)
+                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0)`,
+                    values: [order_item_oid, order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
+                });
+
+                const hold = await holdStock(tx, { order_oid, order_item_oid, product_oid: p.product_oid, inventory_oid: p.inventory_oid, quantity: p.quantity, user_id });
+                if (!hold.ok) fail(409, `Not enough sellable stock to hold "${p.product_name}" (need ${p.quantity}, ${hold.sellable} sellable). Book it as a pre-order instead.`);
+            }
+
+            await recordStatusHistory(tx, { order_oid, from_status: null, to_status: "Pending", reason: "Online order created", user_id });
+            return invoice_no;
+        });
 
         saveLogActivity({
             reference_type: "order",
@@ -108,15 +100,9 @@ const create_online_order = async (request, res) => {
         log.info(`Online order ${invoice_no} created (Pending) by ${user_id}`);
         return res.status(200).json({ code: 200, message: "Online order created and stock held", data: { oid: order_oid, invoice_no } });
     } catch (e) {
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            log.error(`Rollback failed during online order create: ${rollbackError?.message}`);
-        }
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
         log.error(`An exception occurred while creating online order: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-    } finally {
-        client.release();
     }
 };
 

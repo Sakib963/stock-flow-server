@@ -1,6 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const pool = require("../../../../utils/db.config");
-const { get_data } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, get_data } = require("../../../../utils/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { recordPreOrderStatusHistory, nextPreOrderNo } = require("../../../../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
@@ -42,63 +41,62 @@ const create_pre_order = async (request, res) => {
     }
 
     const pre_order_oid = uuidv4();
-    const client = await pool.connect();
 
     try {
-        await client.query("BEGIN");
+        const preorder_no = await execute_transaction(async (tx) => {
+            const preorder_no = payload.preorder_no || (await nextPreOrderNo(tx.get_data));
 
-        const preorder_no = payload.preorder_no || (await nextPreOrderNo((q) => client.query(q).then((r) => r.rows)));
-
-        await client.query({
-            text: `INSERT INTO ${TABLE.PRE_ORDERS}
-                     (oid, preorder_no, customer_name, customer_phone, customer_email, customer_address,
-                      delivery_city, delivery_zone, delivery_area, delivery_postcode,
-                      subtotal, discount_total, delivery_charge, total_amount,
-                      advance_paid, advance_method, advance_reference,
-                      expected_date, status, notes, created_by)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'Pending',$19,$20)`,
-            values: [
-                pre_order_oid,
-                preorder_no,
-                payload.customer_name,
-                payload.customer_phone,
-                payload.customer_email || null,
-                payload.customer_address || null,
-                payload.delivery_city || null,
-                payload.delivery_zone || null,
-                payload.delivery_area || null,
-                payload.delivery_postcode || null,
-                subtotal,
-                discount_total,
-                delivery_charge,
-                total_amount,
-                advance_paid,
-                payload.advance_method || null,
-                payload.advance_reference || null,
-                payload.expected_date || null,
-                payload.notes || null,
-                user_id,
-            ],
-        });
-
-        for (const p of products) {
-            await client.query({
-                text: `INSERT INTO ${TABLE.PRE_ORDER_ITEMS}
-                         (oid, pre_order_oid, product_oid, product_name, quantity, unit_price, discount, total)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-                values: [uuidv4(), pre_order_oid, p.product_oid, p.product_name, p.quantity, p.unit_price, p.discount ?? 0, p.total],
+            await tx.execute_value({
+                text: `INSERT INTO ${TABLE.PRE_ORDERS}
+                         (oid, preorder_no, customer_name, customer_phone, customer_email, customer_address,
+                          delivery_city, delivery_zone, delivery_area, delivery_postcode,
+                          subtotal, discount_total, delivery_charge, total_amount,
+                          advance_paid, advance_method, advance_reference,
+                          expected_date, status, notes, created_by)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'Pending',$19,$20)`,
+                values: [
+                    pre_order_oid,
+                    preorder_no,
+                    payload.customer_name,
+                    payload.customer_phone,
+                    payload.customer_email || null,
+                    payload.customer_address || null,
+                    payload.delivery_city || null,
+                    payload.delivery_zone || null,
+                    payload.delivery_area || null,
+                    payload.delivery_postcode || null,
+                    subtotal,
+                    discount_total,
+                    delivery_charge,
+                    total_amount,
+                    advance_paid,
+                    payload.advance_method || null,
+                    payload.advance_reference || null,
+                    payload.expected_date || null,
+                    payload.notes || null,
+                    user_id,
+                ],
             });
-        }
 
-        await recordPreOrderStatusHistory(client, {
-            pre_order_oid,
-            from_status: null,
-            to_status: "Pending",
-            reason: "Pre-order booked (no stock held)",
-            user_id,
+            for (const p of products) {
+                await tx.execute_value({
+                    text: `INSERT INTO ${TABLE.PRE_ORDER_ITEMS}
+                             (oid, pre_order_oid, product_oid, product_name, quantity, unit_price, discount, total)
+                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+                    values: [uuidv4(), pre_order_oid, p.product_oid, p.product_name, p.quantity, p.unit_price, p.discount ?? 0, p.total],
+                });
+            }
+
+            await recordPreOrderStatusHistory(tx, {
+                pre_order_oid,
+                from_status: null,
+                to_status: "Pending",
+                reason: "Pre-order booked (no stock held)",
+                user_id,
+            });
+
+            return preorder_no;
         });
-
-        await client.query("COMMIT");
 
         saveLogActivity({
             reference_type: "pre_order",
@@ -115,15 +113,9 @@ const create_pre_order = async (request, res) => {
             data: { oid: pre_order_oid, preorder_no },
         });
     } catch (e) {
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            log.error(`Rollback failed during pre-order create: ${rollbackError?.message}`);
-        }
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
         log.error(`An exception occurred while creating pre-order: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-    } finally {
-        client.release();
     }
 };
 

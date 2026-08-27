@@ -1,6 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const pool = require("../../../../utils/db.config");
-const { get_data } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, fail, get_data } = require("../../../../utils/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { deductSellableStock, incrementProductStat } = require("../../../../utils/stock-movement");
 const { recordStatusHistory, nextInvoiceNo } = require("../../../../utils/order-utils");
@@ -40,107 +39,90 @@ const checkout_pos_sale = async (request, res) => {
 
     const subtotal = products.reduce((s, p) => s + Number(p.total || 0), 0);
     const isFinalizingDraft = Boolean(payload.oid);
-    const client = await pool.connect();
 
     try {
-        await client.query("BEGIN");
+        const sale = await execute_transaction(async (tx) => {
+            let order_oid = payload.oid;
+            let invoice_no = payload.invoice_no;
+            let from_status = null;
 
-        let order_oid = payload.oid;
-        let invoice_no = payload.invoice_no;
-        let from_status = null;
+            if (isFinalizingDraft) {
+                // Turn an existing POS Draft into a real sale; it must still be a Draft.
+                const existing = await tx.get_data({ text: `SELECT oid, status, invoice_no FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [order_oid] });
+                if (!existing.length) fail(404, "Draft order not found");
+                if (existing[0].status !== "Draft") fail(409, "This order has already been finalized");
+                invoice_no = existing[0].invoice_no;
+                from_status = "Draft";
 
-        if (isFinalizingDraft) {
-            // Turn an existing POS Draft into a real sale; it must still be a Draft.
-            const existing = await client.query({ text: `SELECT oid, status, invoice_no FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [order_oid] }).then((r) => r.rows);
-            if (!existing.length) {
-                await client.query("ROLLBACK");
-                return res.status(404).json({ code: 404, message: "Draft order not found" });
-            }
-            if (existing[0].status !== "Draft") {
-                await client.query("ROLLBACK");
-                return res.status(409).json({ code: 409, message: "This order has already been finalized" });
-            }
-            invoice_no = existing[0].invoice_no;
-            from_status = "Draft";
+                await tx.execute_value({
+                    text: `UPDATE ${TABLE.ORDERS} SET
+                              customer_name = $2, customer_phone = $3, customer_address = $4, customer_email = $5,
+                              subtotal = $6, total_amount = $7,
+                              payment_method = $8, payment_reference = $9, payment_status = $10,
+                              status = 'Purchased', notes = $11, edited_by = $12, edited_on = NOW()
+                            WHERE oid = $1`,
+                    values: [
+                        order_oid,
+                        payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
+                        subtotal, payload.total_amount,
+                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
+                        payload.notes || null, user_id,
+                    ],
+                });
+                // Replace line items (the cashier may have edited the draft).
+                await tx.execute_value({ text: `DELETE FROM ${TABLE.ORDER_ITEMS} WHERE order_oid = $1`, values: [order_oid] });
+            } else {
+                order_oid = uuidv4();
+                invoice_no = payload.invoice_no || (await nextInvoiceNo(tx.get_data));
 
-            await client.query({
-                text: `UPDATE ${TABLE.ORDERS} SET
-                          customer_name = $2, customer_phone = $3, customer_address = $4, customer_email = $5,
-                          subtotal = $6, total_amount = $7,
-                          payment_method = $8, payment_reference = $9, payment_status = $10,
-                          status = 'Purchased', notes = $11, edited_by = $12, edited_on = NOW()
-                        WHERE oid = $1`,
-                values: [
-                    order_oid,
-                    payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
-                    subtotal, payload.total_amount,
-                    payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
-                    payload.notes || null, user_id,
-                ],
-            });
-            // Replace line items (the cashier may have edited the draft).
-            await client.query({ text: `DELETE FROM ${TABLE.ORDER_ITEMS} WHERE order_oid = $1`, values: [order_oid] });
-        } else {
-            order_oid = uuidv4();
-            invoice_no = payload.invoice_no || (await nextInvoiceNo((q) => client.query(q).then((r) => r.rows)));
-
-            await client.query({
-                text: `INSERT INTO ${TABLE.ORDERS}
-                         (oid, invoice_no, channel, order_type, customer_name, customer_phone, customer_address, customer_email,
-                          subtotal, discount_total, delivery_charge, total_amount,
-                          payment_type, payment_method, payment_reference, payment_status, status, notes, created_by)
-                       VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,NULL,$9,$10,$11,'Purchased',$12,$13)`,
-                values: [
-                    order_oid, invoice_no,
-                    payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
-                    subtotal, payload.total_amount,
-                    payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
-                    payload.notes || null, user_id,
-                ],
-            });
-        }
-
-        for (const p of products) {
-            await client.query({
-                text: `INSERT INTO ${TABLE.ORDER_ITEMS}
-                         (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total, returned_qty)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0)`,
-                values: [uuidv4(), order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
-            });
-
-            const ok = await deductSellableStock(client, { inventory_oid: p.inventory_oid, quantity: p.quantity, user_id });
-            if (!ok) {
-                await client.query("ROLLBACK");
-                return res.status(409).json({ code: 409, message: `Insufficient sellable stock for "${p.product_name}". Nothing was charged.` });
+                await tx.execute_value({
+                    text: `INSERT INTO ${TABLE.ORDERS}
+                             (oid, invoice_no, channel, order_type, customer_name, customer_phone, customer_address, customer_email,
+                              subtotal, discount_total, delivery_charge, total_amount,
+                              payment_type, payment_method, payment_reference, payment_status, status, notes, created_by)
+                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,NULL,$9,$10,$11,'Purchased',$12,$13)`,
+                    values: [
+                        order_oid, invoice_no,
+                        payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
+                        subtotal, payload.total_amount,
+                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
+                        payload.notes || null, user_id,
+                    ],
+                });
             }
 
-            await incrementProductStat(client, { product_oid: p.product_oid, column: "total_sold", quantity: p.quantity, user_id });
-        }
+            for (const p of products) {
+                await tx.execute_value({
+                    text: `INSERT INTO ${TABLE.ORDER_ITEMS}
+                             (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total, returned_qty)
+                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0)`,
+                    values: [uuidv4(), order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
+                });
 
-        await recordStatusHistory(client, { order_oid, from_status, to_status: "Purchased", reason: isFinalizingDraft ? "POS draft finalized" : "POS checkout", user_id });
+                const ok = await deductSellableStock(tx, { inventory_oid: p.inventory_oid, quantity: p.quantity, user_id });
+                if (!ok) fail(409, `Insufficient sellable stock for "${p.product_name}". Nothing was charged.`);
 
-        await client.query("COMMIT");
+                await incrementProductStat(tx, { product_oid: p.product_oid, column: "total_sold", quantity: p.quantity, user_id });
+            }
+
+            await recordStatusHistory(tx, { order_oid, from_status, to_status: "Purchased", reason: isFinalizingDraft ? "POS draft finalized" : "POS checkout", user_id });
+            return { order_oid, invoice_no };
+        });
 
         saveLogActivity({
             reference_type: "order",
-            reference_oid: order_oid,
+            reference_oid: sale.order_oid,
             title: "POS Sale Completed",
-            description: `POS sale ${invoice_no} for ${products.length} line item(s), total ${payload.total_amount}`,
+            description: `POS sale ${sale.invoice_no} for ${products.length} line item(s), total ${payload.total_amount}`,
             performed_by: user_id,
         });
 
-        log.info(`POS sale ${invoice_no} completed by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Sale completed successfully!", data: { oid: order_oid, invoice_no } });
+        log.info(`POS sale ${sale.invoice_no} completed by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Sale completed successfully!", data: { oid: sale.order_oid, invoice_no: sale.invoice_no } });
     } catch (e) {
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            log.error(`Rollback failed during POS checkout: ${rollbackError?.message}`);
-        }
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
         log.error(`An exception occurred during POS checkout: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-    } finally {
-        client.release();
     }
 };
 

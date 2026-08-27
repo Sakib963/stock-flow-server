@@ -4,9 +4,10 @@
 const { TABLE } = require("./constant");
 const { v4: uuidv4 } = require("uuid");
 
-// Append an audit row to pre_order_status_history (within the caller's transaction).
-const recordPreOrderStatusHistory = async (client, { pre_order_oid, from_status, to_status, reason = null, user_id }) => {
-    await client.query({
+// Append an audit row to pre_order_status_history. Takes the `tx` handle from
+// `execute_transaction` so it lands inside the caller's transaction.
+const recordPreOrderStatusHistory = async (tx, { pre_order_oid, from_status, to_status, reason = null, user_id }) => {
+    await tx.execute_value({
         text: `INSERT INTO ${TABLE.PRE_ORDER_STATUS_HISTORY}
                    (oid, pre_order_oid, from_status, to_status, reason, performed_by)
                VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -17,9 +18,10 @@ const recordPreOrderStatusHistory = async (client, { pre_order_oid, from_status,
 // Pre-order number: PRE-YYMMDD-NNNN, counted over `pre_orders` only. It must never
 // draw from the order invoice sequence -- a booking is not a sale and must not
 // consume a daily sale number.
-// `runner` is get_data (default) or a bound client.query wrapper.
-const nextPreOrderNo = async (runner) => {
-    const rows = await runner({
+// `read` is the pool-level `get_data`, or `tx.get_data` to count inside the
+// caller's transaction so two concurrent bookings cannot mint the same number.
+const nextPreOrderNo = async (read) => {
+    const rows = await read({
         text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.PRE_ORDERS} WHERE created_on::date = CURRENT_DATE`,
         values: [],
     });

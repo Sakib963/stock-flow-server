@@ -2,9 +2,10 @@
 const { TABLE } = require("./constant");
 const { v4: uuidv4 } = require("uuid");
 
-// Append an audit row to order_status_history (within the caller's transaction).
-const recordStatusHistory = async (client, { order_oid, from_status, to_status, reason = null, user_id }) => {
-    await client.query({
+// Append an audit row to order_status_history. Takes the `tx` handle from
+// `execute_transaction` so it lands inside the caller's transaction.
+const recordStatusHistory = async (tx, { order_oid, from_status, to_status, reason = null, user_id }) => {
+    await tx.execute_value({
         text: `INSERT INTO ${TABLE.ORDER_STATUS_HISTORY}
                    (oid, order_oid, from_status, to_status, reason, performed_by)
                VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -13,9 +14,10 @@ const recordStatusHistory = async (client, { order_oid, from_status, to_status, 
 };
 
 // Invoice/order number: YYMMDD + 4-digit daily sequence, e.g. 2607200003.
-// `runner` is get_data (default) or a bound client.query wrapper.
-const nextInvoiceNo = async (runner) => {
-    const rows = await runner({
+// `read` is the pool-level `get_data`, or `tx.get_data` to count inside the
+// caller's transaction so two concurrent sales cannot mint the same number.
+const nextInvoiceNo = async (read) => {
+    const rows = await read({
         text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.ORDERS} WHERE created_on::date = CURRENT_DATE`,
         values: [],
     });
