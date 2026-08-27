@@ -25,22 +25,6 @@ const cancel_order_schema = Joi.object({
     reason: Joi.string().required(),
 });
 
-const create_return_schema = Joi.object({
-    order_oid: Joi.string().required(),
-    refund_delivery_charge: Joi.boolean().optional(),
-    note: Joi.string().allow(null, "").optional(),
-    items: Joi.array()
-        .items(
-            Joi.object({
-                order_item_oid: Joi.string().required(),
-                quantity: Joi.number().min(1).required(),
-                condition: Joi.string().valid("Good", "Damaged").required(),
-            })
-        )
-        .min(1)
-        .required(),
-});
-
 const edit_pending_order_schema = Joi.object({
     oid: Joi.string().required(),
     customer: Joi.object({
@@ -74,4 +58,4 @@ const edit_pending_order_schema = Joi.object({
         .required(),
 });
 
-module.exports = { order_list_schema, order_details_schema, order_action_schema, cancel_order_schema, create_return_schema, edit_pending_order_schema };
+module.exports = { order_list_schema, order_details_schema, order_action_schema, cancel_order_schema, edit_pending_order_schema };

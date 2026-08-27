@@ -77,10 +77,13 @@ module.exports = {
     ONLINE: "/online",
     ORDER: "/order",
     PRE_ORDER: "/pre-order",
+    // Customer returns against a realized order. Mounted under SALES, not
+    // INVENTORY: a return is rooted in an order (product_return.order_oid) and
+    // the refund is sales money.
+    RETURN: "/return",
     CUSTOMER: "/customer",
     DELIVERY: "/delivery",
     INVOICE: "/invoice",
-    PRODUCT_RETURN: "/product-return",
     PRODUCT_DISPOSE: "/product-dispose",
     CHANGE_PASSWORD: "/change-password",
     PROFILE_INFO: "/profile-info",
@@ -199,9 +202,6 @@ module.exports = {
     GET_INVOICE_LIST: "/get-invoice-list",
     DELETE_INVOICE: "/delete-invoice",
 
-    GET_PRODUCT_RETURN_LIST: "/get-product-return-list",
-    SAVE_PRODUCT_RETURN: "/save-product-return",
-    GET_PRODUCT_RETURN_DETAILS: "/get-product-return-details",
 
     // --- Sales & Orders module (revamp; POS + online on the `orders` spine) ---
     GET_POS_PRODUCT_LIST: "/get-product-list",
@@ -220,7 +220,16 @@ module.exports = {
     // Send for Delivery (Pathao export)
     SEND_FOR_DELIVERY: "/send-for-delivery",
     EDIT_PENDING_ORDER: "/edit-pending",
+
+    // --- Returns feature (own router under /api/v1/sales/return) ---
     CREATE_RETURN: "/create-return",
+    CONFIRM_RETURN: "/confirm-return",
+    CANCEL_RETURN: "/cancel-return",
+    MARK_RETURN_REFUNDED: "/mark-refunded",
+    GET_RETURN_LIST: "/get-return-list",
+    GET_RETURN_LIST_KPIS: "/get-return-list-kpis",
+    GET_RETURN_DETAILS: "/get-return-details",
+    GET_RETURNS_FOR_ORDER: "/get-returns-for-order",
 
     // --- Pre-Order feature (own tables; never the `orders` spine) ---
     GET_PRE_ORDER_LIST: "/get-pre-order-list",
