@@ -18,7 +18,6 @@ module.exports = {
     PURCHASE_DETAILS: "purchase_details",
     PURCHASE_DETAILS_COST_PROFILE: "purchase_details_cost_profile",
     INVENTORY: "inventory",
-    ATTENDANCE: "attendance",
     PRODUCT_STATS: "product_stats",
     // Order spine (renamed from sales/sales_details). SALES/SALE_DETAILS keys are
     // kept as aliases so legacy controllers resolve to the renamed tables.
@@ -47,8 +46,6 @@ module.exports = {
   CONTEXTS: {
     AUTH: "/api/v1/auth",
     ADMIN: "/api/v1/admin",
-    MANAGER: "/api/v1/manager",
-    SALESMAN: "/api/v1/salesman",
     PROFILE: "/api/v1/profile",
     CONFIGURATION: "/api/v1/configuration",
     INVENTORY: "/api/v1/inventory",
@@ -70,8 +67,6 @@ module.exports = {
     PURCHASE: "/purchase",
     PURCHASE_ORDER: "/purchase-order",
     INVENTORY_OVERVIEW: "/inventory-overview",
-    ATTENDANCE: "/attendance",
-    SALE: "/sale",
     // Sales & Orders module (revamp)
     POS: "/pos",
     ONLINE: "/online",
@@ -83,12 +78,9 @@ module.exports = {
     RETURN: "/return",
     CUSTOMER: "/customer",
     DELIVERY: "/delivery",
-    INVOICE: "/invoice",
     PRODUCT_DISPOSE: "/product-dispose",
     CHANGE_PASSWORD: "/change-password",
     PROFILE_INFO: "/profile-info",
-    DASHBOARD: "/dashboard",
-    REPORTS: "/reports",
     NOTES: "/notes",
   },
   ROUTES: {
@@ -185,24 +177,6 @@ module.exports = {
     GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",
     UPDATE_PRICING: "/update-pricing",
 
-    GET_ATTENDANCE_LIST: "/get-attendance-list",
-    UPDATE_ATTENDANCE: "/update-attendance",
-    GET_ATTENDANCE_DETAILS: "/get-attendance-details",
-    CHECK_CURRENT_ATTENDANCE_STATUS: "/check-current-attendance-status",
-
-    GET_EMPLOYEE_ATTENDANCE_LIST: "/get-employee-attendance-list",
-    UPDATE_EMPLOYEE_ATTENDANCE: "/update-employee-attendance",
-    GET_EMPLOYEE_ATTENDANCE_DETAILS: "/get-employee-attendance-details",
-
-    GET_INVOICE_NUMBER: "/get-invoice-number",
-    SAVE_INVOICE_IN_DRAFT: "/save-invoice-in-draft",
-    GET_INVOICE_DETAILS: "/get-invoice-details",
-    CONFIRM_SALES_INVOICE: "/confirm-sales-invoice",
-
-    GET_INVOICE_LIST: "/get-invoice-list",
-    DELETE_INVOICE: "/delete-invoice",
-
-
     // --- Sales & Orders module (revamp; POS + online on the `orders` spine) ---
     GET_POS_PRODUCT_LIST: "/get-product-list",
     GET_ORDER_INVOICE_NUMBER: "/get-invoice-number",
@@ -266,12 +240,7 @@ module.exports = {
 
     GET_PROFILE_INFO: "/get-profile-info",
 
-    GET_DASHBOARD_DATA_FOR_MANAGER: "/get-dashboard-data-for-manager",
     GET_ACTIVITY_LOG_LIST: "/get-activity-log-list",
-
-    GET_CURRENT_STOCK_REPORT: "/get-current-stock-report",
-    GET_LOW_STOCK_REPORT: "/get-low-stock-report",
-    GET_PRODUCT_WISE_STOCK_REPORT: "/get-product-wise-stock-report",
 
     GET_PURCHASE_ORDER_REPORT: "/get-purchase-order-report",
     GET_PURCHASE_ORDER_PRODUCTS_REPORT: "/get-purchase-order-products-report",
