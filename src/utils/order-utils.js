@@ -13,6 +13,25 @@ const recordStatusHistory = async (tx, { order_oid, from_status, to_status, reas
     });
 };
 
+// How much of an order has actually been paid, resolved from the payment status
+// rather than trusted from the client.
+//
+//   paid            -> the whole total. The app fills this in; a cashier who marks
+//                      a sale paid should never also have to type the amount.
+//   partially_paid  -> what was handed over, clamped into 0..total.
+//   unpaid          -> nothing.
+//
+// Deriving it here rather than on the client is what keeps `amount_paid` and
+// `payment_status` from contradicting each other. They used to: POS checkout wrote
+// the status and never the amount, so every counter sale was recorded as paid with
+// zero money against it.
+const resolveAmountPaid = ({ payment_status, total_amount, amount_paid }) => {
+    const total = Number(total_amount || 0);
+    if (payment_status === "paid") return total;
+    if (payment_status === "partially_paid") return Math.min(Math.max(Number(amount_paid || 0), 0), total);
+    return 0;
+};
+
 // Invoice/order number: YYMMDD + 4-digit daily sequence, e.g. 2607200003.
 // `read` is the pool-level `get_data`, or `tx.get_data` to count inside the
 // caller's transaction so two concurrent sales cannot mint the same number.
@@ -30,4 +49,4 @@ const nextInvoiceNo = async (read) => {
     return `${yy}${mm}${dd}${seq}`;
 };
 
-module.exports = { recordStatusHistory, nextInvoiceNo };
+module.exports = { recordStatusHistory, nextInvoiceNo, resolveAmountPaid };

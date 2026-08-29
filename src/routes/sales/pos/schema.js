@@ -26,6 +26,9 @@ const pos_checkout_schema = Joi.object({
     payment_method: Joi.string().valid("cash", "bkash", "nagad", "card", "cod", "other").required(),
     payment_reference: Joi.string().allow(null, "").optional(),
     payment_status: Joi.string().valid("paid", "partially_paid", "unpaid").required(),
+    // Only consulted when payment_status is partially_paid. On 'paid' the server
+    // fills the full total itself, so the cashier never types it twice.
+    amount_paid: Joi.number().min(0).optional(),
     notes: Joi.string().allow(null, "").optional(),
     total_amount: Joi.number().min(0).required(),
     products: Joi.array().items(pos_line_item).min(1).required(),

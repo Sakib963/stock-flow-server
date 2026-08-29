@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail, get_data } = require("../../../../utils/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { recordStatusHistory, nextInvoiceNo } = require("../../../../utils/order-utils");
+const { recordStatusHistory, nextInvoiceNo, resolveAmountPaid } = require("../../../../utils/order-utils");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require("uuid");
 
@@ -32,6 +32,10 @@ const save_pos_draft = async (request, res) => {
     }
 
     const subtotal = products.reduce((s, p) => s + Number(p.total || 0), 0);
+
+    // Same rule as checkout, so a draft and the sale it becomes never disagree
+    // about how much has been paid.
+    const amount_paid = resolveAmountPaid({ payment_status: payload.payment_status || "paid", total_amount: payload.total_amount, amount_paid: payload.amount_paid });
     const isUpdate = Boolean(payload.oid);
 
     try {
@@ -48,14 +52,14 @@ const save_pos_draft = async (request, res) => {
                     text: `UPDATE ${TABLE.ORDERS} SET
                               customer_name = $2, customer_phone = $3, customer_address = $4, customer_email = $5,
                               subtotal = $6, total_amount = $7,
-                              payment_method = $8, payment_reference = $9, payment_status = $10,
-                              notes = $11, edited_by = $12, edited_on = NOW()
+                              payment_method = $8, payment_reference = $9, payment_status = $10, amount_paid = $11,
+                              notes = $12, edited_by = $13, edited_on = NOW()
                             WHERE oid = $1`,
                     values: [
                         order_oid,
                         payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
                         subtotal, payload.total_amount,
-                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
+                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid", amount_paid,
                         payload.notes || null, user_id,
                     ],
                 });
@@ -68,13 +72,13 @@ const save_pos_draft = async (request, res) => {
                 await tx.execute_value({
                     text: `INSERT INTO ${TABLE.ORDERS}
                              (oid, invoice_no, channel, order_type, customer_name, customer_phone, customer_address, customer_email,
-                              subtotal, discount_total, delivery_charge, total_amount,
+                              subtotal, discount_total, delivery_charge, total_amount, amount_paid,
                               payment_type, payment_method, payment_reference, payment_status, status, notes, created_by)
-                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,NULL,$9,$10,$11,'Draft',$12,$13)`,
+                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,$9,NULL,$10,$11,$12,'Draft',$13,$14)`,
                     values: [
                         order_oid, invoice_no,
                         payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
-                        subtotal, payload.total_amount,
+                        subtotal, payload.total_amount, amount_paid,
                         payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
                         payload.notes || null, user_id,
                     ],
