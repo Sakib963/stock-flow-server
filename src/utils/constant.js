@@ -91,6 +91,7 @@ module.exports = {
   },
   ROUTES: {
     SIGN_IN: "/sign-in",
+    SIGN_OUT: "/sign-out",
     REFRESH_TOKEN: "/refresh-token",
     GET_USER_INFO: "/get-user-info",
     FORGOT_PASSWORD: "/forgot-password",

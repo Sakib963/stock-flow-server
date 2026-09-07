@@ -1,7 +1,7 @@
 const { get_data, execute_value } = require("../../../utils/database");
 const jwt = require("jsonwebtoken");
 const { log } = require("../../../utils/log");
-const { generate_token, update_login_log } = require("../../../utils/helper");
+const { generate_token, rotate_access_token } = require("../../../utils/helper");
 const { TABLE } = require("../../../utils/constant");
 
 const refresh_token = async (request, res) => {
@@ -11,8 +11,17 @@ const refresh_token = async (request, res) => {
       try {
             let data = await get_data_by_refresh_token(refresh_token);
             if (!data) {
-                  log.warn(`Refresh token is not in database [${request.body.refresh_token}]`);
+                  log.warn(`Refresh token is not in database`);
                   return res.status(404).json({ code: 404, message: "Refresh token is not in database!" });
+            }
+
+            // A session that was signed out keeps its row, so this is where revocation bites: the
+            // refresh token is still cryptographically valid for the rest of its 7 days, and it
+            // must still be refused. Without this check, signing out would only inconvenience
+            // whoever holds a stolen copy for 30 minutes.
+            if (data.status !== 'signin') {
+                  log.warn(`Refresh attempted on a session that was signed out`);
+                  return res.status(401).json({ code: 401, message: "This session was signed out. Please sign in again." });
             }
             let decoded = {};
             try {
@@ -24,7 +33,15 @@ const refresh_token = async (request, res) => {
 
             let token = { user_id: decoded.token.user_id };
             new_token = generate_token(token);
-            await update_login_log(new_token, refresh_token);
+
+            // Rotating in place rather than inserting keeps one session to one row, which is what
+            // makes sign-out able to close all of it, and stops the table growing a row every time
+            // an access token expires.
+            const rotated = await rotate_access_token(new_token, refresh_token);
+            if (!rotated?.rowCount) {
+                  log.warn(`Refresh token no longer belongs to an open session`);
+                  return res.status(401).json({ code: 401, message: "This session was signed out. Please sign in again." });
+            }
             log.info(`New token generated using refresh token [${token['user_id']}]`);
 
             return res.status(200).json({

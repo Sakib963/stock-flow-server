@@ -27,6 +27,18 @@ const refresh_token = (token) => {
   );
 };
 
+// A refresh used to insert a second row carrying the same refresh token, which made one session
+// a growing pile of rows, one every 30 minutes now that the client really refreshes, and left
+// revocation ambiguous. One session is one row: the access token is rotated in place, and a row
+// that has been signed out matches nothing, so a spent session cannot mint a new token.
+const rotate_access_token = async (token, ref_token) => {
+  let sql = {
+    text: `update ${TABLE.LOGIN_LOG} set access_token = $1 where refresh_token = $2 and status = 'Signin'`,
+    values: [token, ref_token]
+  }
+  return execute_value(sql);
+}
+
 const generateRandomString = () => {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -124,6 +136,7 @@ module.exports = {
   refresh_token,
   generateRandomString,
   update_login_log,
+  rotate_access_token,
   get_access_token_from_db,
   save_generated_otp,
   count_recent_otps,

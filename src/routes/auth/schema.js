@@ -10,6 +10,12 @@ const refreshSchema = Joi.object({
       refresh_token: Joi.string().required()
 });
 
+// Optional on purpose: the browser sends its refresh token so both tokens of the session close
+// together, and a caller holding only a bearer token still gets that access token closed.
+const signOutSchema = Joi.object({
+      refresh_token: Joi.string().allow(null, '').optional()
+});
+
 const forgotPasswordSchema = Joi.object({
       email: Joi.string().email({ tlds: { allow: false } }).required()
 });
@@ -24,6 +30,7 @@ const resetPasswordSchema = Joi.object({
 module.exports = {
       loginSchema,
       refreshSchema,
+      signOutSchema,
       forgotPasswordSchema,
       resetPasswordSchema
 }

@@ -1,6 +1,7 @@
 const { Router } = require("express");
-const { loginSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema } = require("./schema");
+const { loginSchema, refreshSchema, signOutSchema, forgotPasswordSchema, resetPasswordSchema } = require("./schema");
 const signInUser = require("./controllers/sign-in");
+const sign_out = require("./controllers/sign-out");
 const { ROUTES } = require("../../utils/constant");
 const refresh_token = require("./controllers/refresh-token");
 const get_user_info = require("./controllers/get-user-info");
@@ -12,6 +13,14 @@ const { validator } = require("../../utils/validator");
 const router = Router();
 
 router.post(ROUTES.SIGN_IN, validator.post(loginSchema), signInUser)
+
+// Deliberately without jwtMiddleware, for the same reason as password recovery below: the
+// common moment to sign out is coming back to a tab after lunch, when the 30 minute access token
+// has already expired. Requiring a live one would fail exactly then and leave the row open with a
+// refresh token good for another 7 days, which is the hole this endpoint exists to close. The
+// tokens in the request are the authorisation: holding one is what lets you end its session, and
+// ending a session is not something an attacker who holds it gains anything from.
+router.post(ROUTES.SIGN_OUT, validator.post(signOutSchema), sign_out)
 
 router.post(ROUTES.REFRESH_TOKEN, validator.post(refreshSchema), refresh_token)
 
