@@ -1,45 +1,75 @@
 const { TABLE } = require("../../../utils/constant");
-const { execute_value } = require("../../../utils/database");
+const { get_data, execute_transaction } = require("../../../utils/database");
 const { log } = require("../../../utils/log");
+const { hash_token, verify_access_token, end_session, read_refresh_token, clear_refresh_token, request_context } = require("../../../utils/auth-session");
+const { AUTH_EVENT, record_auth_event_in } = require("../../../utils/auth-event");
 
 /**
  * Ends the session in the database, not only in the browser.
  *
- * Signing out used to be a localStorage delete and nothing else, so the access token stayed good
- * for the rest of its 30 minutes and the refresh token for another 7 days. A copy taken from a
- * shared counter machine outlived the person who signed out, and the database had no way to know.
- * Closing the row is what makes validate-jwt reject the access token and refresh-token refuse to
- * mint a new one.
+ * There is no jwtMiddleware: the usual moment to sign out is coming back to a tab after the access
+ * token has lapsed, and the session still has to end. The session is found from the refresh token,
+ * or failing that from the access token's session id with its signature checked and its expiry
+ * ignored. Holding either is what authorises ending that session, and ending a session gains an
+ * attacker nothing.
  *
- * Both tokens of the session are closed together, because a refresh rotates the access token on a
- * row that keeps its refresh token, and a person signing out means all of it.
- *
- * The tokens carried by the request are what authorises it. There is no jwtMiddleware, because the
- * access token has usually expired by the time someone signs out and the session still has to end.
- *
- * The answer is 200 whatever the update touched. A token that is already closed, expired or
- * unknown means the session is over, which is exactly what the caller asked for, and an error here
- * would only strand someone on a screen they are trying to leave.
+ * The answer is 200 whatever was found. A session already over is what the caller asked for, and
+ * an error here would strand someone on a screen they are trying to leave.
  */
 const sign_out = async (request, res) => {
-    const authorizationHeader = request.headers["authorization"] || "";
-    const access_token = authorizationHeader.replace("Bearer ", "").trim();
-    const refresh_token = request.body?.refresh_token || null;
+    const context = request_context(request);
 
     try {
-        const result = await execute_value({
-            text: `update ${TABLE.LOGIN_LOG}
-                   set status = 'Signout', signout_time = clock_timestamp()
-                   where status = 'Signin' and (access_token = $1 or ($2::varchar is not null and refresh_token = $2))`,
-            values: [access_token, refresh_token],
-        });
+        const found = await find_session(request);
+        let sessions_closed = 0;
 
-        log.info(`Sign out request handled, sessions closed: ${result?.rowCount ?? 0}`);
-        return res.status(200).json({ code: 200, message: "Signed out", data: { sessions_closed: result?.rowCount ?? 0 } });
+        if (found) {
+            sessions_closed = await execute_transaction(async (tx) => {
+                const ended = await end_session(tx, { session_oid: found.oid, reason: "SignOut", by: found.email });
+                if (!ended) return 0;
+                await record_auth_event_in(tx, { event_type: AUTH_EVENT.LOGOUT, login_oid: ended.login_oid, session_oid: found.oid, email: found.email, context });
+                return 1;
+            });
+        }
+
+        clear_refresh_token(res);
+        log.info(`Sign out handled, sessions closed: ${sessions_closed}`);
+        return res.status(200).json({ code: 200, message: "Signed out", data: { sessions_closed } });
     } catch (e) {
         log.error(`An exception occurred while signing out: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not end the session. Please try again." });
     }
+};
+
+const find_session = async (request) => {
+    const raw = read_refresh_token(request);
+    if (raw) {
+        const rows = await get_data({
+            text: `SELECT s.oid, l.email
+                   FROM ${TABLE.AUTH_REFRESH_TOKEN} t
+                   JOIN ${TABLE.AUTH_SESSION} s ON s.oid = t.session_oid
+                   JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid
+                   WHERE t.token_hash = $1`,
+            values: [hash_token(raw)],
+        });
+        if (rows.length) return rows[0];
+    }
+
+    const header = request.headers.authorization ?? "";
+    if (!header.startsWith("Bearer ")) return null;
+
+    let claims;
+    try {
+        claims = verify_access_token(header.slice(7).trim(), { ignore_expiration: true });
+    } catch {
+        return null;
+    }
+
+    const rows = await get_data({
+        text: `SELECT s.oid, l.email FROM ${TABLE.AUTH_SESSION} s JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid WHERE s.oid = $1 AND s.login_oid = $2`,
+        values: [claims.sid, claims.sub],
+    });
+    return rows[0] ?? null;
 };
 
 module.exports = sign_out;

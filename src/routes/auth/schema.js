@@ -2,18 +2,34 @@ const Joi = require('joi')
 const { password_rule } = require('../../utils/password-rule');
 
 const loginSchema = Joi.object({
-      email: Joi.string().required(),
-      password: Joi.string().required()
+      email: Joi.string().max(256).required(),
+      password: Joi.string().max(200).required(),
+      remember: Joi.boolean().optional(),
+      // The session this browser already holds, under the body transport, so signing in ends it.
+      refresh_token: Joi.string().max(128).allow(null, '').optional(),
+      // The last session this browser held. Deliberately loose: a garbled value left in storage
+      // must never stop anyone signing in, and it matches nothing.
+      previous_session_id: Joi.string().max(64).allow(null, '').optional()
 })
 
+// The token is in the body only under AUTH_REFRESH_TRANSPORT=body. Under the cookie transport the
+// body is empty and the controller reads the cookie, so it is optional here in both cases.
 const refreshSchema = Joi.object({
-      refresh_token: Joi.string().required()
+      refresh_token: Joi.string().max(128).allow(null, '').optional()
 });
 
-// Optional on purpose: the browser sends its refresh token so both tokens of the session close
-// together, and a caller holding only a bearer token still gets that access token closed.
 const signOutSchema = Joi.object({
-      refresh_token: Joi.string().allow(null, '').optional()
+      refresh_token: Joi.string().max(128).allow(null, '').optional()
+});
+
+const signOutEverywhereSchema = Joi.object({
+      keep_current: Joi.boolean().optional()
+});
+
+const getSessionsSchema = Joi.object({});
+
+const signOutSessionSchema = Joi.object({
+      session_id: Joi.string().guid({ version: 'uuidv4' }).required()
 });
 
 const forgotPasswordSchema = Joi.object({
@@ -31,6 +47,9 @@ module.exports = {
       loginSchema,
       refreshSchema,
       signOutSchema,
+      signOutEverywhereSchema,
+      getSessionsSchema,
+      signOutSessionSchema,
       forgotPasswordSchema,
       resetPasswordSchema
 }

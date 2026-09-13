@@ -5,7 +5,9 @@ module.exports = {
   },
   TABLE: {
     LOGIN: "login",
-    LOGIN_LOG: "login_log",
+    AUTH_SESSION: "auth_session",
+    AUTH_REFRESH_TOKEN: "auth_refresh_token",
+    AUTH_EVENT: "auth_event",
     CATEGORIES: "categories",
     SUB_CATEGORIES: "sub_categories",
     BRANDS: "brands",
@@ -92,6 +94,9 @@ module.exports = {
   ROUTES: {
     SIGN_IN: "/sign-in",
     SIGN_OUT: "/sign-out",
+    SIGN_OUT_EVERYWHERE: "/sign-out-everywhere",
+    GET_SESSIONS: "/get-sessions",
+    SIGN_OUT_SESSION: "/sign-out-session",
     REFRESH_TOKEN: "/refresh-token",
     GET_USER_INFO: "/get-user-info",
     FORGOT_PASSWORD: "/forgot-password",

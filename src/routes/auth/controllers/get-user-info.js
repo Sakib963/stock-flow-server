@@ -13,7 +13,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map();
 
 const get_user_info = async (request, res) => {
-    const user_id = request.credentials.user_id;
+    const { login_oid } = request.credentials;
 
     try {
         // 1. The cheap question first: who is this, and has anything changed.
@@ -22,8 +22,8 @@ const get_user_info = async (request, res) => {
                           l.role_oid, r.name AS role_name, r.scope AS role_scope
                    FROM ${TABLE.LOGIN} l
                    LEFT JOIN ${TABLE.ROLE} r ON r.oid = l.role_oid
-                   WHERE l.email = $1`,
-            values: [user_id],
+                   WHERE l.oid = $1`,
+            values: [login_oid],
         });
 
         const user = identity[0];

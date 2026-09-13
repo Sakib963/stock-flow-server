@@ -1,11 +1,13 @@
 const bcrypt = require("bcrypt");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { get_data, execute_value, execute_transaction } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
+const { end_sessions_for_login, request_context } = require("../../../../utils/auth-session");
+const { record_sessions_ended } = require("../../../../utils/auth-event");
 
 const verify_otp_for_password_change = async (req, res) => {
       const { otp, otp_oid, new_password } = req.body;
-      const user_id = req.credentials.user_id;
+      const { user_id, login_oid, session_oid } = req.credentials;
 
       try {
             // 1. Reuse existing OTP validation
@@ -15,16 +17,21 @@ const verify_otp_for_password_change = async (req, res) => {
                   return res.status(404).json({ code: 404, message });
             }
 
-            // 2. OTP is valid → update the password
+            // 2. OTP is valid → update the password, and sign out every other device. The session
+            // making the change stays open, so the person is not thrown off the screen they used.
             let encrypted_pass = await bcrypt.hash(new_password, 10);
-            const sql = {
-                  text: `UPDATE ${TABLE.LOGIN} SET password = $1 WHERE email = $2`,
-                  values: [encrypted_pass, user_id]
-            }
+            const sessions_closed = await execute_transaction(async (tx) => {
+                  await tx.execute_value({
+                        text: `UPDATE ${TABLE.LOGIN} SET password = $1 WHERE email = $2`,
+                        values: [encrypted_pass, user_id]
+                  });
 
-            await execute_value(sql);
+                  const ended = await end_sessions_for_login(tx, { login_oid, reason: "PasswordChanged", by: user_id, except_session_oid: session_oid });
+                  await record_sessions_ended(tx, ended, { login_oid, email: user_id, reason: "PasswordChanged", context: request_context(req) });
+                  return ended.length;
+            });
 
-            return res.status(200).json({ code: 200, message: 'OTP verified and password updated successfully.' });
+            return res.status(200).json({ code: 200, message: 'OTP verified and password updated successfully.', data: { sessions_closed } });
 
       } catch (e) {
             log.error(`Error in password change: ${e?.message}`);

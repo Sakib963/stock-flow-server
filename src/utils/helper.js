@@ -1,43 +1,8 @@
-const JWT = require("jsonwebtoken");
-const { TEXT, TABLE } = require("./constant");
+const { TABLE } = require("./constant");
 const { v4: uuidv4 } = require('uuid');
 const { log } = require("./log");
 const { execute_value, get_data } = require("./database");
 const crypto = require("crypto");
-
-const generate_token = (token) => {
-  return JWT.sign(
-    { token },
-    process.env.ACCESS_TOKEN_SECRET,
-    {
-      expiresIn: process.env.ACCESS_TOKEN_SECRET_EXPIRE,
-      algorithm: TEXT.ALGORITHM,
-    }
-  );
-};
-
-const refresh_token = (token) => {
-  return JWT.sign(
-    { token },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_SECRET_EXPIRE,
-      algorithm: TEXT.ALGORITHM,
-    }
-  );
-};
-
-// A refresh used to insert a second row carrying the same refresh token, which made one session
-// a growing pile of rows, one every 30 minutes now that the client really refreshes, and left
-// revocation ambiguous. One session is one row: the access token is rotated in place, and a row
-// that has been signed out matches nothing, so a spent session cannot mint a new token.
-const rotate_access_token = async (token, ref_token) => {
-  let sql = {
-    text: `update ${TABLE.LOGIN_LOG} set access_token = $1 where refresh_token = $2 and status = 'Signin'`,
-    values: [token, ref_token]
-  }
-  return execute_value(sql);
-}
 
 const generateRandomString = () => {
   const characters =
@@ -49,37 +14,6 @@ const generateRandomString = () => {
   }
   return randomString.toUpperCase();
 }
-
-const update_login_log = async (token, ref_token) => {
-  let sql = {
-    text: `insert into ${TABLE.LOGIN_LOG} (oid, signin_time, access_token, refresh_token, status) values ($1, clock_timestamp(), $2, $3, $4)`,
-    values: [uuidv4(), token, ref_token, 'Signin']
-  }
-  try {
-    await execute_value(sql);
-  } catch (e) {
-    log.error(`An exception occurred while updating sign in log: ${e.message}`);
-  }
-}
-
-const get_access_token_from_db = async (accessToken) => {
-  const sql = {
-    text: `
-      SELECT l.status, l.signout_time 
-      FROM ${TABLE.LOGIN_LOG} l
-      WHERE l.access_token = $1
-    `,
-    values: [accessToken],
-  };
-
-  try {
-    const dataSet = await get_data(sql);
-    return dataSet[0] || null;
-  } catch (error) {
-    console.error('Error fetching access token from DB:', error.message);
-    return null;
-  }
-};
 
 // crypto.randomInt, not Math.random: Math.random is not a cryptographic source and its output is
 // predictable from enough samples. On the unauthenticated recovery route this code is the only
@@ -132,12 +66,7 @@ const count_recent_otps = async (user_id, minutes) => {
 };
 
 module.exports = {
-  generate_token,
-  refresh_token,
   generateRandomString,
-  update_login_log,
-  rotate_access_token,
-  get_access_token_from_db,
   save_generated_otp,
   count_recent_otps,
   OTP_TTL_MINUTES

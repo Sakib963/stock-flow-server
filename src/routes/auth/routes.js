@@ -1,7 +1,10 @@
 const { Router } = require("express");
-const { loginSchema, refreshSchema, signOutSchema, forgotPasswordSchema, resetPasswordSchema } = require("./schema");
+const { loginSchema, refreshSchema, signOutSchema, signOutEverywhereSchema, getSessionsSchema, signOutSessionSchema, forgotPasswordSchema, resetPasswordSchema } = require("./schema");
 const signInUser = require("./controllers/sign-in");
 const sign_out = require("./controllers/sign-out");
+const sign_out_everywhere = require("./controllers/sign-out-everywhere");
+const get_sessions = require("./controllers/get-sessions");
+const sign_out_session = require("./controllers/sign-out-session");
 const { ROUTES } = require("../../utils/constant");
 const refresh_token = require("./controllers/refresh-token");
 const get_user_info = require("./controllers/get-user-info");
@@ -14,13 +17,20 @@ const router = Router();
 
 router.post(ROUTES.SIGN_IN, validator.post(loginSchema), signInUser)
 
-// Deliberately without jwtMiddleware, for the same reason as password recovery below: the
-// common moment to sign out is coming back to a tab after lunch, when the 30 minute access token
-// has already expired. Requiring a live one would fail exactly then and leave the row open with a
-// refresh token good for another 7 days, which is the hole this endpoint exists to close. The
-// tokens in the request are the authorisation: holding one is what lets you end its session, and
-// ending a session is not something an attacker who holds it gains anything from.
+// Deliberately without jwtMiddleware, for the same reason as password recovery below: the common
+// moment to sign out is coming back to a tab after the 15 minute access token has lapsed. Requiring
+// a live one would fail exactly then and leave the session open. The controller finds the session
+// from the tokens the request carries.
 router.post(ROUTES.SIGN_OUT, validator.post(signOutSchema), sign_out)
+
+// These three are sign-in only, with no permission code, and that is a decision rather than a gap:
+// seeing and ending your own sessions is not something a role grants, and nobody should ever be
+// unable to lock a lost phone out of their account. Each one only ever touches the caller's own.
+router.post(ROUTES.SIGN_OUT_EVERYWHERE, [jwtMiddleware, validator.post(signOutEverywhereSchema)], sign_out_everywhere)
+
+router.get(ROUTES.GET_SESSIONS, [jwtMiddleware, validator.get(getSessionsSchema)], get_sessions)
+
+router.post(ROUTES.SIGN_OUT_SESSION, [jwtMiddleware, validator.post(signOutSessionSchema)], sign_out_session)
 
 router.post(ROUTES.REFRESH_TOKEN, validator.post(refreshSchema), refresh_token)
 

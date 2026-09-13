@@ -6,6 +6,8 @@ const { saveLogActivity } = require("../../../utils/activity-logger");
 const send_email = require("../../../utils/send-email");
 const { render_email } = require("../../../utils/render-email");
 const { check_rate_limit, client_ip } = require("../../../utils/rate-limit");
+const { end_sessions_for_login, request_context } = require("../../../utils/auth-session");
+const { record_sessions_ended } = require("../../../utils/auth-event");
 
 // A 6 digit code is a million guesses. Behind a token that is defensible; on an open endpoint it
 // is not, so every wrong answer is counted and the code dies at the cap.
@@ -34,7 +36,7 @@ const reset_password = async (request, res) => {
 
         const result = await execute_transaction(async (tx) => {
             const users = await tx.get_data({
-                text: `SELECT l.email, l.name FROM ${TABLE.LOGIN} l WHERE LOWER(l.email) = $1`,
+                text: `SELECT l.oid, l.email, l.name FROM ${TABLE.LOGIN} l WHERE LOWER(l.email) = $1`,
                 values: [email],
             });
             const user = users[0];
@@ -88,6 +90,11 @@ const reset_password = async (request, res) => {
                 values: [user.email],
             });
 
+            // Recovery is the path someone takes after an account is taken over, so it must end
+            // whatever the intruder already has open, not only change what the next sign-in needs.
+            const ended = await end_sessions_for_login(tx, { login_oid: user.oid, reason: "PasswordReset", by: user.email });
+            await record_sessions_ended(tx, ended, { login_oid: user.oid, email: user.email, reason: "PasswordReset", context: request_context(request) });
+
             return user;
         });
 
@@ -104,7 +111,7 @@ const reset_password = async (request, res) => {
         notify_password_changed(result).catch((e) => log.error(`Failed to send password-changed email: ${e?.message}`));
 
         log.info(`Password reset completed for user: ${result.email}`);
-        return res.status(200).json({ code: 200, message: "Your password has been changed. Sign in with the new one.", data: null });
+        return res.status(200).json({ code: 200, message: "Your password has been changed and every device was signed out. Sign in with the new one.", data: null });
     } catch (e) {
         // A wrong code still has to be counted, and the transaction that detected it was rolled
         // back. This runs on its own so the tally cannot be reset by simply retrying.

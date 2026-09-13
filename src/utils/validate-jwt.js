@@ -1,52 +1,53 @@
-const jwt = require('jsonwebtoken');
-const moment = require("moment-timezone");
-const { get_access_token_from_db } = require('./helper');
+const { TABLE } = require("./constant");
+const { get_data } = require("./database");
+const { log } = require("./log");
+const { verify_access_token } = require("./auth-session");
 
-const jwtMiddleware = async (req, res, next) => {
-      try {
-            // Extract and validate the token
-            const authorizationHeader = req.headers['authorization'];
-            if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-                  return res.status(401).json({ message: 'Unauthorized: No token provided' });
-            }
+// A valid signature only proves this server issued the token. The session it names must also still
+// be open, for an account that is still active. That second check is one primary-key read, and it
+// is what makes signing out, sign out everywhere and turning an account off take effect on the
+// next request instead of whenever the token happens to expire.
+//
+// `user_id` stays the email because requirePermission and every controller read it.
 
-            const accessToken = authorizationHeader.replace('Bearer ', '').trim();
+const MESSAGES = {
+    missing: "Sign in to continue.",
+    invalid: "Sign in to continue.",
+    expired: "Your access has expired.",
+    ended: "This session has ended. Sign in again.",
+};
 
-            // Decode and verify the token
-            let decodedToken;
-            try {
-                  decodedToken = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
-            } catch (err) {
-                  return res.status(401).json({ message: 'Unauthorized: Invalid token' });
-            }
+const unauthorized = (res, reason) => res.status(401).json({ code: 401, message: MESSAGES[reason], data: { reason } });
 
-            // Fetch user data based on the token
-            const user = await get_access_token_from_db(accessToken);
-            if (!user) {
-                  return res.status(401).json({ message: 'Unauthorized: Invalid token' });
-            }
+const jwtMiddleware = async (request, res, next) => {
+    const header = request.headers.authorization ?? "";
+    if (!header.startsWith("Bearer ")) return unauthorized(res, "missing");
 
-            // Check user status
-            if (user.status !== 'Signin') {
-                  return res.status(401).json({ message: 'Unauthorized: User has already logged out' });
-            }
+    let claims;
+    try {
+        claims = verify_access_token(header.slice(7).trim());
+    } catch (e) {
+        return unauthorized(res, e?.name === "TokenExpiredError" ? "expired" : "invalid");
+    }
 
-            // Check token expiration
-            const signOutTime = moment(user.signout_time, 'YYYY-MM-DD HH:mm:ss.SSS').tz('Asia/Dhaka');
-            if (signOutTime.isBefore(moment())) {
-                  return res.status(401).json({ message: 'Unauthorized: Token expired' });
-            }
+    try {
+        const rows = await get_data({
+            text: `SELECT l.email
+                   FROM ${TABLE.AUTH_SESSION} s
+                   JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid
+                   WHERE s.oid = $1 AND s.login_oid = $2
+                     AND s.status = 'Active' AND s.expires_on > LOCALTIMESTAMP
+                     AND l.status = 'Active'`,
+            values: [claims.sid, claims.sub],
+        });
+        if (!rows.length) return unauthorized(res, "ended");
 
-            // Attach user info from the token to the request object
-            req.credentials = {
-                  user_id: decodedToken.token.user_id,
-            };
-
-            next(); // Proceed to the next middleware or route handler
-      } catch (error) {
-            console.error('JWT Middleware Error:', error.message);
-            return res.status(500).json({ message: 'Internal Server Error' });
-      }
+        request.credentials = { user_id: rows[0].email, login_oid: claims.sub, session_oid: claims.sid };
+        return next();
+    } catch (e) {
+        log.error(`An exception occurred while validating a session: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Something went wrong. Please try again." });
+    }
 };
 
 module.exports = jwtMiddleware;

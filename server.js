@@ -11,7 +11,12 @@ const PORT = process.env.PORT || 3000;
 app.set("trust proxy", 1);
 
 app.use(express.json());
-app.use(cors());
+
+// Credentials are allowed so the refresh cookie can travel. With no allow-list the caller's origin
+// is reflected, which is only acceptable because the cookie is SameSite=Strict: a page on another
+// site cannot make the browser send it. Set CORS_ORIGINS in production regardless.
+const allowedOrigins = (process.env.CORS_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean);
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
 
 app.get("/", (req, res) => {
   res.send(`${COMPANY_INFO.serverDisplayName} is running`);
@@ -19,9 +24,12 @@ app.get("/", (req, res) => {
 
 app.use("/", mainRouter);
 
-app.listen(PORT, () =>
-  console.log(`${COMPANY_INFO.serverDisplayName} is listening on port ${PORT}`),
-);
+// Only when run directly. Vercel and the tests import the app and bind it themselves.
+if (require.main === module) {
+  app.listen(PORT, () =>
+    console.log(`${COMPANY_INFO.serverDisplayName} is listening on port ${PORT}`),
+  );
+}
 
 // Required for Vercel
 module.exports = app;
