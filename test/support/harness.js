@@ -50,7 +50,7 @@ const stop = async () => {
 
 const query = async (text, values = []) => (await pool.query(text, values)).rows;
 
-const reset = () => query("TRUNCATE auth_event, auth_refresh_token, auth_session, request_throttle, activity_log, otp_log, role_permission, permission, login, role CASCADE");
+const reset = () => query("TRUNCATE auth_event, auth_refresh_token, auth_session, request_throttle, activity_log, otp_log, role_permission, permission, login, role, categories CASCADE");
 
 const seed_user = async ({ email = "owner@samiha.test", status = "Active", permissions = [] } = {}) => {
     const role_oid = uuidv4();

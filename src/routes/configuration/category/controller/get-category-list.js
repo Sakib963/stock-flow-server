@@ -1,82 +1,23 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { read_list } = require("../../../../utils/list-query");
 const { log } = require("../../../../utils/log");
 
 const get_category_list = async (request, res) => {
-      try {
-            // Step 1: Generate SQL for total count
-            const countSql = generate_count_sql(request);
-
-            const countResult = await get_data(countSql);
-            const total = countResult[0]?.total || 0;
-
-            // Step 2: Generate SQL for paginated data
-            const dataSql = generate_data_sql(request);
-
-            const data_set = await get_data(dataSql);
-            const data = data_set.length ? data_set : [];
-
-            // Step 3: Respond with total count and paginated data
-            log.info(`Category list Found: ${data?.length} of ${total}`);
-            return res.status(200).json({
-                  code: 200,
-                  message: "Category list Found",
-                  total,
-                  data,
-            });
-      } catch (e) {
-            log.error(`An exception occurred while getting category information: ${e?.message}`);
-            return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-      }
-};
-
-const generate_count_sql = (request) => {
-      let query = `SELECT COUNT(*) AS total FROM ${TABLE.CATEGORIES} WHERE 1 = 1`;
-      let values = [];
-
-      if (request.query.search_text && request.query.search_text.trim() !== "") {
-            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-            query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
-            values.push(searchText, searchText);
-      }
-
-      if (request.query.status) {
-            query += `AND status = $${values.length + 1}`
-            values.push(request.query.status);
-      }
-
-      return { text: query, values };
-};
-
-const generate_data_sql = (request) => {
-      let query = `SELECT oid, name, description, status, category_code FROM ${TABLE.CATEGORIES} WHERE 1 = 1`;
-      let values = [];
-
-      if (request.query.search_text && request.query.search_text.trim() !== "") {
-            const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-            query += ` AND (LOWER(name) LIKE $${values.length + 1} `;
-            query += `OR LOWER(category_code) LIKE $${values.length + 2})`;
-            values.push(searchText, searchText);
-      }
-
-      if (request.query.status) {
-            query += ` AND status = $${values.length + 1}`;
-            values.push(request.query.status);
-      }
-
-      query += ` ORDER BY created_on ASC`
-
-      if (request.query.offset) {
-            query += ` OFFSET $${values.length + 1}`;
-            values.push(Number(request.query.offset));
-      }
-
-      if (request.query.limit) {
-            query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
-            values.push(Number(request.query.limit));
-      }
-      return { text: query, values };
+    try {
+        const { rows, total } = await read_list({
+            select: "oid, name, description, category_code, status, created_on",
+            from: TABLE.CATEGORIES,
+            search: ["name", "category_code"],
+            filters: { status: "status" },
+            sortable: { name: "name", category_code: "category_code", status: "status", created_on: "created_on" },
+            default_sort: { key: "name", order: "asc" },
+            query: request.query,
+        });
+        return res.status(200).json({ code: 200, message: "Categories", data: { rows }, total });
+    } catch (e) {
+        log.error(`An exception occurred while listing categories: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not load categories. Try again in a moment." });
+    }
 };
 
 module.exports = get_category_list;
