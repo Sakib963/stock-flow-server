@@ -105,6 +105,7 @@ module.exports = {
     CREATE_USER: "/create-user",
     UPDATE_USER_DETAILS: "/update-user-details",
     GET_USER_DETAILS: "/get-user-details",
+    GET_USER_CARD: "/get-user-card",
 
     GET_CATEGORY_LIST: "/get-category-list",
     CREATE_CATEGORY: "/create-category",

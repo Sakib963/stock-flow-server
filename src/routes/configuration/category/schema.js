@@ -6,7 +6,7 @@ const category_list_schema = Joi.object({
       offset: Joi.number().integer().min(0).default(0),
       limit: Joi.number().integer().min(1).max(100).default(20),
       search: Joi.string().trim().max(100).allow(null, "").optional(),
-      sort: Joi.string().valid("name", "category_code", "status", "created_on").optional(),
+      sort: Joi.string().valid("name", "category_code", "status", "created_on", "last_action_on").optional(),
       order: Joi.string().valid("asc", "desc").optional(),
       status: Joi.string().pattern(/^(Active|Inactive)(,(Active|Inactive))*$/).allow(null, "").optional(),
       include: Joi.string().allow("").optional(),

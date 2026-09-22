@@ -2,15 +2,37 @@ const { TABLE } = require("../../../../utils/constant");
 const { read_list } = require("../../../../utils/list-query");
 const { log } = require("../../../../utils/log");
 
+// created_by and edited_by hold the person's email, so the row carries who last touched it resolved
+// through login: edited_by when the row has been edited, created_by otherwise, with the same
+// COALESCE on the timestamp so the name and the time agree.
+//
+// The role comes from the role table through role_oid, not from login.role: that column is a legacy
+// free-text label nothing checks, so it can say Manager for someone whose actual role grants
+// something else, and a person card that contradicts access control is worse than one with no role.
+//
+// The photo is left out on purpose: it is stored as a data URL and twenty of them would weigh more
+// than the rest of the page.
+const SELECT = `c.oid, c.name, c.description, c.category_code, c.status, c.created_on,
+                COALESCE(c.edited_on, c.created_on) AS last_action_on,
+                COALESCE(c.edited_by, c.created_by) AS last_action_by,
+                (c.edited_by IS NOT NULL) AS last_action_is_edit,
+                u.name AS last_action_by_name,
+                r.name AS last_action_by_role`;
+
+const FROM = `${TABLE.CATEGORIES} c
+              LEFT JOIN ${TABLE.LOGIN} u ON u.email = COALESCE(c.edited_by, c.created_by)
+              LEFT JOIN ${TABLE.ROLE} r ON r.oid = u.role_oid`;
+
 const get_category_list = async (request, res) => {
     try {
         const { rows, total } = await read_list({
-            select: "oid, name, description, category_code, status, created_on",
-            from: TABLE.CATEGORIES,
-            search: ["name", "category_code"],
-            filters: { status: "status" },
-            sortable: { name: "name", category_code: "category_code", status: "status", created_on: "created_on" },
+            select: SELECT,
+            from: FROM,
+            search: ["c.name", "c.category_code", "c.description"],
+            filters: { status: "c.status" },
+            sortable: { name: "c.name", category_code: "c.category_code", status: "c.status", created_on: "c.created_on", last_action_on: "COALESCE(c.edited_on, c.created_on)" },
             default_sort: { key: "name", order: "asc" },
+            tie_breaker: "c.oid",
             query: request.query,
         });
         return res.status(200).json({ code: 200, message: "Categories", data: { rows }, total });

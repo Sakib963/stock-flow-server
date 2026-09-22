@@ -15,10 +15,12 @@ const seed_category = (name, code, status = "Active", created_on = new Date()) =
 
 describe("the categories list", () => {
     let viewer;
+    let role_name;
 
     beforeEach(async () => {
         await h.reset();
         const user = await h.seed_user({ permissions: ["configuration.category.view"] });
+        role_name = user.role_name;
         viewer = (await h.sign_in(user)).access;
 
         await seed_category("Saree", "SAR", "Active");
@@ -47,7 +49,7 @@ describe("the categories list", () => {
         assert.equal(res.status, 200);
         assert.equal(res.body.total, 4);
         assert.equal(res.body.data.rows.length, 2);
-        assert.deepEqual(Object.keys(res.body.data.rows[0]).sort(), ["category_code", "created_on", "description", "name", "oid", "status"]);
+        assert.deepEqual(Object.keys(res.body.data.rows[0]).sort(), ["category_code", "created_on", "description", "last_action_by", "last_action_by_name", "last_action_by_role", "last_action_is_edit", "last_action_on", "name", "oid", "status"]);
     });
 
     it("sorts by name unless asked otherwise, and pages without repeating or skipping a row", async () => {
@@ -92,6 +94,44 @@ describe("the categories list", () => {
 
         assert.equal(res.status, 400);
         assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM categories"))[0].n, 4);
+    });
+
+    it("says who last touched a row by name, and that an edit is what it was", async () => {
+        await h.query("UPDATE categories SET created_by = $1 WHERE name = 'Saree'", ["owner@samiha.test"]);
+        await h.query("UPDATE categories SET created_by = $1, edited_by = $1, edited_on = $2 WHERE name = 'Kurti'", ["owner@samiha.test", new Date()]);
+
+        const rows = (await list(viewer, { limit: 100 })).body.data.rows;
+        const saree = rows.find((r) => r.name === "Saree");
+        const kurti = rows.find((r) => r.name === "Kurti");
+
+        assert.equal(saree.last_action_by, "owner@samiha.test");
+        assert.equal(saree.last_action_by_name, "Samiha Rahman");
+        assert.equal(saree.last_action_by_role, role_name);
+        assert.equal(saree.last_action_is_edit, false);
+        assert.equal(kurti.last_action_is_edit, true);
+        assert.equal(new Date(kurti.last_action_on) > new Date(saree.last_action_on), true);
+    });
+
+    it("leaves the name empty rather than dropping the row when the account that made it is gone", async () => {
+        await h.query("UPDATE categories SET created_by = 'left@samiha.test' WHERE name = 'Panjabi'");
+
+        const res = await list(viewer, { limit: 100 });
+        const panjabi = res.body.data.rows.find((r) => r.name === "Panjabi");
+
+        assert.equal(res.body.total, 4);
+        assert.equal(panjabi.last_action_by, "left@samiha.test");
+        assert.equal(panjabi.last_action_by_name, null);
+    });
+
+    it("sorts by who last touched the row, which is an edit time or a creation time", async () => {
+        const old_day = new Date("2026-01-01T10:00:00");
+        await h.query("UPDATE categories SET created_on = $1 WHERE name = 'Saree'", [old_day]);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = $2, edited_by = 'owner@samiha.test' WHERE name = 'Kurti'", [old_day, new Date()]);
+
+        const res = await list(viewer, { sort: "last_action_on", order: "asc", limit: 100 });
+
+        assert.equal(res.body.data.rows[0].name, "Saree");
+        assert.equal(res.body.data.rows.at(-1).name, "Kurti");
     });
 
     it("answers an empty page past the end with the real total, so the list can step back", async () => {

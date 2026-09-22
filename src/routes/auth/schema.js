@@ -43,6 +43,12 @@ const resetPasswordSchema = Joi.object({
       confirm_password: Joi.string().valid(Joi.ref('new_password')).required()
 });
 
+// The card takes one address and nothing else. An empty object still refuses unknown keys, so a
+// query string someone appends cannot quietly become a parameter later.
+const userCardSchema = Joi.object({
+      email: Joi.string().email({ tlds: { allow: false } }).max(256).required()
+});
+
 module.exports = {
       loginSchema,
       refreshSchema,
@@ -51,5 +57,6 @@ module.exports = {
       getSessionsSchema,
       signOutSessionSchema,
       forgotPasswordSchema,
-      resetPasswordSchema
+      resetPasswordSchema,
+      userCardSchema
 }

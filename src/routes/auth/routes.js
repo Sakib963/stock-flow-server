@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { loginSchema, refreshSchema, signOutSchema, signOutEverywhereSchema, getSessionsSchema, signOutSessionSchema, forgotPasswordSchema, resetPasswordSchema } = require("./schema");
+const { loginSchema, refreshSchema, signOutSchema, signOutEverywhereSchema, getSessionsSchema, signOutSessionSchema, forgotPasswordSchema, resetPasswordSchema, userCardSchema } = require("./schema");
 const signInUser = require("./controllers/sign-in");
 const sign_out = require("./controllers/sign-out");
 const sign_out_everywhere = require("./controllers/sign-out-everywhere");
@@ -10,6 +10,7 @@ const refresh_token = require("./controllers/refresh-token");
 const get_user_info = require("./controllers/get-user-info");
 const forgot_password = require("./controllers/forgot-password");
 const reset_password = require("./controllers/reset-password");
+const get_user_card = require("./controllers/get-user-card");
 const jwtMiddleware = require('../../utils/validate-jwt');
 const { validator } = require("../../utils/validator");
 
@@ -43,5 +44,10 @@ router.get(ROUTES.GET_USER_INFO, jwtMiddleware, get_user_info)
 router.post(ROUTES.FORGOT_PASSWORD, validator.post(forgotPasswordSchema), forgot_password)
 
 router.post(ROUTES.RESET_PASSWORD, validator.post(resetPasswordSchema), reset_password)
+
+// Who a name in a list belongs to. Sign-in only, alongside the session routes above: the name is
+// already on the screen the caller is reading, and reading a colleague's card is not a power a role
+// grants. It is not under administration, which is where accounts are created and roles assigned.
+router.get(ROUTES.GET_USER_CARD, [jwtMiddleware, validator.get(userCardSchema)], get_user_card)
 
 module.exports = { authRouter: router };
