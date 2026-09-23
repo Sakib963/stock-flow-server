@@ -83,6 +83,17 @@ describe("the categories list", () => {
         assert.equal(both.body.total, 4);
     });
 
+    it("counts the stat cards only when include asks, over the same set the rows came from", async () => {
+        const without = await list(viewer, {});
+        const all = await list(viewer, { include: "stats" });
+        const narrowed = await list(viewer, { include: "stats", status: "Active" });
+
+        assert.equal(without.body.data.stats, undefined);
+        assert.deepEqual(all.body.data.stats, { active: 3, inactive: 1 });
+        assert.deepEqual(narrowed.body.data.stats, { active: 3, inactive: 0 });
+        assert.equal(narrowed.body.total, 3);
+    });
+
     it("sorts by a column it offers, in either direction", async () => {
         const res = await list(viewer, { sort: "category_code", order: "desc" });
 

@@ -23,19 +23,28 @@ const FROM = `${TABLE.CATEGORIES} c
               LEFT JOIN ${TABLE.LOGIN} u ON u.email = COALESCE(c.edited_by, c.created_by)
               LEFT JOIN ${TABLE.ROLE} r ON r.oid = u.role_oid`;
 
+// Counted over the same filtered set as the rows, so a card and the list can never disagree. With
+// a status filter applied the other card reads 0, which is the truthful answer to "how many of
+// these are inactive" once "these" has been narrowed.
+const STATS = {
+    active: `COUNT(*) FILTER (WHERE c.status = 'Active')::int`,
+    inactive: `COUNT(*) FILTER (WHERE c.status = 'Inactive')::int`,
+};
+
 const get_category_list = async (request, res) => {
     try {
-        const { rows, total } = await read_list({
+        const { rows, total, stats } = await read_list({
             select: SELECT,
             from: FROM,
             search: ["c.name", "c.category_code", "c.description"],
             filters: { status: "c.status" },
             sortable: { name: "c.name", category_code: "c.category_code", status: "c.status", created_on: "c.created_on", last_action_on: "COALESCE(c.edited_on, c.created_on)" },
             default_sort: { key: "name", order: "asc" },
+            stats: STATS,
             tie_breaker: "c.oid",
             query: request.query,
         });
-        return res.status(200).json({ code: 200, message: "Categories", data: { rows }, total });
+        return res.status(200).json({ code: 200, message: "Categories", data: stats ? { rows, stats } : { rows }, total });
     } catch (e) {
         log.error(`An exception occurred while listing categories: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not load categories. Try again in a moment." });

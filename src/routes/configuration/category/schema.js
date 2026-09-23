@@ -9,7 +9,7 @@ const category_list_schema = Joi.object({
       sort: Joi.string().valid("name", "category_code", "status", "created_on", "last_action_on").optional(),
       order: Joi.string().valid("asc", "desc").optional(),
       status: Joi.string().pattern(/^(Active|Inactive)(,(Active|Inactive))*$/).allow(null, "").optional(),
-      include: Joi.string().allow("").optional(),
+      include: Joi.string().valid("", "stats").optional(),
 });
 
 // The dropdown takes nothing. An empty object still refuses unknown keys, so a query string

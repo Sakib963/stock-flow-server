@@ -36,7 +36,15 @@ const build_where = ({ where = [], values = [], search = [], filters = {}, query
     return { text: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params, add };
 };
 
-const read_list = async ({ select, from, where, values, search, filters, sortable, default_sort, tie_breaker = "oid", query }) => {
+const wants = (query, part) =>
+    String(query.include ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .includes(part);
+
+// `stats` is a map of SQL aggregate expressions written by the controller, never anything from the
+// query string: the only client input here is whether `include` asked for them at all.
+const read_list = async ({ select, from, where, values, search, filters, sortable, default_sort, stats, tie_breaker = "oid", query }) => {
     const filtered = build_where({ where, values, search, filters, query });
 
     // Only a column named in `sortable` can reach ORDER BY. The schema refuses anything else first;
@@ -44,7 +52,12 @@ const read_list = async ({ select, from, where, values, search, filters, sortabl
     const chosen = query.sort && Object.hasOwn(sortable, query.sort) ? { column: sortable[query.sort], order: query.order } : { column: sortable[default_sort.key], order: default_sort.order };
     const direction = chosen.order === "desc" ? "DESC" : "ASC";
 
-    const count = await get_data({ text: `SELECT COUNT(*)::int AS total FROM ${from} ${filtered.text}`, values: filtered.params });
+    // Stat cards ride on the count query rather than a second round trip, which is also the only
+    // way they cannot disagree with the total: same WHERE, same snapshot, one statement (REQ-19).
+    const asked = stats && wants(query, "stats");
+    const stat_select = asked ? `, ${Object.entries(stats).map(([key, expression]) => `${expression} AS ${key}`).join(", ")}` : "";
+
+    const count = await get_data({ text: `SELECT COUNT(*)::int AS total${stat_select} FROM ${from} ${filtered.text}`, values: filtered.params });
 
     const limit = filtered.add(Number(query.limit ?? 20));
     const offset = filtered.add(Number(query.offset ?? 0));
@@ -53,7 +66,9 @@ const read_list = async ({ select, from, where, values, search, filters, sortabl
         values: filtered.params,
     });
 
-    return { rows, total: count[0]?.total ?? 0 };
+    const counted = asked ? Object.fromEntries(Object.keys(stats).map((key) => [key, count[0]?.[key] ?? 0])) : null;
+
+    return { rows, total: count[0]?.total ?? 0, stats: counted };
 };
 
 module.exports = { read_list, escape_like };
