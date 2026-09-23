@@ -13,6 +13,24 @@ Settings live in `test/.env.test`. It is committed on purpose and holds no real 
 
 ## The local Postgres
 
+Whatever runs it, it must be **PostgreSQL 16 on port 5433** with trust authentication, and its
+timezone must match the machine running node. Some expiry checks compare a timestamp written by the
+database against one read by node, so the suite fails if the two clocks are in different zones. That
+is a real defect, on the backlog under hardening; until it is fixed, the two clocks have to agree.
+
+### Linux, with Docker
+
+```
+docker run -d --name stockflow-test-pg \
+  -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=postgres \
+  -e TZ=$(cat /etc/timezone) -e PGTZ=$(cat /etc/timezone) \
+  -p 127.0.0.1:5433:5432 postgres:16.15-alpine
+```
+
+Start it again after a reboot with `docker start stockflow-test-pg`.
+
+### Windows, portable binaries
+
 Portable PostgreSQL 16.15 binaries, the same version as the cloud database, unpacked without an
 installer so no administrator rights were needed. Port 5433, trust authentication, listening on
 localhost only.
