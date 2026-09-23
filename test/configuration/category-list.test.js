@@ -11,6 +11,14 @@ after(h.stop);
 
 const list = (token, params = {}) => h.call(`${ROUTE}?${new URLSearchParams(params)}`, { method: "GET", token });
 
+const seed_product = async (category_oid, name) => {
+    const sub_oid = uuidv4();
+    await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, $2, $3, $4, 'Active')", [sub_oid, `${name} group`, `SUB-${sub_oid.slice(0, 6)}`, category_oid]);
+    const oid = uuidv4();
+    await h.query("INSERT INTO product (oid, name, category_oid, sub_category_oid, status) VALUES ($1, $2, $3, $4, 'Active')", [oid, name, category_oid, sub_oid]);
+    return oid;
+};
+
 const seed_category = (name, code, status = "Active", created_on = new Date()) => h.query("INSERT INTO categories (oid, name, category_code, status, created_on) VALUES ($1, $2, $3, $4, $5)", [uuidv4(), name, code, status, created_on]);
 
 describe("the categories list", () => {
@@ -89,9 +97,33 @@ describe("the categories list", () => {
         const narrowed = await list(viewer, { include: "stats", status: "Active" });
 
         assert.equal(without.body.data.stats, undefined);
-        assert.deepEqual(all.body.data.stats, { active: 3, inactive: 1 });
-        assert.deepEqual(narrowed.body.data.stats, { active: 3, inactive: 0 });
+        assert.deepEqual(all.body.data.stats, { active: 3, inactive: 1, products: 0, empty: 4 });
+        assert.deepEqual(narrowed.body.data.stats, { active: 3, inactive: 0, products: 0, empty: 3 });
         assert.equal(narrowed.body.total, 3);
+    });
+
+    it("counts the products in these categories, and which of them have none yet", async () => {
+        const saree = (await h.query("SELECT oid FROM categories WHERE name = 'Saree'"))[0].oid;
+        await seed_product(saree, "Cotton saree");
+        await seed_product(saree, "Silk saree");
+
+        const stats = (await list(viewer, { include: "stats" })).body.data.stats;
+
+        assert.equal(stats.products, 2);
+        assert.equal(stats.empty, 3, "the other three categories still have nothing in them");
+    });
+
+    // Every other product count in the app leaves deleted products out. A category whose last
+    // product was removed is empty, and reporting it as stocked would hide an unfinished setup.
+    it("leaves a deleted product out of both counts", async () => {
+        const saree = (await h.query("SELECT oid FROM categories WHERE name = 'Saree'"))[0].oid;
+        const removed = await seed_product(saree, "Withdrawn saree");
+        await h.query("UPDATE product SET is_deleted = TRUE WHERE oid = $1", [removed]);
+
+        const stats = (await list(viewer, { include: "stats" })).body.data.stats;
+
+        assert.equal(stats.products, 0);
+        assert.equal(stats.empty, 4, "the category counts as empty again");
     });
 
     it("sorts by a column it offers, in either direction", async () => {

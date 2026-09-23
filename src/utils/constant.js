@@ -112,6 +112,8 @@ module.exports = {
     UPDATE_CATEGORY_DETAILS: "/update-category-details",
     GET_CATEGORY_DETAILS: "/get-category-details",
     GET_CATEGORY_LIST_FOR_DROPDOWN: "/get-category-list-for-dropdown",
+    CHECK_CATEGORY_AVAILABILITY: "/check-category-availability",
+    GENERATE_CATEGORY_CODE: "/generate-category-code",
     GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY:
       "/generate-product-list-report-by-category",
     GENERATE_INVENTORY_REPORT_BY_CATEGORY:

@@ -2,13 +2,15 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require('../../../utils/validate-jwt');
 const requirePermission = require('../../../utils/require-permission');
-const { category_list_schema, category_dropdown_schema, category_oid_schema, category_schema, category_details_schema } = require("./schema");
+const { category_list_schema, category_dropdown_schema, category_oid_schema, category_schema, category_details_schema, category_availability_schema, category_code_generate_schema } = require("./schema");
 const { validator } = require("../../../utils/validator");
 const get_category_list = require("./controller/get-category-list");
 const create_category = require("./controller/create-category");
 const update_category_details = require("./controller/update-category-details");
 const get_category_details = require("./controller/get-category-details");
 const get_category_list_for_dropdown = require("./controller/get-category-list-for-dropdown");
+const check_category_availability = require("./controller/check-category-availability");
+const generate_category_code = require("./controller/generate-category-code");
 const ExcelJS = require("exceljs");
 const generate_inventory_report_by_category = require("./controller/generate-inventory-report-by-category");
 const generate_product_list_report_by_category = require("./controller/generate-product-list-report-by-category");
@@ -28,6 +30,23 @@ router.get(
       ROUTES.GET_CATEGORY_LIST_FOR_DROPDOWN,
       [jwtMiddleware, requirePermission('configuration.category.view'), validator.get(category_dropdown_schema)],
       get_category_list_for_dropdown
+);
+
+// Is this name or code free? The create and edit form asks as the person types. Both read only
+// category data the list already shows, so view is the right gate: anyone who may create or edit
+// holds it, because view is what opens the feature at all.
+router.get(
+      ROUTES.CHECK_CATEGORY_AVAILABILITY,
+      [jwtMiddleware, requirePermission('configuration.category.view'), validator.get(category_availability_schema)],
+      check_category_availability
+);
+
+// Suggest a code for a name. It writes nothing: the person applies it, or ignores it and types
+// their own, which is what an owner with codes already in their inventory does.
+router.get(
+      ROUTES.GENERATE_CATEGORY_CODE,
+      [jwtMiddleware, requirePermission('configuration.category.view'), validator.get(category_code_generate_schema)],
+      generate_category_code
 );
 
 // Create A New Category

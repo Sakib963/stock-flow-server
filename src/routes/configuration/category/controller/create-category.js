@@ -1,62 +1,53 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { execute_value } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
+const { duplicate_conflict, already_written } = require("../duplicate");
 const { v4: uuidv4 } = require('uuid');
 
 const create_category = async (request, res) => {
-      let payload = request.body;
-      let user_id = request.credentials.user_id;
-      try {
-            // Check Category
-            const exiting_category = await check_existing_category(payload.name)
-            if (exiting_category) {
-                  log.warn(`Name already exists [${payload.name}]`);
-                  return res.status(409).json({ code: 409, message: "Name Already Exists!" });
-            }
+      const payload = request.body;
+      const user_id = request.credentials.user_id;
+      const categoryOid = uuidv4();
 
-            const categoryOid = uuidv4();
+      try {
             const sql = {
                   text: `INSERT INTO ${TABLE.CATEGORIES} (oid, name, category_code, description, status, created_by) VALUES ($1, $2, $3, $4, $5, $6)`,
                   values: [categoryOid, payload.name, payload.category_code, payload.description, payload.status, user_id]
+            };
+            await execute_value(sql);
+      } catch (e) {
+            // A retry of a write that already succeeded. Answering 500 here told the person their
+            // category was not saved, and their second attempt then collided with the row they
+            // could not see.
+            if (already_written(e)) {
+                  log.info(`Category ${payload.name} was already created by an earlier attempt of this request`);
+                  return res.status(200).json({ code: 200, message: "Category Created Successfully!", data: { oid: categoryOid } });
             }
 
-            await execute_value(sql);
-            
-            // Log activity (non-blocking - fire and forget)
-            saveLogActivity({
-                  reference_type: 'category',
-                  reference_oid: categoryOid,
-                  title: 'Created category',
-                  performed_by: user_id,
-                  description: `Created category "${payload.name}" with code ${payload.category_code}`
-            });
-      } catch (e) {
+            const conflict = duplicate_conflict(e);
+            if (conflict) {
+                  log.warn(`Category not created, ${conflict.field} already taken by another category`);
+                  return res.status(409).json({ code: 409, message: conflict.message, data: { field: conflict.field } });
+            }
             log.error(`An exception occurred while creating category : ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
+
+      saveLogActivity({
+            reference_type: 'category',
+            reference_oid: categoryOid,
+            title: 'Created category',
+            performed_by: user_id,
+            description: `Created category "${payload.name}" with code ${payload.category_code}`
+      });
 
       log.info(`Category ${payload.name} created successfully by : ${user_id}`);
       return res.status(200).json({
             code: 200,
             message: "Category Created Successfully!",
+            data: { oid: categoryOid },
       });
-}
-
-const check_existing_category = async (name) => {
-      let count = 0;
-      const sql = {
-            text: `select count(oid)::int4 as total from ${TABLE.CATEGORIES} where name = $1`,
-            values: [name]
-      }
-      try {
-            let data_set = await get_data(sql);
-            count = data_set[0]["total"];
-      } catch (e) {
-            log.error(`An exception occurred while checking category count : ${e?.message}`);
-            throw new Error(e);
-      }
-      return count;
 }
 
 module.exports = create_category

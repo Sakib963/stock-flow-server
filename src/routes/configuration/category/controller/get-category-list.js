@@ -26,9 +26,18 @@ const FROM = `${TABLE.CATEGORIES} c
 // Counted over the same filtered set as the rows, so a card and the list can never disagree. With
 // a status filter applied the other card reads 0, which is the truthful answer to "how many of
 // these are inactive" once "these" has been narrowed.
+//
+// There is no card for the total: the page header already shows it beside the title, and a card
+// repeating it would spend a quarter of the strip saying nothing new. These four each answer a
+// different question, and "without products" is the one that finds an unfinished setup.
+//
+// Deleted products are excluded, the way every other product count in the app excludes them.
+// Counting them would report a category as stocked when its last product had been removed.
 const STATS = {
     active: `COUNT(*) FILTER (WHERE c.status = 'Active')::int`,
     inactive: `COUNT(*) FILTER (WHERE c.status = 'Inactive')::int`,
+    products: `COALESCE(SUM((SELECT COUNT(*) FROM ${TABLE.PRODUCT} p WHERE p.category_oid = c.oid AND p.is_deleted = FALSE)), 0)::int`,
+    empty: `COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM ${TABLE.PRODUCT} p WHERE p.category_oid = c.oid AND p.is_deleted = FALSE))::int`,
 };
 
 const get_category_list = async (request, res) => {
