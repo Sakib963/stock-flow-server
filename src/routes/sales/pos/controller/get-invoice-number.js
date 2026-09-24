@@ -1,5 +1,5 @@
-const { get_data } = require("../../../../utils/database");
-const { nextInvoiceNo } = require("../../../../utils/order-utils");
+const { get_data } = require("../../../../db/database");
+const { nextInvoiceNo } = require("../../utils/order-utils");
 const { log } = require("../../../../utils/log");
 
 // Suggest the next order/invoice number for a new POS sale.

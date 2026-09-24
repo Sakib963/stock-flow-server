@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_value } = require("../../../../utils/database");
+const { execute_value } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require('uuid');
 

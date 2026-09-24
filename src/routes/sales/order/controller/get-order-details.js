@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 // Full order for the detail page: header + line items + status-history timeline.

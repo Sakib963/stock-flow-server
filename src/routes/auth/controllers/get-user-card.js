@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data } = require("../../../utils/database");
+const { get_data } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 
 // Sign-in only, with no permission code, for the same reason as the session routes above it: the

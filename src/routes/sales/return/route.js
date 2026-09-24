@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
+const { validator } = require("../../../middleware/validator");
 const { return_list_schema, returns_for_order_schema, create_return_schema, return_action_schema, cancel_return_schema } = require("./schema");
 
 const get_return_list = require("./controller/get-return-list");

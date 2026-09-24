@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const { validator } = require("../../../middleware/validator");
 const { get_profile_info_schema } = require("./schema");
 const get_profile_info = require("./controllers/get-profile-info");
 

@@ -1,10 +1,10 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const requirePermission = require('../../../utils/require-permission');
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const requirePermission = require('../../../middleware/require-permission');
 const get_user_list = require("./controller/get-user-list");
 const { user_list_schema, create_user_schema, user_details_schema, update_user_schema } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const create_user = require("./controller/create-user");
 const get_user_details = require("./controller/get-user-details");
 const update_user_details = require("./controller/update-user-details");

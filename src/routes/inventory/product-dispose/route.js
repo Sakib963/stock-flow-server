@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
+const { validator } = require("../../../middleware/validator");
 const {
   product_dispose_list_schema,
   product_dispose_schema,

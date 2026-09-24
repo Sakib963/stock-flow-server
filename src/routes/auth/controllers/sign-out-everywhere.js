@@ -1,8 +1,8 @@
-const { execute_transaction } = require("../../../utils/database");
+const { execute_transaction } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { saveLogActivity } = require("../../../utils/activity-logger");
-const { end_sessions_for_login, clear_refresh_token, request_context } = require("../../../utils/auth-session");
-const { record_sessions_ended } = require("../../../utils/auth-event");
+const { end_sessions_for_login, clear_refresh_token, request_context } = require("../../../auth/auth-session");
+const { record_sessions_ended } = require("../../../auth/auth-event");
 
 /**
  * Ends every open session of the signed-in account. With `keep_current`, every one but this device,

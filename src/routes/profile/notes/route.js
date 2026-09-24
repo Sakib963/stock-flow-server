@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const { validator } = require("../../../middleware/validator");
 const get_note_list = require("./controllers/get-notes-list");
 const { get_note_by_id_schema, update_note_schema, create_note_schema } = require("./schema");
 const get_note_details = require("./controllers/get-note-details");

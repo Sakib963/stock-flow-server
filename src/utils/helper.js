@@ -1,7 +1,7 @@
 const { TABLE } = require("./constant");
 const { v4: uuidv4 } = require('uuid');
 const { log } = require("./log");
-const { execute_value, get_data } = require("./database");
+const { execute_value, get_data } = require("../db/database");
 const crypto = require("crypto");
 
 const generateRandomString = () => {

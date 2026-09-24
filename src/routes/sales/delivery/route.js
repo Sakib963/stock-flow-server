@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
+const { validator } = require("../../../middleware/validator");
 const { send_for_delivery_schema } = require("./schema");
 const send_for_delivery = require("./controller/send-for-delivery");
 

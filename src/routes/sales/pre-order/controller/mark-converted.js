@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, fail } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { recordPreOrderStatusHistory } = require("../../../../utils/pre-order-utils");
+const { recordPreOrderStatusHistory } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 
 // Close the loop after the order has been saved from the prefilled order page

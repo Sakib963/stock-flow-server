@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data } = require("../../../utils/database");
+const { get_data } = require("../../../db/database");
 const { log } = require("../../../utils/log");
-const { describe_device } = require("../../../utils/user-agent");
+const { describe_device } = require("../../../auth/user-agent");
 
 /**
  * Every device signed in to the caller's account right now, this one first.

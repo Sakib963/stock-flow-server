@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 const get_warehouse_list = async (request, res) => {

@@ -1,8 +1,8 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data, execute_transaction } = require("../../../utils/database");
+const { get_data, execute_transaction } = require("../../../db/database");
 const { log } = require("../../../utils/log");
-const { hash_token, verify_access_token, end_session, read_refresh_token, clear_refresh_token, request_context } = require("../../../utils/auth-session");
-const { AUTH_EVENT, record_auth_event_in } = require("../../../utils/auth-event");
+const { hash_token, verify_access_token, end_session, read_refresh_token, clear_refresh_token, request_context } = require("../../../auth/auth-session");
+const { AUTH_EVENT, record_auth_event_in } = require("../../../auth/auth-event");
 
 /**
  * Ends the session in the database, not only in the browser.

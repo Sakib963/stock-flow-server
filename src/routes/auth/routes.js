@@ -11,8 +11,8 @@ const get_user_info = require("./controllers/get-user-info");
 const forgot_password = require("./controllers/forgot-password");
 const reset_password = require("./controllers/reset-password");
 const get_user_card = require("./controllers/get-user-card");
-const jwtMiddleware = require('../../utils/validate-jwt');
-const { validator } = require("../../utils/validator");
+const jwtMiddleware = require('../../middleware/validate-jwt');
+const { validator } = require("../../middleware/validator");
 
 const router = Router();
 

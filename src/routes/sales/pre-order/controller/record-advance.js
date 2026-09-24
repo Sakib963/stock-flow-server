@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { get_data, execute_value } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 

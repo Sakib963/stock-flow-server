@@ -1,9 +1,9 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { save_generated_otp } = require("../../../../utils/helper");
 const { log } = require("../../../../utils/log");
 const bcrypt = require("bcrypt");
-const send_email = require("../../../../utils/send-email");
+const send_email = require("../../../../email/send-email");
 const { COMPANY_INFO } = require("../../../../utils/company-info");
 
 const fs = require("fs");

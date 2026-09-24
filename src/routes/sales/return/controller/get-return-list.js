@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 // Returns list. Every return is rooted in an order, so the order supplies the

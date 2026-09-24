@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const jwtMiddleware = require("../../utils/validate-jwt");
+const jwtMiddleware = require("../../middleware/validate-jwt");
 const { ROUTES } = require("../../utils/constant");
 const get_activity_log_list = require("./controller/get-activity-log-list");
 

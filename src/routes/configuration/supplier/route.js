@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const { validator } = require("../../../middleware/validator");
 const { supplier_list_schema, supplier_schema, supplier_details_schema } = require("./schema");
 const get_supplier_list = require("./controller/get-supplier-list");
 const create_supplier = require("./controller/create-supplier");

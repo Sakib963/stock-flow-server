@@ -1,6 +1,6 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 const get_product_dispose_details = async (request, res) => {

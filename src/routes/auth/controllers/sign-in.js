@@ -1,11 +1,11 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const { TABLE } = require("../../../utils/constant");
-const { get_data, execute_transaction } = require("../../../utils/database");
+const { get_data, execute_transaction } = require("../../../db/database");
 const { log } = require("../../../utils/log");
-const { check_rate_limit } = require("../../../utils/rate-limit");
-const { open_session, end_session, end_own_session, grant_tokens, hash_token, read_refresh_token, request_context, normalize_email, prune_auth_records } = require("../../../utils/auth-session");
-const { AUTH_EVENT, record_auth_event, record_auth_event_in } = require("../../../utils/auth-event");
+const { check_rate_limit } = require("../../../middleware/rate-limit");
+const { open_session, end_session, end_own_session, grant_tokens, hash_token, read_refresh_token, request_context, normalize_email, prune_auth_records } = require("../../../auth/auth-session");
+const { AUTH_EVENT, record_auth_event, record_auth_event_in } = require("../../../auth/auth-event");
 
 // Several staff at one counter share an address, so the IP limit is loose. The email limit is the
 // one that stops guessing at a single account.

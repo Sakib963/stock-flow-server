@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data } = require("../../../utils/database");
+const { get_data } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { read_config_version, payload_etag } = require("../../../utils/config-version");
 

@@ -16,8 +16,13 @@ transactional use **purchase-order** or **returns** (`src/routes/sales/return/co
 | `server.js` | The Express app, exported for the tests |
 | `src/routes/routes.js` | Mounts every module router under its `CONTEXTS` path |
 | `src/routes/<module>/routes.js` | Mounts each feature router under its `SUB_CONTEXTS` path |
-| `src/routes/<module>/<feature>/route.js` | The feature's endpoints, with `schema.js` and `controller/` beside it |
-| `src/utils/` | Shared helpers. Look here before writing a new one |
+| `src/routes/<module>/<feature>/route.js` | The feature's endpoints, with `schema.js`, `controller/` and `utils/` beside it |
+| `src/routes/<module>/<feature>/utils/` | Helpers only this feature uses. Never inside `controller/` |
+| `src/routes/<module>/utils/` | Helpers several features of one module share (`sales/utils/`) |
+| `src/middleware/` | `validate-jwt`, `require-permission`, `validator`, `rate-limit`, `request-log` |
+| `src/db/` | `database`, `db.config`, `list-query` |
+| `src/auth/`, `src/email/` | Sessions, tokens, password rules, device names; sending and rendering email |
+| `src/utils/` | What everything shares: constants, the logger, activity log, config version, settings cache |
 | `src/env/.env` | Local settings, git-ignored |
 | `test/` | `node:test` suites against a local Postgres, see `test/README.md` |
 
@@ -25,18 +30,18 @@ Utilities that already exist and must be used rather than re-implemented:
 
 | Helper | Use |
 | --- | --- |
-| `database.js` | `get_data`, `execute_value`, `execute_values`, `execute_transaction`, `fail` |
-| `constant.js` | `TABLE`, `CONTEXTS`, `SUB_CONTEXTS`, `ROUTES` |
-| `validate-jwt.js` | `jwtMiddleware`: who you are, and whether the session is still live |
-| `require-permission.js` | `requirePermission(code)`: whether you may |
-| `validator.js` | `validator.get(schema)` / `validator.post(schema)` with Joi |
-| `activity-logger.js` | `saveLogActivity`, fire and forget |
-| `config-version.js` | `bump_config_version(tx)` after writing a role, grant, menu item or settings |
-| `stock-movement.js` | Guarded stock deduct and restock, product stat counters |
-| `order-utils.js` | `resolveAmountPaid`, `recordStatusHistory` |
-| `return-utils.js` | `effectiveAmountPaid`, returnable statuses |
-| `log.js` | Winston logger. Never `console.log` in `src/` |
-| `rate-limit.js` | Database-backed throttle, because Vercel spreads requests across instances |
+| `db/database.js` | `get_data`, `execute_value`, `execute_values`, `execute_transaction`, `fail` |
+| `utils/constant.js` | `TABLE`, `CONTEXTS`, `SUB_CONTEXTS`, `ROUTES` |
+| `middleware/validate-jwt.js` | `jwtMiddleware`: who you are, and whether the session is still live |
+| `middleware/require-permission.js` | `requirePermission(code)`: whether you may |
+| `middleware/validator.js` | `validator.get(schema)` / `validator.post(schema)` with Joi |
+| `utils/activity-logger.js` | `saveLogActivity(entry, { tx, request })`, written in the change's transaction |
+| `utils/config-version.js` | `bump_config_version(tx)` after writing a role, grant, menu item or settings |
+| `routes/sales/utils/stock-movement.js` | Guarded stock deduct and restock, product stat counters |
+| `routes/sales/utils/order-utils.js` | `resolveAmountPaid`, `recordStatusHistory` |
+| `routes/sales/return/utils/return-utils.js` | `effectiveAmountPaid`, returnable statuses |
+| `utils/log.js` | Winston logger. Never `console.log` in `src/` |
+| `middleware/rate-limit.js` | Database-backed throttle, because Vercel spreads requests across instances |
 
 ## Endpoints
 
@@ -55,14 +60,21 @@ Utilities that already exist and must be used rather than re-implemented:
 - Status codes: **400** invalid input, **401** no or expired token (the client signs out on it),
   **403** authenticated but lacking the permission, **404** not found, **409** a guarded transition
   whose record is not in the expected state (answer with its actual state), **429** throttled.
-- `saveLogActivity` on every mutation. Stock-moving confirmations also log under the
-  `reference_type` the analytics read: `product-return`, `product-dispose`, `purchase`.
+- **Every mutation calls `saveLogActivity(entry, { tx, request })` inside its transaction**, so the
+  row carries the request id and a rolled back change leaves none. The form without `{ tx, request }`
+  is the old fire-and-forget write; a controller being ported moves off it. Stock-moving
+  confirmations also log under the `reference_type` the analytics read: `product-return`,
+  `product-dispose`, `purchase`.
+- **Every request is already recorded** in `api_request_log` by `middleware/request-log.js`: route,
+  status, timing, account, origin, the request body of a write with credentials redacted, and the
+  response body of a 5xx. A controller never logs requests itself. A new credential field name goes
+  into its redaction list in the same change, with a test.
 - Anything that writes a role, a permission grant, a menu item or the settings row calls
   `bump_config_version(tx)` in the same transaction, or clients serve a stale menu.
 
 ## Database access
 
-- **All access goes through `utils/database.js`.** Never `pool.connect()`, `client.query`, or a
+- **All access goes through `db/database.js`.** Never `pool.connect()`, `client.query`, or a
   hand-written `BEGIN` / `COMMIT` / `ROLLBACK` anywhere else, and never require `db.config` outside it.
 - Read, decide and write inside one transaction with `execute_transaction(async (tx) => …)`. Abort
   with `fail(code, message)`, which rolls back and becomes the response. Lock the rows you decide

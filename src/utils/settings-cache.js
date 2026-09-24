@@ -8,7 +8,7 @@
 // so a warm instance that never handled the update still refreshes eventually.
 // -----------------------------------------------------------------------------
 const { TABLE } = require("./constant");
-const { get_data } = require("./database");
+const { get_data } = require("../db/database");
 
 const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (backstop only; updates prime/invalidate)
 

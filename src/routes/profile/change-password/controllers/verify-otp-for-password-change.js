@@ -1,9 +1,9 @@
 const bcrypt = require("bcrypt");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value, execute_transaction } = require("../../../../utils/database");
+const { get_data, execute_value, execute_transaction } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
-const { end_sessions_for_login, request_context } = require("../../../../utils/auth-session");
-const { record_sessions_ended } = require("../../../../utils/auth-event");
+const { end_sessions_for_login, request_context } = require("../../../../auth/auth-session");
+const { record_sessions_ended } = require("../../../../auth/auth-event");
 
 const verify_otp_for_password_change = async (req, res) => {
       const { otp, otp_oid, new_password } = req.body;

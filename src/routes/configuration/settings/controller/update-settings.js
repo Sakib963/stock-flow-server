@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../utils/database");
+const { get_data, execute_value } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { primeSettings } = require("../../../../utils/settings-cache");
 const { log } = require("../../../../utils/log");

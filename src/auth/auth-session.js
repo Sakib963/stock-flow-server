@@ -1,9 +1,9 @@
 const crypto = require("crypto");
 const JWT = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
-const { TABLE, TEXT, CONTEXTS } = require("./constant");
-const { execute_value } = require("./database");
-const { client_ip } = require("./rate-limit");
+const { TABLE, TEXT, CONTEXTS } = require("../utils/constant");
+const { execute_value } = require("../db/database");
+const { client_ip } = require("../middleware/rate-limit");
 
 // Sessions, tokens and how the refresh token travels. Controllers decide what should happen; this
 // is how it is done, so every auth endpoint issues and ends sessions the same way.

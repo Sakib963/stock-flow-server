@@ -85,6 +85,39 @@ describe("creating and editing a category", () => {
         assert.equal(rows[0].category_code, "SARE");
     });
 
+    it("records the activity with the request that caused it, by the time the response arrives", async () => {
+        const res = await create(author, A_CATEGORY);
+
+        const rows = await h.query("SELECT title, request_id FROM activity_log WHERE reference_oid = $1", [res.body.data.oid]);
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0].title, "Created category");
+        assert.equal(rows[0].request_id, res.request_id);
+    });
+
+    it("joins each create and edit to its request: one request log row and one activity row, same id", async () => {
+        const created = await create(author, A_CATEGORY);
+        const edited = await h.call(UPDATE, { token: author, body: { oid: created.body.data.oid, ...A_CATEGORY, status: "Inactive" } });
+        assert.equal(edited.status, 200);
+
+        for (const [res, title] of [[created, "Created category"], [edited, "Updated category"]]) {
+            const [request] = await h.query("SELECT route, status, request_body FROM api_request_log WHERE oid = $1", [res.request_id]);
+            const activity = await h.query("SELECT title FROM activity_log WHERE request_id = $1", [res.request_id]);
+            assert.equal(request.status, 200);
+            assert.equal(request.request_body.name, "Saree");
+            assert.deepEqual(activity.map((row) => row.title), [title]);
+        }
+    });
+
+    it("leaves no activity for a change the database refused", async () => {
+        await create(author, A_CATEGORY);
+
+        const res = await create(author, { ...A_CATEGORY, category_code: "OTHER" });
+
+        assert.equal(res.status, 409);
+        const rows = await h.query("SELECT count(*)::int AS total FROM activity_log WHERE request_id = $1", [res.request_id]);
+        assert.equal(rows[0].total, 0);
+    });
+
     it("refuses a second category with the same name, whatever its capitals and spacing", async () => {
         await create(author, A_CATEGORY);
 

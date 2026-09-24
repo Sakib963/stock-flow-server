@@ -4,7 +4,7 @@
 // Every helper takes the `tx` handle from `execute_transaction` so it composes
 // inside the caller's single transaction. Nothing here opens a connection.
 // -----------------------------------------------------------------------------
-const { TABLE } = require("./constant");
+const { TABLE } = require("../../../../utils/constant");
 
 // The order states a return can be raised against (D6). A POS sale realizes at
 // Purchased and an online sale at Delivered; PartiallyReturned means an earlier

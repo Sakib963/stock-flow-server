@@ -49,6 +49,7 @@ module.exports = {
     CONFIG_VERSION: "config_version",
     USER_NOTES: "user_notes",
     ACTIVITY_LOG: "activity_log",
+    API_REQUEST_LOG: "api_request_log",
     SETTINGS: "settings",
   },
   CONTEXTS: {

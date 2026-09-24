@@ -1,13 +1,13 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
 const {
   purchase_order_list_schema,
   purchase_order_schema,
   verify_purchase_order_schema,
   purchase_order_details_schema,
 } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const get_purchase_order_list = require("./controller/get-purchase-order-list");
 const get_purchase_order_details = require("./controller/get-purchase-order-details");
 const create_purchase_order = require("./controller/create-purchase-order");

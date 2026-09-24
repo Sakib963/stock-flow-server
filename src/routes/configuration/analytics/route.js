@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
 const get_analytics_metrics = require("./controller/get-analytics-metrics");
 const get_stock_trend = require("./controller/get-stock-trend");
 const get_inventory_value_trend = require("./controller/get-inventory-value-trend");

@@ -1,10 +1,10 @@
 const { TABLE } = require("../../../utils/constant");
-const { get_data } = require("../../../utils/database");
+const { get_data } = require("../../../db/database");
 const { save_generated_otp, count_recent_otps, OTP_TTL_MINUTES } = require("../../../utils/helper");
 const { log } = require("../../../utils/log");
-const send_email = require("../../../utils/send-email");
-const { render_email } = require("../../../utils/render-email");
-const { check_rate_limit, client_ip } = require("../../../utils/rate-limit");
+const send_email = require("../../../email/send-email");
+const { render_email } = require("../../../email/render-email");
+const { check_rate_limit, client_ip } = require("../../../middleware/rate-limit");
 
 // A person who has forgotten their password has no token, so this route is deliberately open.
 // Everything below exists because of that.

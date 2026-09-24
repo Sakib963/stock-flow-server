@@ -1,8 +1,8 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
+const jwtMiddleware = require('../../../middleware/validate-jwt');
 const { brand_list_schema, brand_schema, brand_details_schema } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const create_brand = require("./controller/create-brand");
 const get_brand_list_for_dropdown = require("./controller/get-brand-list-for-dropdown");
 const get_brand_list = require("./controller/get-brand-list");

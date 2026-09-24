@@ -1,5 +1,5 @@
 // Shared helpers for the Sales & Orders module.
-const { TABLE } = require("./constant");
+const { TABLE } = require("../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
 
 // Append an audit row to order_status_history. Takes the `tx` handle from

@@ -1,9 +1,9 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const requirePermission = require('../../../utils/require-permission');
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const requirePermission = require('../../../middleware/require-permission');
 const { category_list_schema, category_dropdown_schema, category_oid_schema, category_create_schema, category_update_schema, category_details_schema, category_availability_schema, category_code_generate_schema } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const get_category_list = require("./controller/get-category-list");
 const create_category = require("./controller/create-category");
 const update_category_details = require("./controller/update-category-details");

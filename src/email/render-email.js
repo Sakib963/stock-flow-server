@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { COMPANY_INFO } = require("./company-info");
+const { COMPANY_INFO } = require("../utils/company-info");
 
 /**
  * Loads a template pair and fills in its placeholders.

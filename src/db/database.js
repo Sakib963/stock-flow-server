@@ -1,5 +1,5 @@
 const pool = require('./db.config');
-const log = require('./log');
+const log = require('../utils/log');
 
 // Retry logic for transient connection errors
 const retryQuery = async (queryFn, maxRetries = 3) => {

@@ -1,6 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
-const { SELLABLE_BY_PRODUCT_CTE } = require("../../../../utils/pre-order-utils");
+const { get_data } = require("../../../../db/database");
+const { SELLABLE_BY_PRODUCT_CTE } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");

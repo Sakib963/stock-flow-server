@@ -1,7 +1,7 @@
 // Shared helpers for the Pre-Order feature.
 // A pre-order is a booking for stock not yet held. It is neither a sale nor an
 // order, so it keeps its own numbering and its own status history.
-const { TABLE } = require("./constant");
+const { TABLE } = require("../../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
 
 // Append an audit row to pre_order_status_history. Takes the `tx` handle from

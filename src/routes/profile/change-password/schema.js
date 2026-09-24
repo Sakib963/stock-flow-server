@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { password_rule } = require("../../../utils/password-rule");
+const { password_rule } = require("../../../auth/password-rule");
 
 // `current_password` stays permissive on purpose: it is checked against the stored hash, not
 // against today's rule, so an account created before the rule tightened must still be able to

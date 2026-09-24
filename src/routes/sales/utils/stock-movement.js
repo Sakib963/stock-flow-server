@@ -9,7 +9,7 @@
 // order state never diverge. Guards are enforced in SQL (WHERE ... >= qty) and
 // verified via rowCount so two concurrent orders can never both take the last unit.
 // -----------------------------------------------------------------------------
-const { TABLE } = require("./constant");
+const { TABLE } = require("../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
 
 // Sum of Active holds per batch, for a set of inventory oids. Returns Map<oid, qty>.

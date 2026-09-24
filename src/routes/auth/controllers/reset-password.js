@@ -1,13 +1,13 @@
 const bcrypt = require("bcrypt");
 const { TABLE } = require("../../../utils/constant");
-const { execute_transaction, execute_value, fail } = require("../../../utils/database");
+const { execute_transaction, execute_value, fail } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { saveLogActivity } = require("../../../utils/activity-logger");
-const send_email = require("../../../utils/send-email");
-const { render_email } = require("../../../utils/render-email");
-const { check_rate_limit, client_ip } = require("../../../utils/rate-limit");
-const { end_sessions_for_login, request_context } = require("../../../utils/auth-session");
-const { record_sessions_ended } = require("../../../utils/auth-event");
+const send_email = require("../../../email/send-email");
+const { render_email } = require("../../../email/render-email");
+const { check_rate_limit, client_ip } = require("../../../middleware/rate-limit");
+const { end_sessions_for_login, request_context } = require("../../../auth/auth-session");
+const { record_sessions_ended } = require("../../../auth/auth-event");
 
 // A 6 digit code is a million guesses. Behind a token that is defensible; on an open endpoint it
 // is not, so every wrong answer is counted and the code dies at the cap.

@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../utils/database");
+const { get_data } = require("../../../../db/database");
 const { getLogActivities } = require("../../../../utils/activity-logger");
-const { SELLABLE_BY_PRODUCT_CTE } = require("../../../../utils/pre-order-utils");
+const { SELLABLE_BY_PRODUCT_CTE } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 
 // Detail payload: { details, items, stats, activity } (FR-35).

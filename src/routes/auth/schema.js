@@ -1,5 +1,5 @@
 const Joi = require('joi')
-const { password_rule } = require('../../utils/password-rule');
+const { password_rule } = require('../../auth/password-rule');
 
 const loginSchema = Joi.object({
       email: Joi.string().max(256).required(),

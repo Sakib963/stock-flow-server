@@ -1,4 +1,4 @@
-const { parseDeliveryDetails } = require("../../../../utils/smart-fill");
+const { parseDeliveryDetails } = require("../utils/smart-fill");
 const { log } = require("../../../../utils/log");
 
 // Parse a pasted Facebook/Messenger message into delivery fields ONLY

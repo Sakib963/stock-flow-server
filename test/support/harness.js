@@ -4,7 +4,7 @@ const path = require("path");
 process.env.ENV_FILE = path.join(__dirname, "../.env.test");
 
 // Tests never send email. Replaced before anything requires it, so every controller gets this copy.
-const send_email_path = require.resolve("../../src/utils/send-email");
+const send_email_path = require.resolve("../../src/email/send-email");
 require.cache[send_email_path] = { id: send_email_path, filename: send_email_path, loaded: true, exports: async () => ({ messageId: "test" }) };
 
 const assert = require("node:assert/strict");
@@ -14,7 +14,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const app = require("../../server");
-const pool = require("../../src/utils/db.config");
+const pool = require("../../src/db/db.config");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 
 const PASSWORD = "Counter-sale-2026";
@@ -68,6 +68,14 @@ const seed_user = async ({ email = "owner@samiha.test", status = "Active", permi
     return { oid, email, password: PASSWORD, role_oid, role_name };
 };
 
+const json_or_text = (text) => {
+    try {
+        return JSON.parse(text);
+    } catch {
+        return text;
+    }
+};
+
 const call = async (route, { method = "POST", body, token, cookie, headers: extra = {} } = {}) => {
     const headers = { ...extra };
     if (method !== "GET") headers["content-type"] = "application/json";
@@ -80,7 +88,8 @@ const call = async (route, { method = "POST", body, token, cookie, headers: extr
 
     return {
         status: res.status,
-        body: text ? JSON.parse(text) : null,
+        body: text ? json_or_text(text) : null,
+        request_id: res.headers.get("x-request-id"),
         set_cookie: refresh_cookie,
         cookie: refresh_cookie === null ? null : decodeURIComponent(refresh_cookie.slice("sf_rt=".length, refresh_cookie.indexOf(";"))),
     };

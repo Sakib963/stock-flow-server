@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, get_data } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, get_data } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { recordPreOrderStatusHistory, nextPreOrderNo } = require("../../../../utils/pre-order-utils");
+const { recordPreOrderStatusHistory, nextPreOrderNo } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require("uuid");
 

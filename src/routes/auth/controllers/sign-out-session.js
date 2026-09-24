@@ -1,9 +1,9 @@
-const { execute_transaction, fail } = require("../../../utils/database");
+const { execute_transaction, fail } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { saveLogActivity } = require("../../../utils/activity-logger");
-const { end_own_session, request_context } = require("../../../utils/auth-session");
-const { record_sessions_ended } = require("../../../utils/auth-event");
-const { describe_device } = require("../../../utils/user-agent");
+const { end_own_session, request_context } = require("../../../auth/auth-session");
+const { record_sessions_ended } = require("../../../auth/auth-event");
+const { describe_device } = require("../../../auth/user-agent");
 
 /**
  * Signs out one of the caller's other devices, from the signed-in devices list.

@@ -1,45 +1,20 @@
 const { TABLE } = require("./constant");
-const { get_data } = require("./database");
+const { get_data } = require("../db/database");
 const { v4: uuidv4 } = require('uuid');
 const { log } = require("./log");
 
-/**
- * Log an activity to the activity_log table (NON-BLOCKING)
- * This function fires and forgets - does not block the main operation
- * @param {Object} params - Activity parameters
- * @param {string} params.reference_type - Type of entity (category, product, etc.)
- * @param {string} params.reference_oid - OID of the entity
- * @param {string} params.title - title performed
- * @param {string} [params.description] - Optional description
- * @param {string} params.performed_by - Email of user who performed the action
- */
-const saveLogActivity = ({ reference_type, reference_oid, title, performed_by, description = null }) => {
-      // Fire and forget - do not wait for this operation
-      setImmediate(async () => {
-            try {
-                  const oid = uuidv4();
-                  const query = `
-                        INSERT INTO ${TABLE.ACTIVITY_LOG} 
-                        (oid, reference_type, reference_oid, title, description, performed_by)
-                        VALUES ($1, $2, $3, $4, $5, $6)
-                  `;
-                  
-                  const values = [
-                        oid,
-                        reference_type,
-                        reference_oid,
-                        title,
-                        description,
-                        performed_by
-                  ];
-
-                  await get_data({ text: query, values });
-                  log.info(`Activity logged: ${title} on ${reference_type} by ${performed_by}`);
-            } catch (error) {
-                  log.error(`Failed to log activity: ${error?.message}`);
-                  // Don't throw error - activity logging should not break the main flow
-            }
+const insert_activity = (run, { reference_type, reference_oid, title, performed_by, description = null }, request_id = null) =>
+      run({
+            text: `INSERT INTO ${TABLE.ACTIVITY_LOG} (oid, reference_type, reference_oid, title, description, performed_by, request_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            values: [uuidv4(), reference_type, reference_oid, title, description, performed_by, request_id],
       });
+
+// With { tx, request }: written in the change's own transaction, carrying the request id, so a rolled
+// back change leaves no row. Without them: the old fire-and-forget write, kept until each caller is ported.
+const saveLogActivity = (entry, { tx, request } = {}) => {
+      if (tx) return insert_activity(tx.execute_value, { ...entry, performed_by: request.credentials.user_id }, request.request_id);
+
+      setImmediate(() => insert_activity(get_data, entry).catch((error) => log.error(`Failed to log activity: ${error?.message}`)));
 };
 
 /**

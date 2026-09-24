@@ -1,10 +1,10 @@
 const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, fail } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { restockStock, incrementProductStat } = require("../../../../utils/stock-movement");
-const { recordStatusHistory } = require("../../../../utils/order-utils");
-const { RETURNABLE_ORDER_STATUS } = require("../../../../utils/return-utils");
+const { restockStock, incrementProductStat } = require("../../utils/stock-movement");
+const { recordStatusHistory } = require("../../utils/order-utils");
+const { RETURNABLE_ORDER_STATUS } = require("../utils/return-utils");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require("uuid");
 

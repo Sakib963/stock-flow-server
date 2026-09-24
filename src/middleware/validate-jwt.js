@@ -1,7 +1,7 @@
-const { TABLE } = require("./constant");
-const { get_data } = require("./database");
-const { log } = require("./log");
-const { verify_access_token } = require("./auth-session");
+const { TABLE } = require("../utils/constant");
+const { get_data } = require("../db/database");
+const { log } = require("../utils/log");
+const { verify_access_token } = require("../auth/auth-session");
 
 // A valid signature only proves this server issued the token. The session it names must also still
 // be open, for an account that is still active. That second check is one primary-key read, and it

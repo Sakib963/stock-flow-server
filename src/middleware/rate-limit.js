@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
-const { TABLE } = require("./constant");
-const { get_data, execute_value } = require("./database");
-const { log } = require("./log");
+const { TABLE } = require("../utils/constant");
+const { get_data, execute_value } = require("../db/database");
+const { log } = require("../utils/log");
 
 // Rate limiting for endpoints that no signed-in user is standing behind.
 //

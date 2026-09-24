@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, fail } = require("../../../../utils/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { recordStatusHistory } = require("../../../../utils/order-utils");
+const { recordStatusHistory } = require("../../utils/order-utils");
 const { log } = require("../../../../utils/log");
 
 // Mark a dispatched order DELIVERED. Only Confirmed + already-dispatched orders.

@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { COMPANY_INFO } = require("./company-info");
+const { COMPANY_INFO } = require("../utils/company-info");
 
 // Create reusable transporter object using Gmail
 const transporter = nodemailer.createTransport({

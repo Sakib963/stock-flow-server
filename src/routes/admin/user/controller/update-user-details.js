@@ -1,8 +1,8 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction } = require("../../../../utils/database");
+const { execute_transaction } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
-const { end_sessions_for_login, request_context } = require("../../../../utils/auth-session");
-const { record_sessions_ended } = require("../../../../utils/auth-event");
+const { end_sessions_for_login, request_context } = require("../../../../auth/auth-session");
+const { record_sessions_ended } = require("../../../../auth/auth-event");
 
 const update_user_details = async (request, res) => {
       let payload = request.body;

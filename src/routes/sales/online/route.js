@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
+const { validator } = require("../../../middleware/validator");
 const { smart_fill_schema, create_online_order_schema, online_draft_schema } = require("./schema");
 const smart_fill = require("./controller/smart-fill");
 const create_online_order = require("./controller/create-online-order");

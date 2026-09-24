@@ -1,7 +1,7 @@
-const { TABLE } = require("./constant");
-const { get_data } = require("./database");
-const { log } = require("./log");
-const { read_config_version } = require("./config-version");
+const { TABLE } = require("../utils/constant");
+const { get_data } = require("../db/database");
+const { log } = require("../utils/log");
+const { read_config_version } = require("../utils/config-version");
 
 // Route level authorisation.
 //

@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
-const { TABLE } = require("./constant");
-const { execute_value } = require("./database");
-const { log } = require("./log");
+const { TABLE } = require("../utils/constant");
+const { execute_value } = require("../db/database");
+const { log } = require("../utils/log");
 
 const AUTH_EVENT = Object.freeze({
     LOGIN_SUCCESS: "LOGIN_SUCCESS",

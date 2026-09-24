@@ -1,6 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { describe_device } = require("../../src/utils/user-agent");
+const { describe_device } = require("../../src/auth/user-agent");
 
 // Real user agents. The traps are that Edge, Opera and Samsung Internet all say Chrome, Chrome says
 // Safari, Android says Linux, and an iPhone says "like Mac OS X".

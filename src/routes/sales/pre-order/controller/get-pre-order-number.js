@@ -1,5 +1,5 @@
-const { get_data } = require("../../../../utils/database");
-const { nextPreOrderNo } = require("../../../../utils/pre-order-utils");
+const { get_data } = require("../../../../db/database");
+const { nextPreOrderNo } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 
 // Next PRE-YYMMDD-NNNN. Counted over `pre_orders` only, so bookings never consume

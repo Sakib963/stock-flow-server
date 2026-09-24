@@ -1,8 +1,8 @@
 const { TABLE } = require("../../../utils/constant");
-const { execute_transaction, fail } = require("../../../utils/database");
+const { execute_transaction, fail } = require("../../../db/database");
 const { log } = require("../../../utils/log");
-const { auth_config, hash_token, issue_refresh_token, end_session, grant_tokens, clear_refresh_token, read_refresh_token, request_context } = require("../../../utils/auth-session");
-const { AUTH_EVENT, record_auth_event, record_auth_event_in } = require("../../../utils/auth-event");
+const { auth_config, hash_token, issue_refresh_token, end_session, grant_tokens, clear_refresh_token, read_refresh_token, request_context } = require("../../../auth/auth-session");
+const { AUTH_EVENT, record_auth_event, record_auth_event_in } = require("../../../auth/auth-event");
 
 const MESSAGES = {
     missing: "Sign in to continue.",

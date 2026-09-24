@@ -1,5 +1,5 @@
 const { TABLE } = require("../../../../utils/constant");
-const { read_list } = require("../../../../utils/list-query");
+const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 
 // created_by and edited_by hold the person's email, so the row carries who last touched it resolved

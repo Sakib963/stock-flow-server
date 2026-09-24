@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { TABLE } = require("./constant");
-const { get_data, execute_value } = require("./database");
+const { get_data, execute_value } = require("../db/database");
 const { log } = require("./log");
 
 // The boot payload (permissions, menu, business profile) is fetched on every reload but changes

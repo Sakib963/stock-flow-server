@@ -1,6 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, fail } = require("../../../../utils/database");
-const { generate_batch_code } = require("../../../../utils/generate-batch-code");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { generate_batch_code } = require("../utils/generate-batch-code");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require("uuid");

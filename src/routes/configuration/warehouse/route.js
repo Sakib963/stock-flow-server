@@ -1,12 +1,12 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require("../../../utils/validate-jwt");
+const jwtMiddleware = require("../../../middleware/validate-jwt");
 const {
   warehouse_schema,
   warehouse_details_schema,
   warehouse_list_schema,
 } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const get_warehouse_list = require("./controller/get-warehouse-list");
 const get_warehouse_details = require("./controller/get-warehouse-details");
 const create_warehouse = require("./controller/create-warehouse");

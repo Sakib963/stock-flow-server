@@ -1,8 +1,8 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
+const jwtMiddleware = require('../../../middleware/validate-jwt');
 const { sub_category_list_schema, sub_category_schema, sub_category_details_schema } = require("./schema");
-const { validator } = require("../../../utils/validator");
+const { validator } = require("../../../middleware/validator");
 const create_sub_category = require("./controller/create-sub-category");
 const get_sub_category_details = require("./controller/get-sub-category-details");
 const get_sub_category_list = require("./controller/get-sub-category-list");

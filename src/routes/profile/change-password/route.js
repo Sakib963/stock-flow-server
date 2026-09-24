@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
-const jwtMiddleware = require('../../../utils/validate-jwt');
-const { validator } = require("../../../utils/validator");
+const jwtMiddleware = require('../../../middleware/validate-jwt');
+const { validator } = require("../../../middleware/validator");
 const {  change_password_schema, verify_otp_for_password_change_schema } = require("./schema");
 const change_password = require("./controllers/change-password");
 const verify_otp_for_password_change = require("./controllers/verify-otp-for-password-change");
