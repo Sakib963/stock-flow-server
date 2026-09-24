@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
-const { duplicate_conflict } = require("../duplicate");
+const { duplicate_conflict } = require("../utils/duplicate");
 
 const update_category_details = async (request, res) => {
       const payload = request.body;

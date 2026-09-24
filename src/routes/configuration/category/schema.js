@@ -24,12 +24,25 @@ const category_oid_schema = Joi.object({
 // invented status is a 400 naming the field rather than a 500 from the database. `description` is
 // a text column with no limit of its own; 1000 is a product decision, long enough for what belongs
 // in a category and short enough that the list's description column stays a description.
-const category_schema = Joi.object({
-      oid: Joi.string().uuid().allow(null),
+//
+// The code is upper-cased and an empty description becomes null here, so the row holds what the
+// unique index compares and what the detail page tests for. The web form already does both; a
+// hand-written request is the case this is for, and it used to store `sare` beside `SARE`.
+const category_fields = {
       name: Joi.string().trim().min(1).max(255).required(),
-      category_code: Joi.string().trim().min(1).max(50).required(),
-      description: Joi.string().trim().max(1000).allow(null, ""),
+      category_code: Joi.string().trim().uppercase().min(1).max(50).required(),
+      description: Joi.string().trim().max(1000).allow(null, "").empty("").default(null),
       status: Joi.string().valid("Active", "Inactive").required(),
+};
+
+// Create and update are separate, because `oid` is the difference between them. Sharing one schema
+// let an update arrive with no oid and reach the database as `WHERE oid = NULL`, answering 404 for
+// what is a malformed request, and let a create send an oid that was silently thrown away.
+const category_create_schema = Joi.object(category_fields);
+
+const category_update_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
+      ...category_fields,
 });
 
 // Availability is asked one field at a time. `field` is a closed set because the controller uses it
@@ -48,7 +61,7 @@ const category_code_generate_schema = Joi.object({
 });
 
 const category_details_schema = Joi.object({
-      oid: Joi.string().required(),
+      oid: Joi.string().uuid().required(),
 });
 
-module.exports = { category_list_schema, category_dropdown_schema, category_oid_schema, category_schema, category_details_schema, category_availability_schema, category_code_generate_schema };
+module.exports = { category_list_schema, category_dropdown_schema, category_oid_schema, category_create_schema, category_update_schema, category_details_schema, category_availability_schema, category_code_generate_schema };

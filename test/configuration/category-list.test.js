@@ -166,15 +166,21 @@ describe("the categories list", () => {
         assert.equal(panjabi.last_action_by_name, null);
     });
 
+    // Every timestamp here is explicit and distinct. Kurti's edit used to be `new Date()`, taken a
+    // moment after the ones `beforeEach` wrote the same way, and the two landed in the same
+    // millisecond often enough to tie. The tie is broken by oid, which is random, so this assertion
+    // passed or failed by how fast the machine was that run.
     it("sorts by who last touched the row, which is an edit time or a creation time", async () => {
-        const old_day = new Date("2026-01-01T10:00:00");
-        await h.query("UPDATE categories SET created_on = $1 WHERE name = 'Saree'", [old_day]);
-        await h.query("UPDATE categories SET created_on = $1, edited_on = $2, edited_by = 'owner@samiha.test' WHERE name = 'Kurti'", [old_day, new Date()]);
+        const on = (day) => new Date(`2026-0${day}-01T10:00:00`);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Saree'", [on(1)]);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Panjabi'", [on(2)]);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Three piece 50% off'", [on(3)]);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = $2, edited_by = 'owner@samiha.test' WHERE name = 'Kurti'", [on(1), on(4)]);
 
         const res = await list(viewer, { sort: "last_action_on", order: "asc", limit: 100 });
 
-        assert.equal(res.body.data.rows[0].name, "Saree");
-        assert.equal(res.body.data.rows.at(-1).name, "Kurti");
+        assert.equal(res.body.data.rows[0].name, "Saree", "created first and never edited");
+        assert.equal(res.body.data.rows.at(-1).name, "Kurti", "created first but edited last, so last by last action");
     });
 
     it("answers an empty page past the end with the real total, so the list can step back", async () => {

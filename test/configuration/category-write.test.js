@@ -3,13 +3,15 @@ const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
-const { buildCandidates } = require("../../src/routes/configuration/category/code-generator");
+const { buildCandidates } = require("../../src/routes/configuration/category/utils/code-generator");
 
 const BASE = CONTEXTS.CONFIGURATION + SUB_CONTEXTS.CATEGORY;
 const CREATE = BASE + ROUTES.CREATE_CATEGORY;
 const UPDATE = BASE + ROUTES.UPDATE_CATEGORY_DETAILS;
 const AVAILABILITY = BASE + ROUTES.CHECK_CATEGORY_AVAILABILITY;
 const GENERATE = BASE + ROUTES.GENERATE_CATEGORY_CODE;
+const PRODUCT_REPORT = BASE + ROUTES.GENERATE_PRODUCT_LIST_REPORT_BY_CATEGORY;
+const INVENTORY_REPORT = BASE + ROUTES.GENERATE_INVENTORY_REPORT_BY_CATEGORY;
 
 before(h.start);
 after(h.stop);
@@ -157,7 +159,33 @@ describe("creating and editing a category", () => {
         assert.equal(res.status, 200);
         const rows = await h.query("SELECT name, category_code FROM categories WHERE oid = $1", [res.body.data.oid]);
         assert.equal(rows[0].name, "Saree");
-        assert.equal(rows[0].category_code, "sare");
+    });
+
+    // The unique index compares upper(btrim(category_code)), so a lower case code is the same code
+    // to the database and a different one to every screen that prints it. The web form capitalises
+    // before it sends; a request written by hand is what this is for.
+    it("stores a code in capitals however it was sent", async () => {
+        const res = await create(author, { ...A_CATEGORY, category_code: "  sare  " });
+
+        assert.equal(res.status, 200);
+        const rows = await h.query("SELECT category_code FROM categories WHERE oid = $1", [res.body.data.oid]);
+        assert.equal(rows[0].category_code, "SARE");
+    });
+
+    it("stores an empty description as nothing at all, not as an empty string", async () => {
+        const res = await create(author, { ...A_CATEGORY, description: "" });
+
+        assert.equal(res.status, 200);
+        const rows = await h.query("SELECT description FROM categories WHERE oid = $1", [res.body.data.oid]);
+        assert.equal(rows[0].description, null);
+    });
+
+    // It used to answer 404 "that category no longer exists", sending someone to look for a
+    // category that is sitting there, when what was wrong was the request.
+    it("refuses an update with no oid as a 400, not as a missing category", async () => {
+        const res = await update(author, { name: "Saree", category_code: "SARE", description: null, status: "Active" });
+
+        assert.equal(res.status, 400);
     });
 
     // Joi measures max(255) against the trimmed value. While the validator discarded that value,
@@ -218,14 +246,29 @@ describe("the numbers on a category's page", () => {
         assert.equal(res.body.data.stats.lowStockItems, 1, "4 is at or under the threshold of 10");
     });
 
-    it("reports what was spent on the stock it says is there, over the same units", async () => {
+    // Spend is what the stock physically there cost, at cost_price and not at what it sells for.
+    // A hold is a promise, not a purchase, so promising units to an order must not change it.
+    it("reports what the stock in hand cost, and a hold does not change it", async () => {
         const { inventory_oid } = await seed_stock(saree, { quantity: 12, cost: 60, price: 100, threshold: 0 });
+
+        const before = (await details(viewer, saree)).body.data.stats;
+        assert.equal(Number(before.amountSpent), 720, "12 units at the 60 they cost, not at what they sell for");
+
         await hold_stock(inventory_oid, 8);
+        const after = (await details(viewer, saree)).body.data.stats;
+
+        assert.equal(after.totalAvailableQuantity, 4, "only 4 are still sellable");
+        assert.equal(Number(after.amountSpent), 720, "but nothing was bought or sold, so the spend is unmoved");
+    });
+
+    // The same product is bought again at a different price, which is the normal case.
+    it("costs each batch at the price that batch was bought at", async () => {
+        await seed_stock(saree, { quantity: 10, cost: 50, price: 100, threshold: 0 });
+        await seed_stock(saree, { quantity: 10, cost: 80, price: 100, threshold: 0 });
 
         const stats = (await details(viewer, saree)).body.data.stats;
 
-        assert.equal(stats.totalAvailableQuantity, 4);
-        assert.equal(Number(stats.amountSpent), 240, "4 units at the 60 they cost, not at what they sell for");
+        assert.equal(Number(stats.amountSpent), 1300, "10 at 50 plus 10 at 80, not 20 at either");
     });
 
     // Not everything a business holds is for sale. Packaging, delivery materials and office
@@ -241,12 +284,96 @@ describe("the numbers on a category's page", () => {
         assert.equal(Number(stats.amountSpent), 480, "40 bags at 12");
     });
 
+    // A disposal is approved against quantity_available alone and does not release the holds it
+    // invalidates, so on hand can end up below what is held. Unclamped, that batch carried a
+    // negative into the category total and ate another product's real stock, and the oversold
+    // product matched neither the low arm nor the out arm, so no card named it.
+    it("never lets an oversold batch subtract from the rest of the category", async () => {
+        const { inventory_oid } = await seed_stock(saree, { quantity: 10, cost: 100, price: 150, threshold: 0 });
+        await hold_stock(inventory_oid, 10);
+        await h.query("UPDATE inventory SET quantity_available = 0 WHERE oid = $1", [inventory_oid]);
+        await seed_stock(saree, { quantity: 30, cost: 100, price: 150, threshold: 0 });
+
+        const stats = (await details(viewer, saree)).body.data.stats;
+
+        assert.equal(stats.totalAvailableQuantity, 30, "the other product's 30 units, undamaged by the oversold one");
+        assert.equal(stats.outOfStockItems, 1, "the product that cannot be fulfilled is named");
+    });
+
+    // It was an unweighted average of per-product averages, so a one unit batch counted as much as
+    // a five hundred unit one and the answer was an average of nothing a customer pays.
+    it("averages the selling price over the units, not over the batches", async () => {
+        await seed_stock(saree, { quantity: 90, cost: 40, price: 100, threshold: 0 });
+        await seed_stock(saree, { quantity: 10, cost: 40, price: 200, threshold: 0 });
+
+        const stats = (await details(viewer, saree)).body.data.stats;
+
+        assert.equal(Number(stats.averageProductPrice), 110, "90 at 100 and 10 at 200 is 110, not the 150 the batches average to");
+    });
+
+    it("leaves an unpriced batch out of the average rather than counting it as free", async () => {
+        await seed_stock(saree, { quantity: 10, cost: 40, price: 100, threshold: 0 });
+        await seed_stock(saree, { quantity: 40, cost: 12, price: null, threshold: 0, status: "internal_use" });
+
+        const stats = (await details(viewer, saree)).body.data.stats;
+
+        assert.equal(Number(stats.averageProductPrice), 100, "the packaging has no selling price, so it is not part of one");
+    });
+
+    it("carries the activity's own id, so two entries in one millisecond do not collide", async () => {
+        const author = await h.seed_user({ email: "author@samiha.test", permissions: ["configuration.category.view", "configuration.category.edit"] });
+        const token = (await h.sign_in(author)).access;
+        await update(token, { oid: saree, name: "Saree", category_code: "SARE", description: "Now described", status: "Active" });
+
+        const activity = await h.eventually(
+            () => details(viewer, saree).then((res) => res.body.data.activity),
+            (found) => found.length > 0,
+        );
+
+        assert.ok(activity[0].oid, "the timeline is keyed on this");
+    });
+
     it("carries the last action, so the page can say when it was last touched", async () => {
         const res = await details(viewer, saree);
 
         assert.ok(res.body.data.details.last_action_on, "the detail page renders this");
         assert.ok(res.body.data.details.last_action_by);
     });
+});
+
+// Reading a category and taking its whole product catalogue out of the building are different acts,
+// so the export permission is its own and the page hides the buttons with the same code.
+describe("downloading a category's reports", () => {
+    let saree;
+
+    beforeEach(async () => {
+        await h.reset();
+        saree = await seed_category("Saree", "SARE");
+    });
+
+    const as = async (permissions) => {
+        const user = await h.seed_user({ permissions });
+        return (await h.sign_in(user)).access;
+    };
+
+    for (const [name, route] of [
+        ["the product list", PRODUCT_REPORT],
+        ["the inventory report", INVENTORY_REPORT],
+    ]) {
+        it(`refuses ${name} to someone who may view the category but not export it`, async () => {
+            const viewer = await as(["configuration.category.view"]);
+
+            const res = await h.call(route, { method: "POST", token: viewer, body: { oid: saree } });
+
+            assert.equal(res.status, 403, "view alone does not carry a catalogue out of the building");
+        });
+
+        it(`refuses ${name} to someone signed out`, async () => {
+            const res = await h.call(route, { method: "POST", body: { oid: saree } });
+
+            assert.equal(res.status, 401);
+        });
+    }
 });
 
 describe("checking whether a category name or code is free", () => {

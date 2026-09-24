@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_value } = require("../../../../utils/database");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { duplicate_conflict, already_written } = require("../duplicate");
+const { duplicate_conflict, already_written } = require("../utils/duplicate");
 const { v4: uuidv4 } = require('uuid');
 
 const create_category = async (request, res) => {
