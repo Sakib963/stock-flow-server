@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
-const { buildCandidates } = require("../../src/routes/configuration/category/utils/code-generator");
+const { buildCandidates } = require("../../src/routes/configuration/utils/code-generator");
 
 const BASE = CONTEXTS.CONFIGURATION + SUB_CONTEXTS.CATEGORY;
 const CREATE = BASE + ROUTES.CREATE_CATEGORY;
@@ -26,7 +26,7 @@ const seed_category = (name, code, status = "Active") => {
 // makes the sellable assertions below exercise the actual query rather than a simplified one.
 const seed_stock = async (category_oid, { quantity, cost, price, threshold, status = "ready_for_sale" }) => {
     const sub_oid = uuidv4();
-    await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, 'Group', $2, $3, 'Active')", [sub_oid, `SUB-${sub_oid.slice(0, 6)}`, category_oid]);
+    await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, $2, $3, $4, 'Active')", [sub_oid, `Group ${sub_oid.slice(0, 6)}`, `SUB-${sub_oid.slice(0, 6)}`, category_oid]);
 
     const product_oid = uuidv4();
     await h.query("INSERT INTO product (oid, name, category_oid, sub_category_oid, status, restock_threshold) VALUES ($1, 'Cotton saree', $2, $3, 'Active', $4)", [product_oid, category_oid, sub_oid, threshold]);

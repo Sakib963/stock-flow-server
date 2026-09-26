@@ -1,4 +1,4 @@
-// Builds the candidate codes for a category name, best first.
+// Builds the candidate codes for a category or sub-category name, best first.
 //
 // The convention is mnemonic and letters only, which is what a code people read out loud wants: 4
 // letters from the first significant word, 3 from the second, capitals, no digits and no separator.

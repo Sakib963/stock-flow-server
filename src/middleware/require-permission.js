@@ -38,9 +38,12 @@ const permissions_for = async (user_id) => {
 };
 
 /**
- * @param {string} code Permission required, e.g. 'inventory.purchase-order.approve'
+ * @param {string | string[]} code Permission required, e.g. 'inventory.purchase-order.approve'. An
+ * array admits a caller holding any one of them: a picker read by several features' forms, such as
+ * the category dropdown behind the sub-category form.
  */
 const requirePermission = (code) => async (request, res, next) => {
+    const codes = Array.isArray(code) ? code : [code];
     try {
         const user_id = request?.credentials?.user_id;
         if (!user_id) {
@@ -51,7 +54,7 @@ const requirePermission = (code) => async (request, res, next) => {
         }
 
         const held = await permissions_for(user_id);
-        if (held.has(code)) return next();
+        if (codes.some((c) => held.has(c))) return next();
 
         // 403 and not 404: the caller is authenticated, the route exists, and they may not use it.
         // Distinct from the 401 jwtMiddleware returns for no or expired token, because the client

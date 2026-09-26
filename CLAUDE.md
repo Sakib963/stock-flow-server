@@ -33,7 +33,7 @@ Utilities that already exist and must be used rather than re-implemented:
 | `db/database.js` | `get_data`, `execute_value`, `execute_values`, `execute_transaction`, `fail` |
 | `utils/constant.js` | `TABLE`, `CONTEXTS`, `SUB_CONTEXTS`, `ROUTES` |
 | `middleware/validate-jwt.js` | `jwtMiddleware`: who you are, and whether the session is still live |
-| `middleware/require-permission.js` | `requirePermission(code)`: whether you may |
+| `middleware/require-permission.js` | `requirePermission(code)`: whether you may. `requirePermission([a, b])` admits a caller holding any one, and is only for a picker endpoint several features' forms read (the category dropdown takes category or sub-category view) |
 | `middleware/validator.js` | `validator.get(schema)` / `validator.post(schema)` with Joi |
 | `utils/activity-logger.js` | `saveLogActivity(entry, { tx, request })`, written in the change's transaction |
 | `utils/config-version.js` | `bump_config_version(tx)` after writing a role, grant, menu item or settings |

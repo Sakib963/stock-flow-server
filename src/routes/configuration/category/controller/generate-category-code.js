@@ -1,7 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
-const { buildCandidates } = require("../utils/code-generator");
+const { buildCandidates } = require("../../utils/code-generator");
 
 const generate_category_code = async (request, res) => {
       const { name, oid } = request.query;

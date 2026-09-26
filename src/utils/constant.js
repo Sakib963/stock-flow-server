@@ -125,6 +125,8 @@ module.exports = {
     UPDATE_SUB_CATEGORY_DETAILS: "/update-sub-category-details",
     GET_SUB_CATEGORY_DETAILS: "/get-sub-category-details",
     GET_SUB_CATEGORY_LIST_FOR_DROPDOWN: "/get-sub-category-list-for-dropdown",
+    CHECK_SUB_CATEGORY_AVAILABILITY: "/check-sub-category-availability",
+    GENERATE_SUB_CATEGORY_CODE: "/generate-sub-category-code",
     GENERATE_PRODUCT_LIST_REPORT_BY_SUB_CATEGORY:
       "/generate-product-list-report-by-sub-category",
     GENERATE_INVENTORY_REPORT_BY_SUB_CATEGORY:

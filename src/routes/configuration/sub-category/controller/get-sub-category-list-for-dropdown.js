@@ -2,44 +2,25 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
+// Active sub-categories under Active categories, grouped by their category for the picker. The old
+// query checked only the category, so an Inactive sub-category was still offered on new products.
 const get_sub_category_list_for_dropdown = async (request, res) => {
-  try {
-    const dataSql = generate_data_sql(request);
+      const { category_oid } = request.query;
+      try {
+            const data = await get_data({
+                  text: `SELECT sc.oid AS value, sc.name AS label, sc.category_oid, c.name AS "groupLabel"
+                         FROM ${TABLE.SUB_CATEGORIES} sc
+                         JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid
+                         WHERE sc.status = 'Active' AND c.status = 'Active' AND ($1::text IS NULL OR sc.category_oid = $1)
+                         ORDER BY c.name ASC, sc.name ASC`,
+                  values: [category_oid || null],
+            });
 
-    const data_set = await get_data(dataSql);
-    const data = data_set.length ? data_set : [];
-
-    // Step 3: Respond with total count and paginated data
-    log.info(`Sub-Category list for dropdown Found: ${data?.length}`);
-    return res.status(200).json({
-      code: 200,
-      message: "Sub-Category list For Dropdown Found",
-      data,
-    });
-  } catch (e) {
-    log.error(
-      `An exception occurred while getting sub-category list for dropdown information: ${e?.message}`,
-    );
-    return res
-      .status(500)
-      .json({
-        code: 500,
-        message: "Something Went Wrong! Please try again later!",
-      });
-  }
-};
-
-const generate_data_sql = (request) => {
-  let query = `SELECT sc.oid as value, sc.name as label, sc.category_oid, c.name as "groupLabel"  FROM ${TABLE.SUB_CATEGORIES} sc LEFT JOIN ${TABLE.CATEGORIES} c ON sc.category_oid = c.oid WHERE c.status = 'Active'`;
-  let values = [];
-
-  if (request.query.category_oid) {
-    query += " AND sc.category_oid = $1";
-    values.push(request.query.category_oid);
-  }
-
-  query += " ORDER BY c.name ASC, sc.name ASC";
-  return { text: query, values };
+            return res.status(200).json({ code: 200, message: "Sub-Category list For Dropdown Found", data });
+      } catch (e) {
+            log.error(`An exception occurred while getting sub-category list for dropdown information: ${e?.message}`);
+            return res.status(500).json({ code: 500, message: "Could not load sub-categories. Try again in a moment." });
+      }
 };
 
 module.exports = get_sub_category_list_for_dropdown;

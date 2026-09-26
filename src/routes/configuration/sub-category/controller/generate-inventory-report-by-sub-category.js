@@ -65,7 +65,6 @@ const generate_inventory_report_by_sub_category = async (request, res) => {
     log.error(
       `An exception occurred while generating inventory report: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
