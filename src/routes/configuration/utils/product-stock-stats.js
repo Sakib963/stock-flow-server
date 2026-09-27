@@ -19,10 +19,10 @@ const GROUP_COLUMN = {
 // product matched neither the low arm (not > 0) nor the out arm (not = 0), so the one product that
 // cannot be fulfilled was the one no card named. Releasing those holds is the disposal's job.
 //
-// Every batch counts, whatever its status. Not everything a business buys is for sale: packaging,
-// delivery materials and office supplies are bought, stored and run out exactly like stock, and
-// their batches are `internal_use` with no selling price. Admitting only the two for-sale statuses
-// meant a Packaging category reported nothing in it at all.
+// Only ready_for_sale batches are sellable, the same batches POS and online orders sell from.
+// Internal use stock (packaging, delivery materials, office supplies) is never sold, and a batch
+// still pending its price cannot be yet (decided by the user, 2026-09-27). Spend below still counts
+// every batch, because that money was spent whatever the stock is for.
 //
 // The money figure is what was SPENT, from cost_price, not what the stock might sell for. cost_price
 // is on every batch and selling_price is not, so a spend figure covers the same batches as the
@@ -54,7 +54,7 @@ const product_stock_stats_sql = (group, oid) => {
                         p.status,
                         p.is_deleted,
                         p.restock_threshold,
-                        COALESCE(SUM(GREATEST(i.quantity_available - COALESCE(h.held, 0), 0)), 0) as total_quantity,
+                        COALESCE(SUM(CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END), 0) as total_quantity,
                         ROUND(COALESCE(SUM(i.quantity_available * i.cost_price), 0)::numeric, 2) as amount_spent,
                         COALESCE(SUM(i.quantity_available * i.selling_price) FILTER (WHERE i.selling_price IS NOT NULL), 0) as priced_value,
                         COALESCE(SUM(i.quantity_available) FILTER (WHERE i.selling_price IS NOT NULL), 0) as priced_units

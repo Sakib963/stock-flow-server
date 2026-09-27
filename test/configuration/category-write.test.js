@@ -307,13 +307,13 @@ describe("the numbers on a category's page", () => {
     // Not everything a business holds is for sale. Packaging, delivery materials and office
     // supplies are bought, stored and run out like anything else, and their batches carry no
     // selling price. Admitting only the for-sale statuses made a Packaging category read empty.
-    it("counts stock that is not for sale, and what was spent on it", async () => {
+    it("never counts internal use stock as sellable, but still counts what was spent on it", async () => {
         const packaging = await seed_category("Packaging", "PACK");
         await seed_stock(packaging, { quantity: 40, cost: 12, price: null, threshold: 0, status: "internal_use" });
 
         const stats = (await details(viewer, packaging)).body.data.stats;
 
-        assert.equal(stats.totalAvailableQuantity, 40, "the bags are there whether or not they are sold");
+        assert.equal(stats.totalAvailableQuantity, 0, "nobody sells the shop's own bags");
         assert.equal(Number(stats.amountSpent), 480, "40 bags at 12");
     });
 

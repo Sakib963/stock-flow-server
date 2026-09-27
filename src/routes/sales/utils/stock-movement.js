@@ -10,6 +10,7 @@
 // verified via rowCount so two concurrent orders can never both take the last unit.
 // -----------------------------------------------------------------------------
 const { TABLE } = require("../../../utils/constant");
+const { fail } = require("../../../db/database");
 const { v4: uuidv4 } = require("uuid");
 
 // Sum of Active holds per batch, for a set of inventory oids. Returns Map<oid, qty>.
@@ -104,7 +105,19 @@ const deductHeldStock = async (tx, { order_oid, user_id }) => {
 };
 
 // Restock: add physical stock back (good-condition returns / reversals).
+// Stock never goes back onto a deleted product: it would sit in the warehouse in no list anyone
+// can see (decided by the user, 2026-09-27). The shared lock waits for a delete in flight, which
+// holds the product row for update, and the delete in turn refuses a product with stock.
+const refuseDeletedProduct = async (tx, inventory_oid) => {
+    const [row] = await tx.get_data({
+        text: `SELECT p.name, p.is_deleted FROM ${TABLE.INVENTORY} i JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid WHERE i.oid = $1 FOR SHARE OF p`,
+        values: [inventory_oid],
+    });
+    if (row?.is_deleted) fail(409, `${row.name} has been deleted, so no stock can be put back on it. Restore the product first.`, { reason: "product_deleted" });
+};
+
 const restockStock = async (tx, { inventory_oid, quantity, user_id }) => {
+    await refuseDeletedProduct(tx, inventory_oid);
     await tx.execute_value({
         text: `UPDATE ${TABLE.INVENTORY}
                   SET quantity_available = quantity_available + $1,
@@ -133,6 +146,7 @@ const incrementProductStat = async (tx, { product_oid, column, quantity, user_id
 };
 
 module.exports = {
+    refuseDeletedProduct,
     getActiveHolds,
     holdStock,
     releaseHolds,

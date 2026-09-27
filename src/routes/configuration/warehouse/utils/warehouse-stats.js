@@ -7,8 +7,9 @@ const { get_data } = require("../../../../db/database");
 // purchase_details.warehouse_oid and aisle_oid. Nothing moves stock between locations yet, so that is
 // where it still is.
 //
-// Sellable is on hand less Active holds, clamped at zero per batch, the same as every other stock
-// number. Value is at cost_price, what was spent on the stock physically there.
+// Sellable is on hand less Active holds, clamped at zero per batch, and only on ready_for_sale batches:
+// internal use stock (bags, wrapping, a stapler) is never sold, and unpriced stock cannot be yet. The
+// same as every other stock number. Value is at cost_price, what was spent on the stock physically there.
 //
 // Low stock is a product-level fact, not a location one: restock_threshold is per product. A product
 // counts here when it has stock in this warehouse and its sellable total across every location is at
@@ -26,7 +27,7 @@ const WAREHOUSE_STATS_SQL = `
       ),
       batches AS (
             SELECT i.product_oid, d.aisle_oid, i.quantity_available AS on_hand,
-                   GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) AS sellable,
+                   CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END AS sellable,
                    i.quantity_available * i.cost_price AS value
             FROM ${TABLE.INVENTORY} i
             JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
@@ -34,7 +35,7 @@ const WAREHOUSE_STATS_SQL = `
             WHERE d.warehouse_oid = $1
       ),
       product_totals AS (
-            SELECT p.oid, p.restock_threshold, COALESCE(SUM(GREATEST(i.quantity_available - COALESCE(h.held, 0), 0)), 0) AS sellable
+            SELECT p.oid, p.restock_threshold, COALESCE(SUM(CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END), 0) AS sellable
             FROM ${TABLE.PRODUCT} p
             JOIN ${TABLE.INVENTORY} i ON i.product_oid = p.oid
             LEFT JOIN holds h ON h.inventory_oid = i.oid

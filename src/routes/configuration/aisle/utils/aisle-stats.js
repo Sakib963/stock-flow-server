@@ -3,7 +3,7 @@ const { get_data } = require("../../../../db/database");
 
 // What is on this aisle, the same rules as a warehouse (utils/warehouse-stats.js in warehouse/):
 // stock is where its purchase order line was received, sellable is on hand less Active holds clamped at
-// zero per batch, value is at cost, and low stock follows the product's threshold across every
+// zero per batch and only on ready_for_sale batches, value is at cost, and low stock follows the product's threshold across every
 // location. The item list is what a storekeeper checks the shelf against.
 const STOCK_SQL = `
       WITH holds AS (
@@ -14,7 +14,7 @@ const STOCK_SQL = `
       )
       SELECT i.product_oid, p.name, p.status, p.is_deleted, p.restock_threshold,
              i.quantity_available AS on_hand,
-             GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) AS sellable,
+             CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END AS sellable,
              i.quantity_available * i.cost_price AS value
       FROM ${TABLE.INVENTORY} i
       JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
@@ -31,7 +31,7 @@ const OVERALL_SQL = `
             WHERE status = 'Active'
             GROUP BY inventory_oid
       )
-      SELECT i.product_oid, COALESCE(SUM(GREATEST(i.quantity_available - COALESCE(h.held, 0), 0)), 0)::int AS sellable
+      SELECT i.product_oid, COALESCE(SUM(CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END), 0)::int AS sellable
       FROM ${TABLE.INVENTORY} i
       LEFT JOIN holds h ON h.inventory_oid = i.oid
       WHERE i.product_oid = ANY($1)
