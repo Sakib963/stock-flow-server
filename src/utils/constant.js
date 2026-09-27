@@ -137,6 +137,7 @@ module.exports = {
     UPDATE_BRANDS_DETAILS: "/update-brand-details",
     GET_BRANDS_DETAILS: "/get-brand-details",
     GET_BRANDS_LIST_FOR_DROPDOWN: "/get-brand-list-for-dropdown",
+    CHECK_BRAND_AVAILABILITY: "/check-brand-availability",
     GENERATE_PRODUCT_LIST_REPORT_BY_BRAND:
       "/generate-product-list-report-by-brand",
     GENERATE_INVENTORY_REPORT_BY_BRAND: "/generate-inventory-report-by-brand",

@@ -18,7 +18,6 @@ const generate_inventory_report_by_brand = async (request, res) => {
       });
     }
 
-    // Get inventory with sub-category details in a single query
     const inventorySql = generate_inventory_sql(brandOid);
     const inventory = await get_data(inventorySql);
 
@@ -63,7 +62,6 @@ const generate_inventory_report_by_brand = async (request, res) => {
     log.error(
       `An exception occurred while generating inventory report by brand: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",

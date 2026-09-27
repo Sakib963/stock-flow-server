@@ -18,7 +18,6 @@ const generate_product_list_report_by_brand = async (request, res) => {
       });
     }
 
-    // Get products with sub-category details in a single query
     const productsSql = generate_products_sql(brandOid);
     const products = await get_data(productsSql);
 
@@ -65,7 +64,6 @@ const generate_product_list_report_by_brand = async (request, res) => {
     log.error(
       `An exception occurred while generating product list: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
@@ -181,7 +179,6 @@ const generate_products_xlsx = async (products, brandDetails) => {
     ]);
   });
 
-  // Add sub-category details section
   sheet.addRow([]);
   sheet.addRow(["BRAND INFORMATION"]);
   sheet.addRow(["Brand Name:", brandDetails.name]);

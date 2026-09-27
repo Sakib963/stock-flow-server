@@ -5,6 +5,7 @@ const { get_data } = require("../../../db/database");
 const GROUP_COLUMN = {
       category: "category_oid",
       sub_category: "sub_category_oid",
+      brand: "brand_oid",
 };
 
 // Quantities are sellable, not on hand: quantity_available minus the Active stock_hold rows, the
@@ -88,7 +89,7 @@ const product_stock_stats_sql = (group, oid) => {
       return { text: query, values: [oid] };
 };
 
-/** The numbers a category or sub-category record page shows, for the group with this oid. */
+/** The numbers a category, sub-category or brand record page shows, for the group with this oid. */
 const read_product_stock_stats = async (group, oid) => {
       const [stats = {}] = await get_data(product_stock_stats_sql(group, oid));
       return {
