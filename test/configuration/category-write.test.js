@@ -32,7 +32,7 @@ const seed_stock = async (category_oid, { quantity, cost, price, threshold, stat
     await h.query("INSERT INTO product (oid, name, category_oid, sub_category_oid, status, restock_threshold) VALUES ($1, 'Cotton saree', $2, $3, 'Active', $4)", [product_oid, category_oid, sub_oid, threshold]);
 
     const supplier_oid = uuidv4();
-    await h.query("INSERT INTO supplier (oid, name, phone_number, email, status) VALUES ($1, 'Mill', '01700000000', $2, 'Active')", [supplier_oid, `${supplier_oid.slice(0, 6)}@mill.test`]);
+    await h.query("INSERT INTO supplier (oid, name, phone_number, email, status) VALUES ($1, $1, $3, $2, 'Active')", [supplier_oid, `${supplier_oid.slice(0, 6)}@mill.test`, String(Date.now()) + Math.floor(Math.random() * 1000)]);
 
     const warehouse_oid = uuidv4();
     await h.query("INSERT INTO warehouse (oid, name, code, status) VALUES ($1, 'Main', $2, 'Active')", [warehouse_oid, `WH-${warehouse_oid.slice(0, 6)}`]);

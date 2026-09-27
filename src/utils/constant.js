@@ -150,6 +150,7 @@ module.exports = {
     GENERATE_SUPPLIER_PERFORMANCE_REPORT:
       "/generate-supplier-performance-report",
     EXPORT_SUPPLIER_DATA: "/export-supplier-data",
+    CHECK_SUPPLIER_AVAILABILITY: "/check-supplier-availability",
 
     GET_SUPPLIER_DEALER_LIST: "/get-supplier-dealer-list",
     CREATE_SUPPLIER_DEALER: "/create-supplier-dealer",

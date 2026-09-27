@@ -72,7 +72,6 @@ const export_supplier_data = async (request, res) => {
     log.error(
       `An exception occurred while exporting supplier data: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
