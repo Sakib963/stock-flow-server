@@ -173,6 +173,8 @@ module.exports = {
     UPDATE_WAREHOUSE_DETAILS: "/update-warehouse-details",
     GET_WAREHOUSE_DETAILS: "/get-warehouse-details",
     GET_WAREHOUSE_LIST_FOR_DROPDOWN: "/get-warehouse-list-for-dropdown",
+    CHECK_WAREHOUSE_AVAILABILITY: "/check-warehouse-availability",
+    GENERATE_WAREHOUSE_CODE: "/generate-warehouse-code",
     GENERATE_PRODUCT_LIST_REPORT_BY_WAREHOUSE:
       "/generate-product-list-report-by-warehouse",
     GENERATE_INVENTORY_REPORT_BY_WAREHOUSE:
