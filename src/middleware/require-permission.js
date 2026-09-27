@@ -70,3 +70,4 @@ const requirePermission = (code) => async (request, res, next) => {
 };
 
 module.exports = requirePermission;
+module.exports.permissions_for = permissions_for;

@@ -1,45 +1,17 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
-const get_analytics_metrics = require("./controller/get-analytics-metrics");
-const get_stock_trend = require("./controller/get-stock-trend");
-const get_inventory_value_trend = require("./controller/get-inventory-value-trend");
-const get_top_products = require("./controller/get-top-products");
-const get_product_performance = require("./controller/get-product-performance");
-const get_stock_movements = require("./controller/get-stock-movements");
-const export_analytics_report = require("./controller/export-analytics-report");
-const get_configuration_dashboard_summary = require("./controller/get-configuration-dashboard-summary");
+const requirePermission = require("../../../middleware/require-permission");
+const { validator } = require("../../../middleware/validator");
+const { configuration_analytics_schema } = require("./schema");
+const get_configuration_analytics = require("./controller/get-configuration-analytics");
 
 const router = Router();
 
-// POST endpoints (using POST to send filter payload in body)
-router.post(
-  ROUTES.GET_ANALYTICS_METRICS,
-  [jwtMiddleware],
-  get_analytics_metrics,
-);
-router.post(ROUTES.GET_STOCK_TREND, [jwtMiddleware], get_stock_trend);
-router.post(
-  ROUTES.GET_INVENTORY_VALUE_TREND,
-  [jwtMiddleware],
-  get_inventory_value_trend,
-);
-router.post(ROUTES.GET_TOP_PRODUCTS, [jwtMiddleware], get_top_products);
-router.post(
-  ROUTES.GET_PRODUCT_PERFORMANCE,
-  [jwtMiddleware],
-  get_product_performance,
-);
-router.post(ROUTES.GET_STOCK_MOVEMENTS, [jwtMiddleware], get_stock_movements);
-router.post(
-  ROUTES.EXPORT_ANALYTICS_REPORT,
-  [jwtMiddleware],
-  export_analytics_report,
-);
-router.post(
-  ROUTES.GET_CONFIGURATION_DASHBOARD_SUMMARY,
-  [jwtMiddleware],
-  get_configuration_dashboard_summary,
+router.get(
+      ROUTES.GET_CONFIGURATION_ANALYTICS,
+      [jwtMiddleware, requirePermission("configuration.analytics.view"), validator.get(configuration_analytics_schema)],
+      get_configuration_analytics
 );
 
 module.exports = { analyticsRouter: router };
