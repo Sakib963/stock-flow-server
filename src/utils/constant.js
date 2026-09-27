@@ -185,6 +185,8 @@ module.exports = {
     UPDATE_AISLE_DETAILS: "/update-aisle-details",
     GET_AISLE_DETAILS: "/get-aisle-details",
     GET_AISLE_LIST_FOR_DROPDOWN: "/get-aisle-list-for-dropdown",
+    CHECK_AISLE_AVAILABILITY: "/check-aisle-availability",
+    GENERATE_AISLE_CODE: "/generate-aisle-code",
     GENERATE_PRODUCT_LIST_REPORT_BY_AISLE:
       "/generate-product-list-report-by-aisle",
     GENERATE_INVENTORY_REPORT_BY_AISLE: "/generate-inventory-report-by-aisle",

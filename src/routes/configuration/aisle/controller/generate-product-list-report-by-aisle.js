@@ -70,7 +70,6 @@ const generate_product_list_report_by_aisle = async (request, res) => {
     log.error(
       `An exception occurred while generating product list: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
@@ -93,8 +92,8 @@ const generate_products_sql = (aisleOid) => {
                   w.name AS warehouse_name,
                   a.name AS aisle_name,
                   a.code AS aisle_code,
-                  a.capacity AS aisle_capacity,
-                  a.type_of_storage,
+                  a.capacity_units AS aisle_capacity,
+                  a.storage_type AS type_of_storage,
                   a.status AS aisle_status,
                   COALESCE(COUNT(DISTINCT i.batch_code), 0) AS total_batches,
                   COALESCE(SUM(CAST(i.quantity_available AS INTEGER)), 0) AS total_available_quantity,
@@ -116,7 +115,7 @@ const generate_products_sql = (aisleOid) => {
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
             LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
             WHERE pd.aisle_oid = $1
-            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, w.name, a.name, a.code, a.capacity, a.type_of_storage, a.status, ps.total_sold, ps.total_returned
+            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, w.name, a.name, a.code, a.capacity_units, a.storage_type, a.status, ps.total_sold, ps.total_returned
             ORDER BY p.name ASC
       `;
   return { text: query, values: [aisleOid] };

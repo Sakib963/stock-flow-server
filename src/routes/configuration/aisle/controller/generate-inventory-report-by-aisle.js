@@ -68,7 +68,6 @@ const generate_inventory_report_by_aisle = async (request, res) => {
     log.error(
       `An exception occurred while generating inventory report by aisle: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
@@ -87,8 +86,8 @@ const generate_inventory_sql = (aisleOid) => {
                   w.name AS warehouse_name,
                   a.name AS aisle_name_detail,
                   a.code AS aisle_code,
-                  a.capacity AS aisle_capacity,
-                  a.type_of_storage,
+                  a.capacity_units AS aisle_capacity,
+                  a.storage_type AS type_of_storage,
                   a.status AS aisle_status,
                   i.batch_code,
                   CAST(i.initial_quantity AS INTEGER) AS initial_quantity,
