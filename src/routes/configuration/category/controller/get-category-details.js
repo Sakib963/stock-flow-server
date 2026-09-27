@@ -23,7 +23,7 @@ const get_category_details = async (request, res) => {
 
             const stats = await read_product_stock_stats("category", categoryOid);
 
-            const activity_set = await getLogActivities('category', categoryOid, 10);
+            const activity_set = await getLogActivities('category', categoryOid, 5);
 
             const responseData = {
                   details: details,

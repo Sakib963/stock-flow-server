@@ -8,6 +8,8 @@ const update_category_details = async (request, res) => {
       const payload = request.body;
       const user_id = request.credentials.user_id;
 
+      let changed = true;
+
       try {
             // The read and the write are one transaction on one connection, with the row locked.
             // Split apart they were two connections and two moments: the activity log described a
@@ -20,6 +22,13 @@ const update_category_details = async (request, res) => {
                   });
 
                   if (!rows.length) fail(404, "That category no longer exists. It may have been removed.");
+
+                  // Saving an untouched form writes nothing, so the timeline records only real changes.
+                  const changes = detectChanges(rows[0], payload);
+                  if (!changes.length) {
+                        changed = false;
+                        return;
+                  }
 
                   const updated = await tx.execute_value({
                         text: `update ${TABLE.CATEGORIES} set name = $1, description = $2, category_code = $3, status = $4, edited_on = clock_timestamp(), edited_by = $5 where oid = $6`,
@@ -35,7 +44,7 @@ const update_category_details = async (request, res) => {
                               reference_type: "category",
                               reference_oid: payload.oid,
                               title: "Updated category",
-                              description: generateChangeDescription(`category "${payload.name}"`, detectChanges(rows[0], payload)),
+                              description: generateChangeDescription(`category "${payload.name}"`, changes),
                         },
                         { tx, request }
                   );
@@ -52,6 +61,8 @@ const update_category_details = async (request, res) => {
             log.error(`An exception occurred while updating category : ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
       }
+
+      if (!changed) return res.status(200).json({ code: 200, message: "Nothing changed.", data: { changed: false } });
 
       log.info(`Category ${payload.name} updated successfully by : ${user_id}`);
       return res.status(200).json({

@@ -25,7 +25,7 @@ const get_sub_category_details = async (request, res) => {
             }
 
             const stats = await read_product_stock_stats("sub_category", oid);
-            const activity = await getLogActivities("sub-category", oid, 10);
+            const activity = await getLogActivities("sub-category", oid, 5);
 
             return res.status(200).json({
                   code: 200,
