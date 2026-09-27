@@ -28,7 +28,7 @@ router.get(
 // opens it. A sub-category role without category view would otherwise get an empty parent picker.
 router.get(
       ROUTES.GET_CATEGORY_LIST_FOR_DROPDOWN,
-      [jwtMiddleware, requirePermission(['configuration.category.view', 'configuration.sub-category.view']), validator.get(category_dropdown_schema)],
+      [jwtMiddleware, requirePermission(['configuration.category.view', 'configuration.sub-category.view', 'configuration.product.view']), validator.get(category_dropdown_schema)],
       get_category_list_for_dropdown
 );
 

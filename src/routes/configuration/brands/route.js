@@ -23,7 +23,7 @@ router.get(
 
 router.get(
       ROUTES.GET_BRANDS_LIST_FOR_DROPDOWN,
-      [jwtMiddleware, requirePermission('configuration.brands.view'), validator.get(brand_dropdown_schema)],
+      [jwtMiddleware, requirePermission(['configuration.brands.view', 'configuration.product.view']), validator.get(brand_dropdown_schema)],
       get_brand_list_for_dropdown
 );
 

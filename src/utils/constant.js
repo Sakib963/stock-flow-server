@@ -165,6 +165,9 @@ module.exports = {
     GET_PRODUCT_DETAILS: "/get-product-details",
     GET_PRODUCT_LIST_FOR_DROPDOWN: "/get-product-list-for-dropdown",
     DELETE_PRODUCT: "/delete-product",
+    CHECK_PRODUCT_AVAILABILITY: "/check-product-availability",
+    GENERATE_PRODUCT_SKU: "/generate-product-sku",
+    SIGN_PRODUCT_PHOTO_UPLOAD: "/sign-product-photo-upload",
     GENERATE_PRODUCT_INVENTORY_REPORT: "/generate-product-inventory-report",
     GENERATE_PRODUCT_MOVEMENT_REPORT: "/generate-product-movement-report",
 

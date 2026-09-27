@@ -18,7 +18,7 @@ const router = Router();
 
 router.get(ROUTES.GET_SUB_CATEGORY_LIST, [jwtMiddleware, requirePermission("configuration.sub-category.view"), validator.get(sub_category_list_schema)], get_sub_category_list);
 
-router.get(ROUTES.GET_SUB_CATEGORY_LIST_FOR_DROPDOWN, [jwtMiddleware, requirePermission("configuration.sub-category.view"), validator.get(sub_category_dropdown_schema)], get_sub_category_list_for_dropdown);
+router.get(ROUTES.GET_SUB_CATEGORY_LIST_FOR_DROPDOWN, [jwtMiddleware, requirePermission(["configuration.sub-category.view", "configuration.product.view"]), validator.get(sub_category_dropdown_schema)], get_sub_category_list_for_dropdown);
 
 router.get(ROUTES.CHECK_SUB_CATEGORY_AVAILABILITY, [jwtMiddleware, requirePermission("configuration.sub-category.view"), validator.get(sub_category_availability_schema)], check_sub_category_availability);
 

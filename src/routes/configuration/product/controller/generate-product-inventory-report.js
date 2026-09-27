@@ -64,7 +64,6 @@ const generate_product_inventory_report = async (request, res) => {
     log.error(
       `An exception occurred while generating product inventory report: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
@@ -78,7 +77,6 @@ const generate_product_details_sql = (productOid) => {
                   p.oid,
                   p.name,
                   p.sku,
-                  p.product_nature,
                   p.unit_type,
                   c.name as category_name,
                   sc.name as sub_category_name,
@@ -198,7 +196,6 @@ const generate_inventory_xlsx = async (inventory, productDetails) => {
   sheet.addRow(["Category:", productDetails.category_name || "N/A"]);
   sheet.addRow(["Sub Category:", productDetails.sub_category_name || "N/A"]);
   sheet.addRow(["Brand:", productDetails.brand_name || "N/A"]);
-  sheet.addRow(["Product Nature:", productDetails.product_nature || "N/A"]);
   sheet.addRow(["Unit Type:", productDetails.unit_type || "N/A"]);
 
   const infoStartRow = sheet.rowCount - 8;

@@ -65,7 +65,6 @@ const generate_product_movement_report = async (request, res) => {
     log.error(
       `An exception occurred while generating product movement report: ${e?.message}`,
     );
-    console.error(e);
     return res.status(500).json({
       code: 500,
       message: "Something went wrong! Please try again later!",
@@ -79,7 +78,6 @@ const generate_product_details_sql = (productOid) => {
                   p.oid,
                   p.name,
                   p.sku,
-                  p.product_nature,
                   p.unit_type,
                   p.restock_threshold,
                   c.name as category_name,
@@ -126,7 +124,6 @@ const generate_movement_xlsx = async (productDetails, stats) => {
     ["Category:", productDetails.category_name || "N/A"],
     ["Sub Category:", productDetails.sub_category_name || "N/A"],
     ["Brand:", productDetails.brand_name || "N/A"],
-    ["Product Nature:", productDetails.product_nature || "N/A"],
     ["Unit Type:", productDetails.unit_type || "N/A"],
     ["Restock Threshold:", productDetails.restock_threshold || 0],
   ];
