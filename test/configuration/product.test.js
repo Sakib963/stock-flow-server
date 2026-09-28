@@ -30,7 +30,7 @@ after(h.stop);
 
 const get = (route, token, params = {}) => h.call(`${route}?${new URLSearchParams(params)}`, { method: "GET", token });
 const post = (route, token, body) => h.call(route, { method: "POST", token, body });
-const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@samiha.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
+const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
 
 const seed_sub_category = async ({ status = "Active" } = {}) => {
     const [category, sub_category] = [uuidv4(), uuidv4()];
@@ -266,7 +266,7 @@ describe("the product list and record", () => {
         await h.query("UPDATE inventory SET quantity_available = 0 WHERE oid = $1", [batch]);
         await h.query("UPDATE product SET is_deleted = TRUE WHERE oid = $1", [oid]);
 
-        await assert.rejects(execute_transaction((tx) => restockStock(tx, { inventory_oid: batch, quantity: 1, user_id: "owner@samiha.test" })), (e) => e.code === 409 && e.data.reason === "product_deleted");
+        await assert.rejects(execute_transaction((tx) => restockStock(tx, { inventory_oid: batch, quantity: 1, user_id: "owner@arithmalabs.test" })), (e) => e.code === 409 && e.data.reason === "product_deleted");
         assert.equal((await h.query("SELECT quantity_available::int AS q FROM inventory WHERE oid = $1", [batch]))[0].q, 0);
     });
 

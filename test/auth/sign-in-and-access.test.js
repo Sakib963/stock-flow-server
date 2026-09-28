@@ -57,13 +57,13 @@ describe("sign-in", () => {
     });
 
     it("matches the email whatever its case", async () => {
-        const res = await h.call(h.ROUTE.SIGN_IN, { body: { email: "  OWNER@Samiha.TEST ", password: user.password } });
+        const res = await h.call(h.ROUTE.SIGN_IN, { body: { email: "  OWNER@ArithmaLabs.TEST ", password: user.password } });
 
         assert.equal(res.status, 200);
     });
 
     it("gives an unknown email and a wrong password the same answer, and opens nothing", async () => {
-        const unknown = await h.call(h.ROUTE.SIGN_IN, { body: { email: "nobody@samiha.test", password: user.password } });
+        const unknown = await h.call(h.ROUTE.SIGN_IN, { body: { email: "nobody@arithmalabs.test", password: user.password } });
         const wrong = await h.call(h.ROUTE.SIGN_IN, { body: { email: user.email, password: "Not-the-password-1" } });
 
         assert.equal(unknown.status, 401);
@@ -74,7 +74,7 @@ describe("sign-in", () => {
     });
 
     it("refuses a turned-off account even with the right password", async () => {
-        const off = await h.seed_user({ email: "former@samiha.test", status: "Inactive" });
+        const off = await h.seed_user({ email: "former@arithmalabs.test", status: "Inactive" });
 
         const res = await h.call(h.ROUTE.SIGN_IN, { body: { email: off.email, password: off.password } });
 
@@ -145,7 +145,7 @@ describe("signing in again on the same browser", () => {
 
     /** The browser's cookie is overwritten either way, so the first person's session there is unreachable. */
     it("ends the held session even when a different account signs in on that browser", async () => {
-        const colleague = await h.seed_user({ email: "rafi@samiha.test" });
+        const colleague = await h.seed_user({ email: "rafi@arithmalabs.test" });
 
         const res = await sign_in_holding(before_.refresh, colleague);
 
@@ -172,7 +172,7 @@ describe("signing in again on the same browser", () => {
     });
 
     it("never ends another account's session from an id alone", async () => {
-        const colleague = await h.seed_user({ email: "rafi@samiha.test" });
+        const colleague = await h.seed_user({ email: "rafi@arithmalabs.test" });
 
         const res = await h.call(h.ROUTE.SIGN_IN, { body: { email: colleague.email, password: colleague.password, previous_session_id: before_.session_id } });
 

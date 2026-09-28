@@ -20,24 +20,24 @@ describe("the person card", () => {
     });
 
     it("answers anyone signed in, because reading a colleague's card is not a power a role grants", async () => {
-        const other = await h.seed_user({ email: "counter@samiha.test" });
+        const other = await h.seed_user({ email: "counter@arithmalabs.test" });
         const { access } = await h.sign_in(other);
 
-        const res = await card(access, { email: "counter@samiha.test" });
+        const res = await card(access, { email: "counter@arithmalabs.test" });
 
         assert.equal(res.status, 200);
         assert.equal(res.body.data.name, "Samiha Rahman");
     });
 
     it("refuses a request with no token as signed out, not as forbidden", async () => {
-        const res = await card(undefined, { email: "owner@samiha.test" });
+        const res = await card(undefined, { email: "owner@arithmalabs.test" });
         assert.equal(res.status, 401);
     });
 
     it("answers with who the person is, and the role their role_oid actually grants", async () => {
-        await h.query("UPDATE login SET designation = 'Shop owner' WHERE email = 'owner@samiha.test'");
+        await h.query("UPDATE login SET designation = 'Shop owner' WHERE email = 'owner@arithmalabs.test'");
 
-        const res = await card(reader, { email: "owner@samiha.test" });
+        const res = await card(reader, { email: "owner@arithmalabs.test" });
 
         assert.equal(res.status, 200);
         assert.equal(res.body.data.name, "Samiha Rahman");
@@ -47,33 +47,33 @@ describe("the person card", () => {
     });
 
     it("finds the person whatever case the row stored the address in", async () => {
-        const res = await card(reader, { email: "OWNER@samiha.test" });
+        const res = await card(reader, { email: "OWNER@arithmalabs.test" });
 
         assert.equal(res.body.data.name, "Samiha Rahman");
     });
 
     it("says an address with no account is not active rather than answering 404", async () => {
-        const res = await card(reader, { email: "left@samiha.test" });
+        const res = await card(reader, { email: "left@arithmalabs.test" });
 
         assert.equal(res.status, 200);
         assert.equal(res.body.data.name, null);
         assert.equal(res.body.data.active, false);
-        assert.equal(res.body.data.email, "left@samiha.test");
+        assert.equal(res.body.data.email, "left@arithmalabs.test");
     });
 
     it("says a switched-off account is not active, so the card can show that it is closed", async () => {
         // A colleague's account, not the reader's own: turning that one off ends their session and
         // the request would be answered as signed out before it ever reached the card.
-        await h.seed_user({ email: "gone@samiha.test", status: "Inactive" });
+        await h.seed_user({ email: "gone@arithmalabs.test", status: "Inactive" });
 
-        const res = await card(reader, { email: "gone@samiha.test" });
+        const res = await card(reader, { email: "gone@arithmalabs.test" });
 
         assert.equal(res.body.data.active, false);
         assert.equal(res.body.data.name, "Samiha Rahman");
     });
 
     it("refuses anything that is not an email, so nothing else can reach the query", async () => {
-        const res = await card(reader, { email: "owner@samiha.test'; DROP TABLE login" });
+        const res = await card(reader, { email: "owner@arithmalabs.test'; DROP TABLE login" });
 
         assert.equal(res.status, 400);
     });

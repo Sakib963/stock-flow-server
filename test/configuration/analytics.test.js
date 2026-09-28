@@ -20,7 +20,7 @@ const EVERYTHING = [
 before(h.start);
 after(h.stop);
 
-const sign_in_with = async (permissions) => (await h.sign_in(await h.seed_user({ email: `owner-${uuidv4().slice(0, 8)}@samiha.test`, permissions }))).access;
+const sign_in_with = async (permissions) => (await h.sign_in(await h.seed_user({ email: `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`, permissions }))).access;
 const read = async (token) => h.call(ANALYTICS, { method: "GET", token });
 
 const seed_category = async (name, status = "Active") => {

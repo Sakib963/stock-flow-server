@@ -40,7 +40,7 @@ describe("sign out everywhere", () => {
     });
 
     it("leaves other accounts alone", async () => {
-        const colleague = await h.seed_user({ email: "rafi@samiha.test" });
+        const colleague = await h.seed_user({ email: "rafi@arithmalabs.test" });
         const theirs = await h.sign_in(colleague);
         const mine = await h.sign_in(user);
 
@@ -108,8 +108,8 @@ describe("password events", () => {
 describe("turning an account off", () => {
     it("ends every session the account already has open", async () => {
         await h.reset();
-        const admin = await h.seed_user({ email: "admin@samiha.test", permissions: ["administration.user.edit"] });
-        const staff = await h.seed_user({ email: "rafi@samiha.test" });
+        const admin = await h.seed_user({ email: "admin@arithmalabs.test", permissions: ["administration.user.edit"] });
+        const staff = await h.seed_user({ email: "rafi@arithmalabs.test" });
         const counter = await h.sign_in(staff);
         const phone = await h.sign_in(staff);
         const signed_admin = await h.sign_in(admin);

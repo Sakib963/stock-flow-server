@@ -39,7 +39,7 @@ describe("the categories list", () => {
 
     it("refuses someone signed in without the view permission", async () => {
         await h.query("TRUNCATE login, role, role_permission CASCADE");
-        const other = await h.seed_user({ email: "counter@samiha.test", permissions: ["dashboard.overview.view"] });
+        const other = await h.seed_user({ email: "counter@arithmalabs.test", permissions: ["dashboard.overview.view"] });
         const { access } = await h.sign_in(other);
 
         const res = await list(access);
@@ -140,14 +140,14 @@ describe("the categories list", () => {
     });
 
     it("says who last touched a row by name, and that an edit is what it was", async () => {
-        await h.query("UPDATE categories SET created_by = $1 WHERE name = 'Saree'", ["owner@samiha.test"]);
-        await h.query("UPDATE categories SET created_by = $1, edited_by = $1, edited_on = $2 WHERE name = 'Kurti'", ["owner@samiha.test", new Date()]);
+        await h.query("UPDATE categories SET created_by = $1 WHERE name = 'Saree'", ["owner@arithmalabs.test"]);
+        await h.query("UPDATE categories SET created_by = $1, edited_by = $1, edited_on = $2 WHERE name = 'Kurti'", ["owner@arithmalabs.test", new Date()]);
 
         const rows = (await list(viewer, { limit: 100 })).body.data.rows;
         const saree = rows.find((r) => r.name === "Saree");
         const kurti = rows.find((r) => r.name === "Kurti");
 
-        assert.equal(saree.last_action_by, "owner@samiha.test");
+        assert.equal(saree.last_action_by, "owner@arithmalabs.test");
         assert.equal(saree.last_action_by_name, "Samiha Rahman");
         assert.equal(saree.last_action_by_role, role_name);
         assert.equal(saree.last_action_is_edit, false);
@@ -156,13 +156,13 @@ describe("the categories list", () => {
     });
 
     it("leaves the name empty rather than dropping the row when the account that made it is gone", async () => {
-        await h.query("UPDATE categories SET created_by = 'left@samiha.test' WHERE name = 'Panjabi'");
+        await h.query("UPDATE categories SET created_by = 'left@arithmalabs.test' WHERE name = 'Panjabi'");
 
         const res = await list(viewer, { limit: 100 });
         const panjabi = res.body.data.rows.find((r) => r.name === "Panjabi");
 
         assert.equal(res.body.total, 4);
-        assert.equal(panjabi.last_action_by, "left@samiha.test");
+        assert.equal(panjabi.last_action_by, "left@arithmalabs.test");
         assert.equal(panjabi.last_action_by_name, null);
     });
 
@@ -175,7 +175,7 @@ describe("the categories list", () => {
         await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Saree'", [on(1)]);
         await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Panjabi'", [on(2)]);
         await h.query("UPDATE categories SET created_on = $1, edited_on = NULL WHERE name = 'Three piece 50% off'", [on(3)]);
-        await h.query("UPDATE categories SET created_on = $1, edited_on = $2, edited_by = 'owner@samiha.test' WHERE name = 'Kurti'", [on(1), on(4)]);
+        await h.query("UPDATE categories SET created_on = $1, edited_on = $2, edited_by = 'owner@arithmalabs.test' WHERE name = 'Kurti'", [on(1), on(4)]);
 
         const res = await list(viewer, { sort: "last_action_on", order: "asc", limit: 100 });
 

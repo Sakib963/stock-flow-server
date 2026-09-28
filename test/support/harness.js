@@ -52,7 +52,7 @@ const query = async (text, values = []) => (await pool.query(text, values)).rows
 
 const reset = () => query("TRUNCATE auth_event, auth_refresh_token, auth_session, request_throttle, activity_log, otp_log, role_permission, permission, login, role, categories, brands, supplier, warehouse CASCADE");
 
-const seed_user = async ({ email = "owner@samiha.test", status = "Active", permissions = [] } = {}) => {
+const seed_user = async ({ email = "owner@arithmalabs.test", status = "Active", permissions = [] } = {}) => {
     const role_oid = uuidv4();
     const role_name = `Role ${role_oid.slice(0, 8)}`;
     await query("INSERT INTO role (oid, name, status) VALUES ($1, $2, 'Active')", [role_oid, role_name]);

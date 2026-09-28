@@ -50,7 +50,7 @@ describe("signed-in devices", () => {
     });
 
     it("leaves out other accounts, ended sessions, and sessions that can no longer renew", async () => {
-        const colleague = await h.seed_user({ email: "rafi@samiha.test" });
+        const colleague = await h.seed_user({ email: "rafi@arithmalabs.test" });
         await h.sign_in(colleague);
         const ended = await h.sign_in(user);
         await h.call(h.ROUTE.SIGN_OUT, { cookie: ended.refresh });
@@ -80,7 +80,7 @@ describe("signed-in devices", () => {
     });
 
     it("will not end another account's session, and answers as if it did not exist", async () => {
-        const colleague = await h.seed_user({ email: "rafi@samiha.test" });
+        const colleague = await h.seed_user({ email: "rafi@arithmalabs.test" });
         const theirs = await h.sign_in(colleague);
 
         const res = await h.call(h.ROUTE.SIGN_OUT_SESSION, { token: counter.access, body: { session_id: theirs.session_id } });

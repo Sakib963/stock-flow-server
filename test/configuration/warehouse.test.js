@@ -21,7 +21,7 @@ after(h.stop);
 
 const get = (route, token, params = {}) => h.call(`${route}?${new URLSearchParams(params)}`, { method: "GET", token });
 const post = (route, token, body) => h.call(route, { method: "POST", token, body });
-const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@samiha.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
+const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
 
 const seed_warehouse = async (name, code, { capacity = null, status = "Active" } = {}) => {
     const oid = uuidv4();
@@ -111,7 +111,7 @@ describe("creating and editing a warehouse", () => {
     });
 
     it("refuses someone holding view alone", async () => {
-        const viewer = await sign_in_with(["configuration.warehouse.view"], `counter-${uuidv4().slice(0, 8)}@samiha.test`);
+        const viewer = await sign_in_with(["configuration.warehouse.view"], `counter-${uuidv4().slice(0, 8)}@arithmalabs.test`);
         assert.equal((await post(CREATE, viewer, { name: "Any", code: "ANY", status: "Active" })).status, 403);
     });
 });
@@ -183,7 +183,7 @@ describe("what a warehouse record tells the owner", () => {
 
     it("offers only Active warehouses in its picker, to the aisle form too", async () => {
         await seed_warehouse("Closed", "CLOSED", { status: "Inactive" });
-        const aisleOnly = await sign_in_with(["configuration.aisle.view"], `aisle-${uuidv4().slice(0, 8)}@samiha.test`);
+        const aisleOnly = await sign_in_with(["configuration.aisle.view"], `aisle-${uuidv4().slice(0, 8)}@arithmalabs.test`);
 
         const res = await get(DROPDOWN, aisleOnly);
 

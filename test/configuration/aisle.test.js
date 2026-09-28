@@ -20,7 +20,7 @@ after(h.stop);
 
 const get = (route, token, params = {}) => h.call(`${route}?${new URLSearchParams(params)}`, { method: "GET", token });
 const post = (route, token, body) => h.call(route, { method: "POST", token, body });
-const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@samiha.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
+const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
 
 const seed_warehouse = async (name, status = "Active") => {
     const oid = uuidv4();
@@ -137,7 +137,7 @@ describe("creating and editing an aisle", () => {
     });
 
     it("refuses someone holding view alone", async () => {
-        const viewer = await sign_in_with(["configuration.aisle.view"], `counter-${uuidv4().slice(0, 8)}@samiha.test`);
+        const viewer = await sign_in_with(["configuration.aisle.view"], `counter-${uuidv4().slice(0, 8)}@arithmalabs.test`);
         assert.equal((await post(CREATE, viewer, { name: "X", code: "X", warehouse_oid: main, status: "Active" })).status, 403);
     });
 });

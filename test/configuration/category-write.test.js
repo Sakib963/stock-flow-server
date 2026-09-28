@@ -354,7 +354,7 @@ describe("the numbers on a category's page", () => {
     });
 
     it("carries the activity's own id, so two entries in one millisecond do not collide", async () => {
-        const author = await h.seed_user({ email: "author@samiha.test", permissions: ["configuration.category.view", "configuration.category.edit"] });
+        const author = await h.seed_user({ email: "author@arithmalabs.test", permissions: ["configuration.category.view", "configuration.category.edit"] });
         const token = (await h.sign_in(author)).access;
         await update(token, { oid: saree, name: "Saree", category_code: "SARE", description: "Now described", status: "Active" });
 
@@ -422,7 +422,7 @@ describe("checking whether a category name or code is free", () => {
 
     it("refuses someone without the view permission", async () => {
         await h.query("TRUNCATE login, role, role_permission CASCADE");
-        const other = await h.seed_user({ email: "counter@samiha.test", permissions: ["dashboard.overview.view"] });
+        const other = await h.seed_user({ email: "counter@arithmalabs.test", permissions: ["dashboard.overview.view"] });
         const { access } = await h.sign_in(other);
 
         assert.equal((await availability(access, { field: "name", value: "Kurti" })).status, 403);

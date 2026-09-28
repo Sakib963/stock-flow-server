@@ -19,7 +19,7 @@ after(h.stop);
 
 const get = (route, token, params = {}) => h.call(`${route}?${new URLSearchParams(params)}`, { method: "GET", token });
 const post = (route, token, body) => h.call(route, { method: "POST", token, body });
-const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@samiha.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
+const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
 
 const seed_supplier = async (name, phone, status = "Active") => {
     const oid = uuidv4();
@@ -113,7 +113,7 @@ describe("creating and editing a supplier", () => {
     });
 
     it("refuses someone holding view alone", async () => {
-        const viewer = await sign_in_with(["configuration.supplier.view"], `counter-${uuidv4().slice(0, 8)}@samiha.test`);
+        const viewer = await sign_in_with(["configuration.supplier.view"], `counter-${uuidv4().slice(0, 8)}@arithmalabs.test`);
         const res = await post(CREATE, viewer, { name: "Any", phone_number: "01700000000", status: "Active" });
         assert.equal(res.status, 403);
     });

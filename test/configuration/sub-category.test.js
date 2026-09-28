@@ -43,7 +43,7 @@ const seed_product = async (category_oid, sub_category_oid, { deleted = false } 
 
 // A fresh address each time: the server caches a caller's grants by email for two minutes, so one address
 // reused across tests with different grants is answered from the earlier test.
-const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@samiha.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
+const sign_in_with = async (permissions, email = `owner-${uuidv4().slice(0, 8)}@arithmalabs.test`) => (await h.sign_in(await h.seed_user({ email, permissions }))).access;
 
 describe("creating and editing a sub-category", () => {
     let author;
@@ -150,7 +150,7 @@ describe("creating and editing a sub-category", () => {
     });
 
     it("refuses someone holding view alone", async () => {
-        const viewer = await sign_in_with(["configuration.sub-category.view"], `counter-${uuidv4().slice(0, 8)}@samiha.test`);
+        const viewer = await sign_in_with(["configuration.sub-category.view"], `counter-${uuidv4().slice(0, 8)}@arithmalabs.test`);
         const res = await post(CREATE, viewer, { name: "Sarees", category_code: "SARE", category_oid: clothing, status: "Active" });
         assert.equal(res.status, 403);
     });
@@ -247,7 +247,7 @@ describe("the sub-categories list and record", () => {
     });
 
     it("refuses the list to someone without view", async () => {
-        const other = await sign_in_with(["dashboard.overview.view"], `counter-${uuidv4().slice(0, 8)}@samiha.test`);
+        const other = await sign_in_with(["dashboard.overview.view"], `counter-${uuidv4().slice(0, 8)}@arithmalabs.test`);
         assert.equal((await get(LIST, other)).status, 403);
     });
 });
