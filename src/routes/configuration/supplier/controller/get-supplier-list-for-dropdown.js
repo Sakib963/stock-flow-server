@@ -3,7 +3,7 @@ const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 const DROPDOWN_SQL = {
-      text: `SELECT oid AS value, name AS label FROM ${TABLE.SUPPLIER} WHERE status = 'Active' ORDER BY name ASC`,
+      text: `SELECT oid AS value, name AS label, phone_number FROM ${TABLE.SUPPLIER} WHERE status = 'Active' ORDER BY name ASC`,
       values: [],
 };
 

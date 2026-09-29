@@ -312,7 +312,7 @@ describe("the product list and record", () => {
         await receive(oid, 3);
         await order(oid, "Confirmed", { batch, hold: 4 });
         const sold = await order(oid, "Purchased");
-        await h.query("UPDATE orders SET created_on = '2026-09-01 10:00' WHERE oid = $1", [sold]);
+        await h.query("UPDATE orders SET created_on = '2026-08-25 10:00', sold_on = '2026-09-01 10:00' WHERE oid = $1", [sold]);
         const intended = await order(oid, "Pending");
         await h.query("UPDATE orders SET created_on = '2026-09-20 10:00' WHERE oid = $1", [intended]);
 

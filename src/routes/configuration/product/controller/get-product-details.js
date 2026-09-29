@@ -29,12 +29,13 @@ const BATCHES_SQL = `
       ORDER BY i.created_on ASC, i.oid ASC`;
 
 // Summed, not read as one row: two first sales at once can each insert a stats row (on the backlog),
-// and each then carries its own sale. A sale is an order in a realized state only.
+// and each then carries its own sale. A sale is an order in a realized state only, dated by sold_on:
+// a POS draft checked out days later was dated by the draft.
 const LIFETIME_SQL = `
       SELECT (SELECT COALESCE(SUM(total_sold), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS sold,
              (SELECT COALESCE(SUM(total_returned), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS returned,
              (SELECT COALESCE(SUM(total_damaged), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS damaged,
-             (SELECT MAX(COALESCE(o.delivered_on, o.created_on))
+             (SELECT MAX(o.sold_on)
                 FROM ${TABLE.ORDER_ITEMS} oi JOIN ${TABLE.ORDERS} o ON o.oid = oi.order_oid
                WHERE oi.product_oid = $1 AND o.status IN ('Purchased', 'Delivered', 'PartiallyReturned')) AS last_sold_on`;
 

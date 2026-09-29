@@ -1,73 +1,112 @@
 const Joi = require("joi");
 
+const STATUSES = ["Submitted", "Verified", "Cancelled"];
+const PAYMENT_STATUSES = ["paid", "partially_paid", "unpaid"];
+const PURCHASE_TYPES = ["instant", "advance", "overseas"];
+
+// Whole taka, the same as every other money column. Prices fit numeric(8,0), quantities numeric(4,0).
+const price = Joi.number().integer().min(0).max(99999999);
+const quantity = Joi.number().integer().min(1).max(9999);
+const budget = Joi.number().integer().min(0).max(99999999).allow(null).default(null);
+
 const purchase_order_list_schema = Joi.object({
-  offset: Joi.number().required(),
-  limit: Joi.number().required(),
-  search_text: Joi.string().trim().allow(null, "").optional(),
-  status: Joi.string().trim().allow(null, "").optional(),
+      offset: Joi.number().integer().min(0).default(0),
+      limit: Joi.number().integer().min(1).max(100).default(20),
+      search: Joi.string().trim().max(100).allow(null, "").optional(),
+      sort: Joi.string().valid("po_number", "supplier_name", "total_amount", "status", "created_on", "expected_delivery_date").optional(),
+      order: Joi.string().valid("asc", "desc").optional(),
+      status: Joi.string().pattern(new RegExp(`^(${STATUSES.join("|")})(,(${STATUSES.join("|")}))*$`)).allow(null, "").optional(),
+      payment_status: Joi.string().pattern(new RegExp(`^(${PAYMENT_STATUSES.join("|")})(,(${PAYMENT_STATUSES.join("|")}))*$`)).allow(null, "").optional(),
+      supplier_oid: Joi.string().uuid().allow(null, "").optional(),
+      include: Joi.string().valid("", "stats").optional(),
 });
 
-const purchase_order_schema = Joi.object({
-  oid: Joi.string().allow(null),
-  supplier_oid: Joi.string().required(),
-  total_amount: Joi.number().required(),
-  special_notes: Joi.string().allow(null),
-  payment_status: Joi.string().required(),
-  paid_amount: Joi.number().required(),
-  purchase_type: Joi.string().required(),
-  products: Joi.array()
-    .items(
-      Joi.object({
-        oid: Joi.string().allow(null),
-        product_oid: Joi.string().required(),
-        warehouse_oid: Joi.string().required(),
-        aisle_oid: Joi.string().allow(null),
-        quantity: Joi.number().required(),
-        unit_price: Joi.number().required(),
-      }),
-    )
-    .required(),
+const purchase_order_oid_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
 });
 
-const verify_purchase_order_schema = Joi.object({
-  oid: Joi.string().required(),
-  products: Joi.array()
-    .min(1)
-    .items(
-      Joi.object({
-        oid: Joi.string().required(),
-        product_oid: Joi.string().required(),
-        verified_quantity: Joi.number().min(0).required(),
-        verified_unit_price: Joi.number().min(0).required(),
-        intended_use: Joi.string().valid("for_sale", "internal_use").required(),
-        selling_price: Joi.number().when("intended_use", {
-          is: "for_sale",
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().optional().allow(null),
-        }),
-        maximum_discount: Joi.number().when("intended_use", {
-          is: "for_sale",
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().optional().allow(null),
-        }),
-        ad_run_cost: Joi.number().min(0).optional().allow(null),
-        packaging_cost: Joi.number().min(0).optional().allow(null),
-        gift_cost: Joi.number().min(0).optional().allow(null),
-        content_creation_cost: Joi.number().min(0).optional().allow(null),
-        influencer_cost: Joi.number().min(0).optional().allow(null),
-        cost_remarks: Joi.string().trim().max(500).optional().allow(null, ""),
-      }),
-    )
-    .required(),
+const payment_fields = {
+      payment_status: Joi.string().valid(...PAYMENT_STATUSES).required(),
+      paid_amount: Joi.number().integer().min(0).allow(null).default(0),
+};
+
+const order_fields = {
+      supplier_oid: Joi.string().uuid().required(),
+      purchase_type: Joi.string().valid(...PURCHASE_TYPES).required(),
+      expected_delivery_date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow(null, "").empty("").default(null),
+      special_notes: Joi.string().trim().max(1000).allow(null, "").empty("").default(null),
+      products: Joi.array()
+            .min(1)
+            .max(200)
+            .items(
+                  Joi.object({
+                        product_oid: Joi.string().uuid().required(),
+                        warehouse_oid: Joi.string().uuid().required(),
+                        aisle_oid: Joi.string().uuid().allow(null, "").empty("").default(null),
+                        quantity: quantity.required(),
+                        unit_price: price.required(),
+                  })
+            )
+            .required(),
+};
+
+const purchase_order_create_schema = Joi.object({ ...order_fields, ...payment_fields });
+
+// No payment: it changes only through Record payment, so an edit opened before a payment cannot undo it.
+const purchase_order_update_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
+      ...order_fields,
 });
 
-const purchase_order_details_schema = Joi.object({
-  oid: Joi.string().required(),
+const purchase_order_payment_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
+      ...payment_fields,
+});
+
+const purchase_order_cancel_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
+      reason: Joi.string().trim().min(3).max(500).required(),
+});
+
+// Selling price and max discount only mean something for stock that is for sale; internal use stock
+// is never sold, so they are dropped rather than stored.
+const purchase_order_verify_schema = Joi.object({
+      oid: Joi.string().uuid().required(),
+      lines: Joi.array()
+            .min(1)
+            .max(200)
+            .items(
+                  Joi.object({
+                        oid: Joi.string().uuid().required(),
+                        received_quantity: Joi.number().integer().min(0).max(9999).required(),
+                        unit_price: price.required(),
+                        intended_use: Joi.string().valid("for_sale", "internal_use").required(),
+                        selling_price: Joi.when("intended_use", { is: "for_sale", then: price.min(1).required(), otherwise: Joi.any().strip() }),
+                        maximum_discount: Joi.when("intended_use", { is: "for_sale", then: price.max(Joi.ref("selling_price")).required(), otherwise: Joi.any().strip() }),
+                        ad_run_cost: budget,
+                        packaging_cost: budget,
+                        gift_cost: budget,
+                        content_creation_cost: budget,
+                        influencer_cost: budget,
+                        cost_remarks: Joi.string().trim().max(500).allow(null, "").empty("").default(null),
+                  })
+            )
+            .required(),
+});
+
+const purchase_product_picker_schema = Joi.object({
+      search: Joi.string().trim().max(100).allow(null, "").optional(),
+      limit: Joi.number().integer().min(1).max(50).default(20),
 });
 
 module.exports = {
-  purchase_order_list_schema,
-  purchase_order_schema,
-  verify_purchase_order_schema,
-  purchase_order_details_schema,
+      STATUSES,
+      purchase_order_list_schema,
+      purchase_order_oid_schema,
+      purchase_order_create_schema,
+      purchase_order_update_schema,
+      purchase_order_payment_schema,
+      purchase_order_cancel_schema,
+      purchase_order_verify_schema,
+      purchase_product_picker_schema,
 };

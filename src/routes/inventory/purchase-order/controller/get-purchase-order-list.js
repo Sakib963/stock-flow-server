@@ -1,93 +1,62 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../db/database");
+const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 
-const get_purchase_list = async (request, res) => {
-  try {
-    // Step 1: Generate SQL for total count
-    const countSql = generate_count_sql(request);
+// Paid follows payment_status, never the stored figure alone: two old orders are marked paid with
+// less than their total against them.
+const PAID = `CASE p.payment_status WHEN 'paid' THEN p.total_amount WHEN 'partially_paid' THEN COALESCE(p.paid_amount, 0) ELSE 0 END`;
 
-    const countResult = await get_data(countSql);
-    const total = countResult[0]?.total || 0;
+const SELECT = `p.oid, p.po_number, p.supplier_oid, s.name AS supplier_name, p.purchase_type, p.status, p.payment_status,
+                p.total_amount::bigint AS total_amount, (${PAID})::bigint AS paid_amount,
+                to_char(p.expected_delivery_date, 'YYYY-MM-DD') AS expected_delivery_date,
+                l.product_count, l.ordered_units, l.received_units, l.received_total,
+                p.created_on, p.verified_on, p.cancelled_on,
+                COALESCE(p.edited_on, p.created_on) AS last_action_on,
+                COALESCE(p.edited_by, p.created_by) AS last_action_by,
+                (p.edited_by IS NOT NULL) AS last_action_is_edit,
+                u.name AS last_action_by_name,
+                r.name AS last_action_by_role`;
 
-    // Step 2: Generate SQL for paginated data
-    const dataSql = generate_data_sql(request);
+const FROM = `${TABLE.PURCHASE} p
+              JOIN ${TABLE.SUPPLIER} s ON s.oid = p.supplier_oid
+              LEFT JOIN ${TABLE.LOGIN} u ON u.email = COALESCE(p.edited_by, p.created_by)
+              LEFT JOIN ${TABLE.ROLE} r ON r.oid = u.role_oid
+              LEFT JOIN LATERAL (
+                  SELECT COUNT(*)::int AS product_count,
+                         COALESCE(SUM(d.ordered_quantity), 0)::int AS ordered_units,
+                         SUM(d.verified_quantity)::int AS received_units,
+                         SUM(d.verified_quantity * d.verified_unit_price)::bigint AS received_total
+                    FROM ${TABLE.PURCHASE_DETAILS} d
+                   WHERE d.purchase_oid = p.oid
+              ) l ON TRUE`;
 
-    const data_set = await get_data(dataSql);
-    const data = data_set.length ? data_set : [];
+const OVERDUE = `p.status = 'Submitted' AND p.expected_delivery_date < CURRENT_DATE`;
 
-    // Step 3: Respond with total count and paginated data
-    log.info(`Purchase Order list Found: ${data?.length} of ${total}`);
-    return res.status(200).json({
-      code: 200,
-      message: "Purchase Order list Found",
-      total,
-      data,
-    });
-  } catch (e) {
-    log.error(
-      `An exception occurred while getting Purchase Order information: ${e?.message}`,
-    );
-    return res.status(500).json({
-      code: 500,
-      message: "Something Went Wrong! Please try again later!",
-    });
-  }
+const STATS = {
+    submitted: `COUNT(*) FILTER (WHERE p.status = 'Submitted')::int`,
+    overdue: `COUNT(*) FILTER (WHERE ${OVERDUE})::int`,
+    verified: `COUNT(*) FILTER (WHERE p.status = 'Verified')::int`,
+    cancelled: `COUNT(*) FILTER (WHERE p.status = 'Cancelled')::int`,
 };
 
-const generate_count_sql = (request) => {
-  let query = `SELECT COUNT(DISTINCT p.oid) AS total FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
-
-  let values = [];
-
-  if (request.query.search_text && request.query.search_text.trim() !== "") {
-    const searchText = `%${request.query.search_text.trim().toLowerCase()}%`;
-    query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
-    values.push(searchText, searchText);
-  }
-
-  if (request.query.status !== "null" && request.query.status !== "") {
-    query += ` AND p.status = $${values.length + 1}`;
-    values.push(request.query.status);
-  }
-
-  return { text: query, values };
+const get_purchase_order_list = async (request, res) => {
+    try {
+        const { rows, total, stats } = await read_list({
+            select: SELECT,
+            from: FROM,
+            search: ["p.po_number", "s.name", "s.phone_number"],
+            filters: { status: "p.status", payment_status: "p.payment_status", supplier_oid: "p.supplier_oid" },
+            sortable: { po_number: "p.po_number", supplier_name: "s.name", total_amount: "p.total_amount", status: "p.status", created_on: "p.created_on", expected_delivery_date: "p.expected_delivery_date" },
+            default_sort: { key: "created_on", order: "desc" },
+            stats: STATS,
+            tie_breaker: "p.oid",
+            query: request.query,
+        });
+        return res.status(200).json({ code: 200, message: "Purchase orders", data: stats ? { rows, stats } : { rows }, total });
+    } catch (e) {
+        log.error(`An exception occurred while listing purchase orders: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not load purchase orders. Try again in a moment." });
+    }
 };
 
-const generate_data_sql = (request) => {
-  let query = `
-        SELECT p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name AS supplier_name, COUNT(pd.product_oid) AS product_count, to_char(p.created_on, 'DD/MM/YYYY') as created_on, p.created_by
-        FROM ${TABLE.PURCHASE} p LEFT JOIN ${TABLE.SUPPLIER} s ON p.supplier_oid = s.oid LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON p.oid = pd.purchase_oid LEFT JOIN ${TABLE.PRODUCT} pr ON pd.product_oid = pr.oid WHERE 1 = 1`;
-
-  let values = [];
-
-  if (request.query.search_text && request.query.search_text.trim() !== "") {
-    const searchText = `%${request.query.search_text.trim().toLowerCase()}%`; // fixed space
-    query += ` AND (LOWER(s.name) LIKE $${values.length + 1} OR LOWER(pr.name) LIKE $${values.length + 2})`;
-    values.push(searchText, searchText);
-  }
-
-  if (request.query.status !== "null" && request.query.status !== "") {
-    query += ` AND p.status = $${values.length + 1}`;
-    values.push(request.query.status);
-  }
-
-  query += ` GROUP BY p.oid, p.total_amount, p.payment_status, p.paid_amount, p.purchase_type, p.status, s.name, p.created_on`;
-
-  query += ` ORDER BY p.created_on DESC`;
-
-  if (request.query.offset !== undefined) {
-    // also safe checking
-    query += ` OFFSET $${values.length + 1}`;
-    values.push(Number(request.query.offset));
-  }
-
-  if (request.query.limit !== undefined) {
-    query += ` FETCH NEXT $${values.length + 1} ROWS ONLY`;
-    values.push(Number(request.query.limit));
-  }
-
-  return { text: query, values };
-};
-
-module.exports = get_purchase_list;
+module.exports = get_purchase_order_list;

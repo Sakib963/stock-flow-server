@@ -17,7 +17,7 @@ const deliver_order = async (request, res) => {
         const invoice_no = await execute_transaction(async (tx) => {
             const result = await tx.execute_value({
                 text: `UPDATE ${TABLE.ORDERS}
-                          SET status = 'Delivered', delivered_on = clock_timestamp(),
+                          SET status = 'Delivered', delivered_on = clock_timestamp(), sold_on = clock_timestamp(),
                               payment_status = CASE WHEN $1 THEN 'paid' ELSE payment_status END,
                               tracking_token = COALESCE(tracking_token, $4),
                               edited_by = $2, edited_on = clock_timestamp()

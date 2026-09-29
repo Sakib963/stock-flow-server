@@ -11,7 +11,7 @@ const get_purchase_order_products_report = async (request, res) => {
     if (!data || data.length === 0) {
       return res.status(404).json({
         code: 404,
-        message: "No Purchase Order products report Found",
+        message: "That purchase order no longer exists.",
         data: null,
       });
     }
@@ -42,7 +42,7 @@ const get_purchase_order_products_report = async (request, res) => {
     );
     return res
       .status(500)
-      .json({ code: 500, message: "Internal server error" });
+      .json({ code: 500, message: "Could not build the report. Try again in a moment." });
   }
 };
 
@@ -58,6 +58,7 @@ const get_products_report_data = async (oid) => {
             a.name as aisle_name,
             pd.ordered_quantity,
             pd.verified_quantity,
+            COALESCE(i.initial_quantity, pd.verified_quantity) AS batch_quantity,
             pd.ordered_unit_price,
             pd.verified_unit_price,
             i.intended_use,
@@ -248,12 +249,13 @@ const generate_products_report_xlsx = async (data) => {
         Number(item.influencer_cost || 0);
       const probableProfitPerUnit = Number(item.unit_profit_hint || 0);
       const probableProfitLine =
-        probableProfitPerUnit * Number(item.verified_quantity || 0);
+        probableProfitPerUnit * Number(item.batch_quantity || 0);
 
+      // Per batch, not per line: a line verified more than once before the port has several batches.
       costSheet.addRow([
         item.product_name,
         item.batch_code,
-        item.verified_quantity,
+        item.batch_quantity,
         item.verified_unit_price,
         item.selling_price,
         item.maximum_discount,

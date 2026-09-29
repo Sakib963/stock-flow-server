@@ -1,17 +1,24 @@
 const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
-const {
-  purchase_order_list_schema,
-  purchase_order_schema,
-  verify_purchase_order_schema,
-  purchase_order_details_schema,
-} = require("./schema");
+const requirePermission = require("../../../middleware/require-permission");
 const { validator } = require("../../../middleware/validator");
+const {
+      purchase_order_list_schema,
+      purchase_order_oid_schema,
+      purchase_order_create_schema,
+      purchase_order_update_schema,
+      purchase_order_payment_schema,
+      purchase_order_cancel_schema,
+      purchase_order_verify_schema,
+      purchase_product_picker_schema,
+} = require("./schema");
 const get_purchase_order_list = require("./controller/get-purchase-order-list");
 const get_purchase_order_details = require("./controller/get-purchase-order-details");
+const get_product_list_for_purchase = require("./controller/get-product-list-for-purchase");
 const create_purchase_order = require("./controller/create-purchase-order");
 const update_purchase_order_details = require("./controller/update-purchase-order-details");
+const update_purchase_payment = require("./controller/update-purchase-payment");
 const verify_purchase_order = require("./controller/verify-purchase-order");
 const cancel_purchase_order = require("./controller/cancel-purchase-order");
 const get_purchase_order_report = require("./controller/get-purchase-order-report");
@@ -19,67 +26,28 @@ const get_purchase_order_products_report = require("./controller/get-purchase-or
 
 const router = Router();
 
-// Get Purchase Order List
+router.get(ROUTES.GET_PURCHASE_LIST, [jwtMiddleware, requirePermission("inventory.purchase-order.view"), validator.get(purchase_order_list_schema)], get_purchase_order_list);
+
+router.get(ROUTES.GET_PURCHASE_DETAILS + "/:oid", [jwtMiddleware, requirePermission("inventory.purchase-order.view"), validator.params(purchase_order_oid_schema)], get_purchase_order_details);
+
 router.get(
-  ROUTES.GET_PURCHASE_LIST,
-  [jwtMiddleware, validator.get(purchase_order_list_schema)],
-  get_purchase_order_list,
+      ROUTES.GET_PRODUCT_LIST_FOR_PURCHASE,
+      [jwtMiddleware, requirePermission(["inventory.purchase-order.create", "inventory.purchase-order.edit"]), validator.get(purchase_product_picker_schema)],
+      get_product_list_for_purchase
 );
 
-// Get Purchase Order Details
-router.get(
-  ROUTES.GET_PURCHASE_DETAILS,
-  [jwtMiddleware, validator.get(purchase_order_details_schema)],
-  get_purchase_order_details,
-);
+router.post(ROUTES.CREATE_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.create"), validator.post(purchase_order_create_schema)], create_purchase_order);
 
-// Get Purchase Order Details by param (configuration-style)
-router.get(
-  ROUTES.GET_PURCHASE_DETAILS + "/:oid",
-  [jwtMiddleware],
-  get_purchase_order_details,
-);
+router.post(ROUTES.UPDATE_PURCHASE_DETAILS, [jwtMiddleware, requirePermission("inventory.purchase-order.edit"), validator.post(purchase_order_update_schema)], update_purchase_order_details);
 
-// Create A New Purchase Order
-router.post(
-  ROUTES.CREATE_PURCHASE,
-  [jwtMiddleware, validator.post(purchase_order_schema)],
-  create_purchase_order,
-);
+router.post(ROUTES.UPDATE_PURCHASE_PAYMENT, [jwtMiddleware, requirePermission("inventory.purchase-order.edit"), validator.post(purchase_order_payment_schema)], update_purchase_payment);
 
-// Update Purchase Order
-router.post(
-  ROUTES.UPDATE_PURCHASE_DETAILS,
-  [jwtMiddleware, validator.post(purchase_order_schema)],
-  update_purchase_order_details,
-);
+router.post(ROUTES.VERIFY_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.approve"), validator.post(purchase_order_verify_schema)], verify_purchase_order);
 
-// Verify Purchase Order
-router.post(
-  ROUTES.VERIFY_PURCHASE,
-  [jwtMiddleware, validator.post(verify_purchase_order_schema)],
-  verify_purchase_order,
-);
+router.post(ROUTES.CANCEL_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.cancel"), validator.post(purchase_order_cancel_schema)], cancel_purchase_order);
 
-// Cancel Purchase Order
-router.get(
-  ROUTES.CANCEL_PURCHASE,
-  [jwtMiddleware, validator.get(purchase_order_details_schema)],
-  cancel_purchase_order,
-);
+router.post(ROUTES.GET_PURCHASE_ORDER_REPORT, [jwtMiddleware, requirePermission("inventory.purchase-order.export"), validator.post(purchase_order_oid_schema)], get_purchase_order_report);
 
-// Purchase Order Summary Report
-router.post(
-  ROUTES.GET_PURCHASE_ORDER_REPORT,
-  [jwtMiddleware, validator.post(purchase_order_details_schema)],
-  get_purchase_order_report,
-);
-
-// Purchase Order Products Report
-router.post(
-  ROUTES.GET_PURCHASE_ORDER_PRODUCTS_REPORT,
-  [jwtMiddleware, validator.post(purchase_order_details_schema)],
-  get_purchase_order_products_report,
-);
+router.post(ROUTES.GET_PURCHASE_ORDER_PRODUCTS_REPORT, [jwtMiddleware, requirePermission("inventory.purchase-order.export"), validator.post(purchase_order_oid_schema)], get_purchase_order_products_report);
 
 module.exports = { purchaseOrderRouter: router };

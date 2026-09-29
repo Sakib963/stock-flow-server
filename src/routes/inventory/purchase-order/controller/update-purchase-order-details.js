@@ -1,178 +1,94 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_values, get_data } = require("../../../../db/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
+const { taka, order_total, resolve_paid, check_references, insert_lines } = require("../utils/order-rules");
 const { v4: uuidv4 } = require("uuid");
 
+const GONE = "That purchase order no longer exists.";
+
+const line_key = (line) => [line.product_oid, line.warehouse_oid, line.aisle_oid ?? "", Number(line.quantity), Number(line.unit_price)].join("|");
+
+// Lines are replaced wholesale: nothing points at a line until the order is verified, and only a
+// Submitted order can be edited, so an edit that removes a line or swaps its product is safe.
 const update_purchase_order_details = async (request, res) => {
-  const payload = request.body;
-  const user_id = request.credentials.user_id;
+      const payload = request.body;
+      const user_id = request.credentials.user_id;
+      let changed = true;
 
-  try {
-    const statusSql = {
-      text: `SELECT status FROM ${TABLE.PURCHASE} WHERE oid = $1`,
-      values: [payload.oid],
-    };
+      try {
+            await execute_transaction(async (tx) => {
+                  const [order] = await tx.get_data({
+                        text: `SELECT po_number, status, supplier_oid, purchase_type, to_char(expected_delivery_date, 'YYYY-MM-DD') AS expected_delivery_date, special_notes, payment_status, paid_amount::int AS paid_amount
+                               FROM ${TABLE.PURCHASE} WHERE oid = $1 FOR UPDATE`,
+                        values: [payload.oid],
+                  });
+                  if (!order) fail(404, GONE);
+                  if (order.status !== "Submitted") fail(409, `This order is ${order.status} and can no longer be edited.`, { status: order.status });
 
-    const statusData = await get_data(statusSql);
-    if (!statusData.length) {
-      return res
-        .status(404)
-        .json({ code: 404, message: "Purchase order not found" });
-    }
+                  await check_references(tx, payload);
 
-    if (statusData[0].status !== "Submitted") {
-      return res.status(400).json({
-        code: 400,
-        message: "Only submitted purchase orders can be edited",
-      });
-    }
+                  const total_amount = order_total(payload.products);
+                  // Payment is never written from the edit form: it has its own endpoint that stays open, and
+                  // an edit loaded before a payment was recorded would put the old payment back. The stored
+                  // status is kept and its amount follows the new total, the way paid means the whole total.
+                  const paid_amount = resolve_paid(order, total_amount);
 
-    const products = payload.products || [];
-    if (!products.length) {
-      return res.status(400).json({
-        code: 400,
-        message: "Purchase order must contain at least one product line",
-      });
-    }
+                  const lines = await tx.get_data({
+                        text: `SELECT product_oid, warehouse_oid, aisle_oid, ordered_quantity AS quantity, ordered_unit_price AS unit_price FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`,
+                        values: [payload.oid],
+                  });
 
-    const existingDetailsSql = {
-      text: `SELECT oid, product_oid FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`,
-      values: [payload.oid],
-    };
-    const existingDetails = await get_data(existingDetailsSql);
-    const existingDetailOidSet = new Set(existingDetails.map((row) => row.oid));
-    const existingProductByDetailOid = new Map(
-      existingDetails.map((row) => [row.oid, row.product_oid]),
-    );
+                  const header_changes = [
+                        ["supplier", order.supplier_oid !== payload.supplier_oid],
+                        ["purchase type", order.purchase_type !== payload.purchase_type],
+                        ["expected delivery", order.expected_delivery_date !== payload.expected_delivery_date],
+                        ["notes", (order.special_notes ?? null) !== payload.special_notes],
+                  ]
+                        .filter(([, differs]) => differs)
+                        .map(([label]) => label);
+                  const lines_changed = lines.map(line_key).sort().join(",") !== payload.products.map(line_key).sort().join(",");
 
-    const incomingExistingOids = products
-      .filter((product) => product?.oid)
-      .map((product) => product.oid);
+                  if (!header_changes.length && !lines_changed) {
+                        changed = false;
+                        return;
+                  }
 
-    const duplicateIncomingOids =
-      incomingExistingOids.length !== new Set(incomingExistingOids).size;
-    if (duplicateIncomingOids) {
-      return res.status(400).json({
-        code: 400,
-        message: "Duplicate product line references found in update payload",
-      });
-    }
+                  const updated = await tx.execute_value({
+                        text: `UPDATE ${TABLE.PURCHASE}
+                                  SET supplier_oid = $1, purchase_type = $2, expected_delivery_date = $3, special_notes = $4, paid_amount = $5, total_amount = $6,
+                                      edited_by = $7, edited_on = clock_timestamp()
+                                WHERE oid = $8 AND status = 'Submitted'`,
+                        values: [payload.supplier_oid, payload.purchase_type, payload.expected_delivery_date, payload.special_notes, paid_amount, total_amount, user_id, payload.oid],
+                  });
+                  if (updated.rowCount !== 1) fail(409, "This order changed while you were editing it. Reload it and try again.");
 
-    const hasInvalidExistingOid = incomingExistingOids.some(
-      (oid) => !existingDetailOidSet.has(oid),
-    );
-    if (hasInvalidExistingOid) {
-      return res.status(400).json({
-        code: 400,
-        message:
-          "One or more product lines are invalid for this purchase order",
-      });
-    }
+                  if (lines_changed) {
+                        await tx.execute_value({ text: `DELETE FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`, values: [payload.oid] });
+                        await insert_lines(tx, payload.oid, payload.products, uuidv4);
+                  }
 
-    const incomingExistingOidSet = new Set(incomingExistingOids);
-    const hasMissingExistingLines = existingDetails.some(
-      (row) => !incomingExistingOidSet.has(row.oid),
-    );
-    if (hasMissingExistingLines) {
-      return res.status(400).json({
-        code: 400,
-        message: "Deleting existing product lines is not allowed during update",
-      });
-    }
-
-    const hasExistingProductChange = products.some((product) => {
-      if (!product?.oid) {
-        return false;
+                  const what = [...header_changes, ...(lines_changed ? [`products (${payload.products.length} line${payload.products.length === 1 ? "" : "s"}, total ${taka(total_amount)})`] : [])];
+                  await saveLogActivity(
+                        {
+                              reference_type: "purchase-order",
+                              reference_oid: payload.oid,
+                              title: "Edited",
+                              description: `${order.po_number}: changed ${what.join(", ")}`,
+                        },
+                        { tx, request }
+                  );
+            });
+      } catch (e) {
+            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
+            log.error(`An exception occurred while updating purchase order ${payload.oid}: ${e?.message}`);
+            return res.status(500).json({ code: 500, message: "Could not save the purchase order. Try again in a moment." });
       }
 
-      const existingProductOid = existingProductByDetailOid.get(product.oid);
-      return !!existingProductOid && existingProductOid !== product.product_oid;
-    });
-    if (hasExistingProductChange) {
-      return res.status(400).json({
-        code: 400,
-        message:
-          "Changing product is not allowed for existing lines. Edit quantity, warehouse, aisle, or unit price instead.",
-      });
-    }
+      if (!changed) return res.status(200).json({ code: 200, message: "Nothing changed.", data: { changed: false } });
 
-    const purchase_sql = {
-      text: `UPDATE ${TABLE.PURCHASE} SET supplier_oid = $1, total_amount = $2, special_notes = $3, payment_status = $4, paid_amount = $5, purchase_type = $6, status = $7, edited_on = clock_timestamp(), edited_by = $8 WHERE oid = $9`,
-      values: [
-        payload.supplier_oid,
-        payload.total_amount,
-        payload.special_notes,
-        payload.payment_status,
-        payload.paid_amount,
-        payload.purchase_type,
-        "Submitted",
-        user_id,
-        payload.oid,
-      ],
-    };
-
-    const purchase_details_sql = [];
-    let updatedLineItems = 0;
-    let insertedLineItems = 0;
-
-    products.forEach((product) => {
-      if (product?.oid) {
-        purchase_details_sql.push({
-          text: `UPDATE ${TABLE.PURCHASE_DETAILS} SET product_oid = $1, warehouse_oid = $2, aisle_oid = $3, ordered_quantity = $4, ordered_unit_price = $5 WHERE oid = $6 AND purchase_oid = $7`,
-          values: [
-            product.product_oid,
-            product.warehouse_oid,
-            product.aisle_oid,
-            product.quantity,
-            product.unit_price,
-            product.oid,
-            payload.oid,
-          ],
-        });
-        updatedLineItems += 1;
-        return;
-      }
-
-      purchase_details_sql.push({
-        text: `INSERT INTO ${TABLE.PURCHASE_DETAILS} (oid, purchase_oid, product_oid, warehouse_oid, aisle_oid, ordered_quantity, ordered_unit_price) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        values: [
-          uuidv4(),
-          payload.oid,
-          product.product_oid,
-          product.warehouse_oid,
-          product.aisle_oid,
-          product.quantity,
-          product.unit_price,
-        ],
-      });
-      insertedLineItems += 1;
-    });
-
-    await execute_values([purchase_sql, ...purchase_details_sql]);
-
-    saveLogActivity({
-      reference_type: "purchase-order",
-      reference_oid: payload.oid,
-      title: "Purchase Order Updated",
-      description: `Purchase order updated: ${updatedLineItems} line item(s) updated, ${insertedLineItems} line item(s) inserted`,
-      performed_by: user_id,
-    });
-  } catch (e) {
-    log.error(
-      `An exception occurred while updating purchase order: ${e?.message}`,
-    );
-    return res.status(500).json({
-      code: 500,
-      message: "Something Went Wrong! Please try again later!",
-    });
-  }
-
-  log.info(`Purchase order ${payload.oid} updated successfully by: ${user_id}`);
-  return res.status(200).json({
-    code: 200,
-    message: "Purchase order Updated Successfully!",
-  });
+      log.info(`Purchase order ${payload.oid} updated by ${user_id}`);
+      return res.status(200).json({ code: 200, message: "Purchase order saved", data: { changed: true } });
 };
 
 module.exports = update_purchase_order_details;

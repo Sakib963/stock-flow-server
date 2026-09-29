@@ -23,7 +23,7 @@ router.get(
 
 router.get(
       ROUTES.GET_SUPPLIER_LIST_FOR_DROPDOWN,
-      [jwtMiddleware, requirePermission('configuration.supplier.view'), validator.get(supplier_dropdown_schema)],
+      [jwtMiddleware, requirePermission(['configuration.supplier.view', 'inventory.purchase-order.view', 'inventory.purchase-order.create', 'inventory.purchase-order.edit']), validator.get(supplier_dropdown_schema)],
       get_supplier_list_for_dropdown
 );
 

@@ -64,7 +64,7 @@ const checkout_pos_sale = async (request, res) => {
                               customer_name = $2, customer_phone = $3, customer_address = $4, customer_email = $5,
                               subtotal = $6, total_amount = $7,
                               payment_method = $8, payment_reference = $9, payment_status = $10, amount_paid = $11,
-                              status = 'Purchased', notes = $12, edited_by = $13, edited_on = NOW()
+                              status = 'Purchased', sold_on = clock_timestamp(), notes = $12, edited_by = $13, edited_on = NOW()
                             WHERE oid = $1`,
                     values: [
                         order_oid,
@@ -84,8 +84,8 @@ const checkout_pos_sale = async (request, res) => {
                     text: `INSERT INTO ${TABLE.ORDERS}
                              (oid, invoice_no, channel, order_type, customer_name, customer_phone, customer_address, customer_email,
                               subtotal, discount_total, delivery_charge, total_amount, amount_paid,
-                              payment_type, payment_method, payment_reference, payment_status, status, notes, created_by)
-                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,$9,NULL,$10,$11,$12,'Purchased',$13,$14)`,
+                              payment_type, payment_method, payment_reference, payment_status, status, sold_on, notes, created_by)
+                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,$9,NULL,$10,$11,$12,'Purchased',clock_timestamp(),$13,$14)`,
                     values: [
                         order_oid, invoice_no,
                         payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,

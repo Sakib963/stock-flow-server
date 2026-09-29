@@ -11,14 +11,14 @@ const get_purchase_order_report = async (request, res) => {
     if (!data || data.length === 0) {
       return res.status(404).json({
         code: 404,
-        message: "No Purchase Order report Found",
+        message: "That purchase order no longer exists.",
         data: null,
       });
     }
 
     const buffer = await generate_purchase_report_xlsx(data);
     const timestamp = Date.now();
-    const file_name = `purchase_order_report_${timestamp}.xlsx`;
+    const file_name = `purchase_order_${data[0].po_number}_${timestamp}.xlsx`;
     const file_name_ascii = file_name.replace(/[^\x00-\x7F]/g, "");
     const file_name_encoded = encodeURIComponent(file_name);
 
@@ -40,13 +40,14 @@ const get_purchase_order_report = async (request, res) => {
     log.error(`Error generating purchase order report: ${error?.message}`);
     return res
       .status(500)
-      .json({ code: 500, message: "Internal server error" });
+      .json({ code: 500, message: "Could not build the report. Try again in a moment." });
   }
 };
 
 const get_report_data = async (oid) => {
   const query = `
-      SELECT po.oid, po.supplier_oid, po.total_amount, po.special_notes, po.payment_status, po.paid_amount, po.purchase_type, po.status, po.created_by, po.created_on, po.edited_by, po.edited_on, po.cancelled_by, po.cancelled_on, po.verified_by, po.verified_on, s.name AS supplier_name,
+      SELECT po.oid, po.po_number, po.supplier_oid, po.total_amount, po.special_notes, po.payment_status,
+        CASE po.payment_status WHEN 'paid' THEN po.total_amount WHEN 'partially_paid' THEN COALESCE(po.paid_amount, 0) ELSE 0 END AS paid_amount, po.purchase_type, po.status, po.created_by, po.created_on, po.edited_by, po.edited_on, po.cancelled_by, po.cancelled_on, po.verified_by, po.verified_on, s.name AS supplier_name,
       JSON_AGG(JSON_BUILD_OBJECT(
             'purchase_details_oid', pd.oid,
             'product_oid', p.oid,
@@ -58,6 +59,7 @@ const get_report_data = async (oid) => {
             'batch_code', i.batch_code,
             'ordered_quantity', pd.ordered_quantity,
             'verified_quantity', pd.verified_quantity,
+            'batch_quantity', COALESCE(i.initial_quantity, pd.verified_quantity),
             'ordered_unit_price', pd.ordered_unit_price,
             'verified_unit_price', pd.verified_unit_price,
             'selling_price', i.selling_price,
@@ -108,6 +110,7 @@ const generate_purchase_report_xlsx = async (data) => {
   currentRow += 2;
 
   const basicInfo = [
+    ["Order number:", purchaseOrder.po_number],
     ["Supplier:", purchaseOrder.supplier_name],
     ["Total Amount:", purchaseOrder.total_amount],
     ["Paid Amount:", purchaseOrder.paid_amount],
@@ -274,12 +277,13 @@ const generate_purchase_report_xlsx = async (data) => {
         Number(detail.influencer_cost || 0);
       const probableProfitPerUnit = Number(detail.unit_profit_hint || 0);
       const probableProfitLine =
-        probableProfitPerUnit * Number(detail.verified_quantity || 0);
+        probableProfitPerUnit * Number(detail.batch_quantity || 0);
 
+      // Per batch, not per line: a line verified more than once before the port has several batches.
       costSheet.addRow([
         detail.product_name,
         detail.batch_code,
-        detail.verified_quantity,
+        detail.batch_quantity,
         detail.verified_unit_price,
         detail.selling_price,
         detail.maximum_discount,

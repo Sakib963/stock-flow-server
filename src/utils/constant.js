@@ -201,6 +201,8 @@ module.exports = {
     GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
     VERIFY_PURCHASE: "/verify-purchase",
     CANCEL_PURCHASE: "/cancel-purchase",
+    UPDATE_PURCHASE_PAYMENT: "/update-purchase-payment",
+    GET_PRODUCT_LIST_FOR_PURCHASE: "/get-product-list-for-purchase",
 
     GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
     GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",

@@ -1,171 +1,103 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
-const { generate_batch_code } = require("../utils/generate-batch-code");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
+const { NEXT_BATCH_CODE } = require("../utils/order-rules");
 const { v4: uuidv4 } = require("uuid");
 
-// Batch codes must be unique across inventory. Read inside the caller's
-// transaction so a code cannot be handed out twice concurrently.
-const check_unique_batch_code = async (tx, batch_code) => {
-    const rows = await tx.get_data({
-        text: `SELECT COUNT(oid)::int4 as total FROM ${TABLE.INVENTORY} WHERE batch_code = $1`,
-        values: [batch_code],
-    });
-    return rows[0].total === 0;
-};
+const BUDGETS = ["ad_run_cost", "packaging_cost", "gift_cost", "content_creation_cost", "influencer_cost"];
 
+// The delivery is counted by hand and this is the one place stock comes in. The status moves first,
+// guarded, so a second verify of the same order (a double click, a retried request, a second tab)
+// waits on the row lock and then finds it already Verified: the old unguarded verify ran three times
+// on one order and put three batches on the shelf for every line.
+//
+// The unit price here is the final one: what was agreed with the supplier at delivery, which can
+// differ from the price ordered. It becomes the batch's cost.
 const verify_purchase_order = async (request, res) => {
-    const payload = request.body;
-    const user_id = request.credentials.user_id;
+      const { oid, lines } = request.body;
+      const user_id = request.credentials.user_id;
 
-    if (!Array.isArray(payload.products) || !payload.products.length) {
-        return res.status(400).json({ code: 400, message: "At least one product is required for verification" });
-    }
+      try {
+            const result = await execute_transaction(async (tx) => {
+                  const moved = await tx.execute_value({
+                        text: `UPDATE ${TABLE.PURCHASE} SET status = 'Verified', verified_by = $1, verified_on = clock_timestamp(), edited_by = $1, edited_on = clock_timestamp()
+                                WHERE oid = $2 AND status = 'Submitted' RETURNING po_number`,
+                        values: [user_id, oid],
+                  });
+                  if (!moved.rowCount) {
+                        const [order] = await tx.get_data({ text: `SELECT status FROM ${TABLE.PURCHASE} WHERE oid = $1`, values: [oid] });
+                        if (!order) fail(404, "That purchase order no longer exists.");
+                        fail(409, `This order is already ${order.status}, so it cannot be verified again.`, { status: order.status });
+                  }
+                  const po_number = moved.rows[0].po_number;
 
-    try {
-        const batch_code = await execute_transaction(async (tx) => {
-            const details = await tx.get_data({
-                text: `SELECT oid, product_oid FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`,
-                values: [payload.oid],
+                  const ordered = await tx.get_data({
+                        text: `SELECT oid, product_oid, ordered_quantity::int AS ordered_quantity FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`,
+                        values: [oid],
+                  });
+                  const by_oid = new Map(ordered.map((line) => [line.oid, line]));
+                  const sent = new Set(lines.map((line) => line.oid));
+                  if (sent.size !== lines.length || lines.length !== ordered.length || lines.some((line) => !by_oid.has(line.oid))) {
+                        fail(400, "Every line on the order must be checked exactly once. Reload the order and check each line.");
+                  }
+
+                  let units = 0;
+                  let batches = 0;
+                  for (const line of lines) {
+                        const { product_oid, ordered_quantity } = by_oid.get(line.oid);
+                        if (line.received_quantity > ordered_quantity) {
+                              fail(400, `More arrived than was ordered on one line (${line.received_quantity} of ${ordered_quantity}). Record what was ordered and set the extra aside, or raise a new order for it.`, { line: line.oid });
+                        }
+
+                        await tx.execute_value({
+                              text: `UPDATE ${TABLE.PURCHASE_DETAILS} SET verified_quantity = $1, verified_unit_price = $2 WHERE oid = $3 AND purchase_oid = $4`,
+                              values: [line.received_quantity, line.unit_price, line.oid, oid],
+                        });
+
+                        // Nothing arrived on this line, so there is no batch: an empty batch is a row every
+                        // stock list has to step around.
+                        if (!line.received_quantity) continue;
+
+                        const for_sale = line.intended_use === "for_sale";
+                        await tx.execute_value({
+                              text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, created_by)
+                                     VALUES ($1, ${NEXT_BATCH_CODE}, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10)`,
+                              values: [uuidv4(), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, user_id],
+                        });
+                        units += line.received_quantity;
+                        batches += 1;
+
+                        if (BUDGETS.some((key) => line[key] !== null) || line.cost_remarks) {
+                              await tx.execute_value({
+                                    text: `INSERT INTO ${TABLE.PURCHASE_DETAILS_COST_PROFILE} (oid, purchase_details_oid, ad_run_cost, packaging_cost, gift_cost, content_creation_cost, influencer_cost, cost_remarks, created_by)
+                                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                                    values: [uuidv4(), line.oid, ...BUDGETS.map((key) => line[key]), line.cost_remarks, user_id],
+                              });
+                        }
+                  }
+
+                  const ordered_units = ordered.reduce((sum, line) => sum + line.ordered_quantity, 0);
+                  await saveLogActivity(
+                        {
+                              reference_type: "purchase-order",
+                              reference_oid: oid,
+                              title: "Delivery verified",
+                              description: `${po_number}: ${units} of ${ordered_units} units received, ${batches} batch${batches === 1 ? "" : "es"} created`,
+                        },
+                        { tx, request }
+                  );
+
+                  return { po_number, units, batches };
             });
 
-            if (!details.length) fail(404, "Purchase order not found");
-
-            const payloadDetailOids = payload.products.map((product) => product.oid);
-            if (new Set(payloadDetailOids).size !== payloadDetailOids.length) {
-                fail(400, "Duplicate product rows found in verification payload");
-            }
-            if (payload.products.length !== details.length) {
-                fail(400, "Verification payload must include all purchase items");
-            }
-
-            const dbDetailsByOid = new Map(details.map((row) => [row.oid, row]));
-            for (const product of payload.products) {
-                const detailRow = dbDetailsByOid.get(product.oid);
-                if (!detailRow) fail(400, "Invalid purchase item found in verification payload");
-                if (detailRow.product_oid !== product.product_oid) fail(400, "Product identity mismatch in verification payload");
-            }
-
-            const purchaseUpdateResult = await tx.execute_value({
-                text: `UPDATE ${TABLE.PURCHASE} SET status = $1, verified_on = clock_timestamp(), verified_by = $2, edited_on = clock_timestamp(), edited_by = $2 WHERE oid = $3 AND status = $4 RETURNING oid`,
-                values: ["Verified", user_id, payload.oid, "Submitted"],
-            });
-
-            if (!purchaseUpdateResult.rowCount) {
-                const statusCheck = await tx.get_data({
-                    text: `SELECT status FROM ${TABLE.PURCHASE} WHERE oid = $1`,
-                    values: [payload.oid],
-                });
-                if (!statusCheck.length) fail(404, "Purchase order not found");
-                fail(409, "Purchase order already processed. Only submitted orders can be verified");
-            }
-
-            let batch_code;
-            let is_unique = false;
-            while (!is_unique) {
-                batch_code = generate_batch_code();
-                is_unique = await check_unique_batch_code(tx, batch_code);
-            }
-
-            for (const product of payload.products) {
-                const updateDetailsResult = await tx.execute_value({
-                    text: `UPDATE ${TABLE.PURCHASE_DETAILS} SET verified_quantity = $1, verified_unit_price = $2 WHERE oid = $3 AND purchase_oid = $4`,
-                    values: [product.verified_quantity, product.verified_unit_price, product.oid, payload.oid],
-                });
-
-                if (updateDetailsResult.rowCount !== 1) {
-                    throw new Error(`Unable to update purchase details for oid ${product.oid}`);
-                }
-
-                let status = "internal_use";
-                const hasSellingPrice = product.selling_price !== null && product.selling_price !== undefined;
-                if (product.intended_use === "for_sale" && hasSellingPrice) {
-                    status = "ready_for_sale";
-                } else if (product.intended_use === "for_sale" && !hasSellingPrice) {
-                    status = "pending_pricing";
-                }
-
-                await tx.execute_value({
-                    text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, created_by, selling_price, maximum_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                    values: [
-                        uuidv4(),
-                        batch_code,
-                        product.product_oid,
-                        product.oid,
-                        product.verified_quantity,
-                        product.verified_quantity,
-                        product.verified_unit_price,
-                        product.intended_use,
-                        status,
-                        user_id,
-                        product.selling_price,
-                        product.maximum_discount,
-                    ],
-                });
-
-                const hasNumericCost = [
-                    product.ad_run_cost,
-                    product.packaging_cost,
-                    product.gift_cost,
-                    product.content_creation_cost,
-                    product.influencer_cost,
-                ].some((value) => value !== null && value !== undefined);
-
-                const hasRemark = !!(product.cost_remarks && `${product.cost_remarks}`.trim().length > 0);
-
-                if (hasNumericCost || hasRemark) {
-                    await tx.execute_value({
-                        text: `INSERT INTO ${TABLE.PURCHASE_DETAILS_COST_PROFILE} (oid, purchase_details_oid, ad_run_cost, packaging_cost, gift_cost, content_creation_cost, influencer_cost, cost_remarks, created_by, created_on)
-                               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, clock_timestamp())
-                               ON CONFLICT (purchase_details_oid)
-                               DO UPDATE SET
-                                 ad_run_cost = EXCLUDED.ad_run_cost,
-                                 packaging_cost = EXCLUDED.packaging_cost,
-                                 gift_cost = EXCLUDED.gift_cost,
-                                 content_creation_cost = EXCLUDED.content_creation_cost,
-                                 influencer_cost = EXCLUDED.influencer_cost,
-                                 cost_remarks = EXCLUDED.cost_remarks,
-                                 edited_by = EXCLUDED.created_by,
-                                 edited_on = clock_timestamp()`,
-                        values: [
-                            uuidv4(),
-                            product.oid,
-                            product.ad_run_cost ?? null,
-                            product.packaging_cost ?? null,
-                            product.gift_cost ?? null,
-                            product.content_creation_cost ?? null,
-                            product.influencer_cost ?? null,
-                            product.cost_remarks || null,
-                            user_id,
-                        ],
-                    });
-                }
-            }
-
-            return batch_code;
-        });
-
-        saveLogActivity({
-            reference_type: "purchase-order",
-            reference_oid: payload.oid,
-            title: "Purchase Order Verified",
-            description: `Purchase order verified and inventory moved to batch ${batch_code}`,
-            performed_by: user_id,
-        });
-
-        log.info(`Purchase order ${payload.oid} verified successfully by: ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Purchase order verified Successfully!" });
-    } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
-
-        if (e?.code === "23505") {
-            return res.status(409).json({ code: 409, message: "Purchase order already verified or inventory already created for one or more items" });
-        }
-
-        log.error(`An exception occurred while verifying purchase order: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-    }
+            log.info(`Purchase order ${result.po_number} verified by ${user_id}: ${result.units} units in ${result.batches} batches`);
+            return res.status(200).json({ code: 200, message: "Delivery verified and stock added", data: result });
+      } catch (e) {
+            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
+            log.error(`An exception occurred while verifying purchase order ${oid}: ${e?.message}`);
+            return res.status(500).json({ code: 500, message: "Could not verify the delivery. Nothing was added to stock. Try again in a moment." });
+      }
 };
 
 module.exports = verify_purchase_order;

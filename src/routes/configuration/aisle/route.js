@@ -24,7 +24,7 @@ router.get(
 
 router.get(
       ROUTES.GET_AISLE_LIST_FOR_DROPDOWN,
-      [jwtMiddleware, requirePermission("configuration.aisle.view"), validator.get(aisle_dropdown_schema)],
+      [jwtMiddleware, requirePermission(["configuration.aisle.view", "inventory.purchase-order.create", "inventory.purchase-order.edit"]), validator.get(aisle_dropdown_schema)],
       get_aisle_list_for_dropdown
 );
 
