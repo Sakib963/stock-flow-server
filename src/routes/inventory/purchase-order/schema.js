@@ -1,6 +1,6 @@
 const Joi = require("joi");
 
-const STATUSES = ["Submitted", "Verified", "Cancelled"];
+const STATUSES = ["Draft", "Submitted", "Verified", "Cancelled"];
 const PAYMENT_STATUSES = ["paid", "partially_paid", "unpaid"];
 const PURCHASE_TYPES = ["instant", "advance", "overseas"];
 
@@ -30,32 +30,42 @@ const payment_fields = {
       paid_amount: Joi.number().integer().min(0).allow(null).default(0),
 };
 
+// A draft is saved half typed: only the supplier is needed, and a line needs only its product.
+// Submitting checks everything, so a draft is the one place these may be empty.
+const optional = (schema) => schema.allow(null, "").empty("").default(null);
+const draftOr = (draft, full) => Joi.when("/draft", { is: true, then: draft, otherwise: full });
+
+const line = Joi.object({
+      product_oid: Joi.string().uuid().required(),
+      warehouse_oid: draftOr(optional(Joi.string().uuid()), Joi.string().uuid().required()),
+      aisle_oid: optional(Joi.string().uuid()),
+      quantity: draftOr(optional(quantity), quantity.required()),
+      unit_price: draftOr(optional(price), price.required()),
+});
+
 const order_fields = {
+      draft: Joi.boolean().default(false),
       supplier_oid: Joi.string().uuid().required(),
-      purchase_type: Joi.string().valid(...PURCHASE_TYPES).required(),
-      expected_delivery_date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow(null, "").empty("").default(null),
-      special_notes: Joi.string().trim().max(1000).allow(null, "").empty("").default(null),
-      products: Joi.array()
-            .min(1)
-            .max(200)
-            .items(
-                  Joi.object({
-                        product_oid: Joi.string().uuid().required(),
-                        warehouse_oid: Joi.string().uuid().required(),
-                        aisle_oid: Joi.string().uuid().allow(null, "").empty("").default(null),
-                        quantity: quantity.required(),
-                        unit_price: price.required(),
-                  })
-            )
-            .required(),
+      purchase_type: draftOr(optional(Joi.string().valid(...PURCHASE_TYPES)), Joi.string().valid(...PURCHASE_TYPES).required()),
+      expected_delivery_date: optional(Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/)),
+      special_notes: optional(Joi.string().trim().max(1000)),
+      products: draftOr(Joi.array().max(200).items(line).default([]), Joi.array().min(1).max(200).items(line).required()),
 };
 
-const purchase_order_create_schema = Joi.object({ ...order_fields, ...payment_fields });
+const purchase_order_create_schema = Joi.object({
+      ...order_fields,
+      payment_status: draftOr(optional(Joi.string().valid(...PAYMENT_STATUSES)), payment_fields.payment_status),
+      paid_amount: payment_fields.paid_amount,
+});
 
-// No payment: it changes only through Record payment, so an edit opened before a payment cannot undo it.
+// Payment is sent only while the order is a Draft, whose payment lives in the form. Once submitted it
+// changes through Record payment alone, and the server refuses it here, so an edit opened before a
+// payment was recorded cannot put the old one back.
 const purchase_order_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
       ...order_fields,
+      payment_status: optional(Joi.string().valid(...PAYMENT_STATUSES)),
+      paid_amount: Joi.number().integer().min(0).allow(null).optional(),
 });
 
 const purchase_order_payment_schema = Joi.object({

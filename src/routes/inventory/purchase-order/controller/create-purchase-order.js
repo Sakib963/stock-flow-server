@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { taka, order_total, resolve_paid, check_references, insert_lines } = require("../utils/order-rules");
+const { taka, order_total, resolve_paid, draft_paid, check_references, insert_lines } = require("../utils/order-rules");
 const { v4: uuidv4 } = require("uuid");
 
 const create_purchase_order = async (request, res) => {
@@ -11,17 +11,18 @@ const create_purchase_order = async (request, res) => {
       const purchase_oid = uuidv4();
 
       try {
-            const po_number = await execute_transaction(async (tx) => {
+            const { po_number, status } = await execute_transaction(async (tx) => {
                   await check_references(tx, payload);
 
                   const total_amount = order_total(payload.products);
-                  const paid_amount = resolve_paid(payload, total_amount);
+                  const paid_amount = payload.draft ? draft_paid(payload, total_amount) : resolve_paid(payload, total_amount);
+                  const status = payload.draft ? "Draft" : "Submitted";
 
                   const [created] = (
                         await tx.execute_value({
                               text: `INSERT INTO ${TABLE.PURCHASE} (oid, supplier_oid, total_amount, special_notes, payment_status, paid_amount, purchase_type, expected_delivery_date, status, created_by)
-                                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Submitted', $9) RETURNING po_number`,
-                              values: [purchase_oid, payload.supplier_oid, total_amount, payload.special_notes, payload.payment_status, paid_amount, payload.purchase_type, payload.expected_delivery_date, user_id],
+                                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING po_number`,
+                              values: [purchase_oid, payload.supplier_oid, total_amount, payload.special_notes, payload.payment_status, paid_amount, payload.purchase_type, payload.expected_delivery_date, status, user_id],
                         })
                   ).rows;
 
@@ -31,17 +32,17 @@ const create_purchase_order = async (request, res) => {
                         {
                               reference_type: "purchase-order",
                               reference_oid: purchase_oid,
-                              title: "Raised and submitted",
-                              description: `${created.po_number}: ${payload.products.length} product${payload.products.length === 1 ? "" : "s"}, total ${taka(total_amount)}, ${payload.payment_status.replace("_", " ")}${payload.payment_status === "partially_paid" ? ` ${taka(paid_amount)}` : ""}`,
+                              title: payload.draft ? "Saved as draft" : "Raised and submitted",
+                              description: `${created.po_number}: ${payload.products.length} product${payload.products.length === 1 ? "" : "s"}, total ${taka(total_amount)}${payload.payment_status ? `, ${payload.payment_status.replace("_", " ")}` : ""}${payload.payment_status === "partially_paid" ? ` ${taka(paid_amount)}` : ""}`,
                         },
                         { tx, request }
                   );
 
-                  return created.po_number;
+                  return { po_number: created.po_number, status };
             });
 
             log.info(`Purchase order ${po_number} created by ${user_id}`);
-            return res.status(200).json({ code: 200, message: "Purchase order submitted", data: { oid: purchase_oid, po_number } });
+            return res.status(200).json({ code: 200, message: status === "Draft" ? "Draft saved" : "Purchase order submitted", data: { oid: purchase_oid, po_number, status } });
       } catch (e) {
             if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
             log.error(`An exception occurred while creating a purchase order: ${e?.message}`);

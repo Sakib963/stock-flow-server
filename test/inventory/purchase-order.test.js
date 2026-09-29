@@ -236,6 +236,69 @@ describe("verifying a delivery", () => {
       });
 });
 
+describe("drafting a purchase order", () => {
+      let ids;
+      let owner;
+
+      beforeEach(async () => {
+            await h.reset();
+            ids = await seed();
+            owner = await sign_in_with(ALL);
+      });
+
+      const half = (ids) => ({ draft: true, supplier_oid: ids.supplier, products: [{ product_oid: ids.kurti }, { product_oid: ids.scarf, warehouse_oid: ids.main, quantity: 5 }] });
+
+      it("saves a draft with only the supplier and half typed lines", async () => {
+            const res = await post(CREATE, owner, half(ids));
+
+            assert.equal(res.status, 200, JSON.stringify(res.body));
+            const [row] = await h.query("SELECT status, payment_status, total_amount::int AS total FROM purchase WHERE oid = $1", [res.body.data.oid]);
+            assert.deepEqual(row, { status: "Draft", payment_status: null, total: 0 });
+            assert.equal((await lines_of(res.body.data.oid)).length, 2);
+      });
+
+      it("keeps a draft out of stock and payment until it is submitted", async () => {
+            const oid = (await post(CREATE, owner, half(ids))).body.data.oid;
+
+            const nothing = (await lines_of(oid)).map((line) => ({ oid: line.oid, received_quantity: 0, unit_price: 0, intended_use: "internal_use" }));
+            assert.equal((await post(VERIFY, owner, { oid, lines: nothing })).status, 409);
+            assert.equal((await post(PAYMENT, owner, { oid, payment_status: "paid" })).status, 409);
+            assert.equal((await h.query("SELECT count(*)::int AS n FROM inventory"))[0].n, 0);
+      });
+
+      it("refuses to submit a draft whose lines or payment are not complete", async () => {
+            const oid = (await post(CREATE, owner, half(ids))).body.data.oid;
+
+            const incomplete = await post(UPDATE, owner, { oid, supplier_oid: ids.supplier, purchase_type: "overseas", payment_status: "unpaid", products: [{ product_oid: ids.kurti }] });
+            assert.equal(incomplete.status, 400);
+            const no_payment = await post(UPDATE, owner, { ...edit_of(ids, oid), purchase_type: "overseas" });
+            assert.equal(no_payment.status, 400);
+            assert.equal((await h.query("SELECT status FROM purchase WHERE oid = $1", [oid]))[0].status, "Draft");
+      });
+
+      it("submits a draft once everything is filled in, and it can then be verified", async () => {
+            const oid = (await post(CREATE, owner, half(ids))).body.data.oid;
+
+            const res = await post(UPDATE, owner, { oid, ...order(ids, { payment_status: "partially_paid", paid_amount: 1000 }) });
+
+            assert.equal(res.status, 200, JSON.stringify(res.body));
+            assert.equal(res.body.data.status, "Submitted");
+            const [row] = await h.query("SELECT status, paid_amount::int AS paid FROM purchase WHERE oid = $1", [oid]);
+            assert.deepEqual(row, { status: "Submitted", paid: 1000 });
+            assert.equal((await post(VERIFY, owner, { oid, lines: all_arrived(await lines_of(oid)) })).status, 200);
+      });
+
+      it("never turns a submitted order back into a draft", async () => {
+            const oid = (await post(CREATE, owner, order(ids))).body.data.oid;
+            assert.equal((await post(UPDATE, owner, { ...edit_of(ids, oid), draft: true })).status, 409);
+      });
+
+      it("lets a draft be cancelled", async () => {
+            const oid = (await post(CREATE, owner, half(ids))).body.data.oid;
+            assert.equal((await post(CANCEL, owner, { oid, reason: "Ordered from another supplier" })).status, 200);
+      });
+});
+
 describe("cancelling a purchase order", () => {
       let ids;
       let owner;

@@ -11,7 +11,7 @@ const DETAILS_SQL = `
              (CASE p.payment_status WHEN 'paid' THEN p.total_amount WHEN 'partially_paid' THEN COALESCE(p.paid_amount, 0) ELSE 0 END)::bigint AS paid_amount,
              to_char(p.expected_delivery_date, 'YYYY-MM-DD') AS expected_delivery_date,
              p.supplier_oid, s.name AS supplier_name, s.phone_number AS supplier_phone, s.status AS supplier_status,
-             (SELECT COUNT(*)::int FROM ${TABLE.PURCHASE} x WHERE x.supplier_oid = p.supplier_oid AND x.status <> 'Cancelled' AND date_trunc('year', x.created_on) = date_trunc('year', CURRENT_DATE)) AS supplier_orders_this_year,
+             (SELECT COUNT(*)::int FROM ${TABLE.PURCHASE} x WHERE x.supplier_oid = p.supplier_oid AND x.status IN ('Submitted', 'Verified') AND date_trunc('year', x.created_on) = date_trunc('year', CURRENT_DATE)) AS supplier_orders_this_year,
              p.created_on, p.created_by, cu.name AS created_by_name,
              p.verified_on, p.verified_by, vu.name AS verified_by_name,
              p.cancelled_on, p.cancelled_by, xu.name AS cancelled_by_name,
@@ -38,7 +38,7 @@ const LINES_SQL = `
              COALESCE(b.batches, '[]'::json) AS batches
         FROM ${TABLE.PURCHASE_DETAILS} d
         JOIN ${TABLE.PRODUCT} pr ON pr.oid = d.product_oid
-        JOIN ${TABLE.WAREHOUSE} w ON w.oid = d.warehouse_oid
+        LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = d.warehouse_oid
         LEFT JOIN ${TABLE.AISLE} a ON a.oid = d.aisle_oid
         LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} cp ON cp.purchase_details_oid = d.oid
         LEFT JOIN LATERAL (

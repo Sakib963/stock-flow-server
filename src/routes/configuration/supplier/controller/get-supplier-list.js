@@ -21,7 +21,7 @@ const STATS = {
     active: `COUNT(*) FILTER (WHERE s.status = 'Active')::int`,
     inactive: `COUNT(*) FILTER (WHERE s.status = 'Inactive')::int`,
     owing: `COUNT(*) FILTER (WHERE ${OWED} > 0)::int`,
-    unused: `COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM ${TABLE.PURCHASE} p WHERE p.supplier_oid = s.oid AND p.status <> 'Cancelled'))::int`,
+    unused: `COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM ${TABLE.PURCHASE} p WHERE p.supplier_oid = s.oid AND p.status IN ('Submitted', 'Verified')))::int`,
 };
 
 const get_supplier_list = async (request, res) => {

@@ -33,6 +33,7 @@ const FROM = `${TABLE.PURCHASE} p
 const OVERDUE = `p.status = 'Submitted' AND p.expected_delivery_date < CURRENT_DATE`;
 
 const STATS = {
+    draft: `COUNT(*) FILTER (WHERE p.status = 'Draft')::int`,
     submitted: `COUNT(*) FILTER (WHERE p.status = 'Submitted')::int`,
     overdue: `COUNT(*) FILTER (WHERE ${OVERDUE})::int`,
     verified: `COUNT(*) FILTER (WHERE p.status = 'Verified')::int`,

@@ -22,6 +22,8 @@ const update_purchase_payment = async (request, res) => {
                   });
                   if (!order) fail(404, "That purchase order no longer exists.");
                   if (order.status === "Cancelled") fail(409, "This order was cancelled, so its payment can no longer be changed.", { status: order.status });
+                  // A draft's payment is part of its form until it is submitted.
+                  if (order.status === "Draft") fail(409, "This order is still a draft. Set its payment in the draft and submit it.", { status: order.status });
 
                   const total = Number(order.total_amount);
                   const paid_amount = resolve_paid(payload, total);
@@ -31,7 +33,7 @@ const update_purchase_payment = async (request, res) => {
                   }
 
                   await tx.execute_value({
-                        text: `UPDATE ${TABLE.PURCHASE} SET payment_status = $1, paid_amount = $2, edited_by = $3, edited_on = clock_timestamp() WHERE oid = $4 AND status <> 'Cancelled'`,
+                        text: `UPDATE ${TABLE.PURCHASE} SET payment_status = $1, paid_amount = $2, edited_by = $3, edited_on = clock_timestamp() WHERE oid = $4 AND status IN ('Submitted', 'Verified')`,
                         values: [payload.payment_status, paid_amount, user_id, payload.oid],
                   });
 

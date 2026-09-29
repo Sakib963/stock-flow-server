@@ -14,7 +14,7 @@ const cancel_purchase_order = async (request, res) => {
                   const cancelled = await tx.execute_value({
                         text: `UPDATE ${TABLE.PURCHASE}
                                   SET status = 'Cancelled', cancel_reason = $1, cancelled_by = $2, cancelled_on = clock_timestamp(), edited_by = $2, edited_on = clock_timestamp()
-                                WHERE oid = $3 AND status = 'Submitted'
+                                WHERE oid = $3 AND status IN ('Draft', 'Submitted')
                             RETURNING po_number`,
                         values: [reason, user_id, oid],
                   });
