@@ -2,8 +2,11 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
+// last_ordered_on leaves out drafts, never sent, and cancelled orders, which bought nothing.
 const DROPDOWN_SQL = {
-      text: `SELECT oid AS value, name AS label, phone_number FROM ${TABLE.SUPPLIER} WHERE status = 'Active' ORDER BY name ASC`,
+      text: `SELECT s.oid AS value, s.name AS label, s.phone_number,
+                    (SELECT MAX(p.created_on) FROM ${TABLE.PURCHASE} p WHERE p.supplier_oid = s.oid AND p.status IN ('Submitted', 'Verified')) AS last_ordered_on
+             FROM ${TABLE.SUPPLIER} s WHERE s.status = 'Active' ORDER BY s.name ASC`,
       values: [],
 };
 

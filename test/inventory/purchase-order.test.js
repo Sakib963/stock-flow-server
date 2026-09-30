@@ -171,7 +171,7 @@ describe("verifying a delivery", () => {
             const batches = await h.query("SELECT batch_code, product_oid, quantity_available::int AS qty, cost_price::int AS cost, status FROM inventory ORDER BY cost_price");
             assert.equal(batches.length, 2);
             assert.notEqual(batches[0].batch_code, batches[1].batch_code);
-            for (const batch of batches) assert.match(batch.batch_code, /^B-\d{6}-\d{4,}$/);
+            for (const batch of batches) assert.match(batch.batch_code, /^B-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/);
             assert.deepEqual(batches.map((b) => [b.qty, b.cost, b.status]), [[80, 450, "ready_for_sale"], [40, 650, "ready_for_sale"]]);
       });
 
@@ -391,6 +391,20 @@ describe("what a purchase order reads from elsewhere", () => {
       it("lets someone who only views orders filter the list by supplier", async () => {
             const viewer = await sign_in_with(["inventory.purchase-order.view"]);
             assert.equal((await get(SUPPLIERS, viewer)).status, 200);
+      });
+
+      it("tells whoever picks a supplier when it was last ordered from, counting neither drafts nor cancelled orders", async () => {
+            const ids = await seed();
+            const owner = await sign_in_with(ALL);
+            const last_ordered = async () => (await get(SUPPLIERS, owner)).body.data.find((s) => s.value === ids.supplier).last_ordered_on;
+
+            await post(CREATE, owner, { draft: true, supplier_oid: ids.supplier, products: [{ product_oid: ids.kurti }] });
+            const cancelled = (await post(CREATE, owner, order(ids))).body.data.oid;
+            await post(CANCEL, owner, { oid: cancelled, reason: "Ordered by mistake" });
+            assert.equal(await last_ordered(), null);
+
+            await post(CREATE, owner, order(ids));
+            assert.notEqual(await last_ordered(), null);
       });
 
       it("refuses the reports to someone without the export permission", async () => {

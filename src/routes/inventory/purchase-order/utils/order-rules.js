@@ -61,12 +61,7 @@ const insert_lines = async (tx, purchase_oid, products, new_oid) => {
       }
 };
 
-// One code per product received, B-YYMMDD-NNNN, the number from a sequence so two deliveries verified
-// at the same moment cannot share one (2026-09-29-purchase-order-port.sql). FM9999990000 pads to four
-// digits and widens past 9999.
-const NEXT_BATCH_CODE = `'B-' || to_char(clock_timestamp(), 'YYMMDD') || '-' || to_char(nextval('inventory_batch_code_seq'), 'FM9999990000')`;
-
 // Activity descriptions are read by people: 1,48,250 rather than 148250.
 const taka = (amount) => Number(amount).toLocaleString("en-IN");
 
-module.exports = { taka, order_total, resolve_paid, draft_paid, check_references, insert_lines, NEXT_BATCH_CODE };
+module.exports = { taka, order_total, resolve_paid, draft_paid, check_references, insert_lines };
