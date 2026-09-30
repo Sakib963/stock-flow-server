@@ -27,7 +27,7 @@ const DETAILS_SQL = `
 // line verified before this port can carry several batches (one order was verified three times), so
 // batches come as a list, not a single column.
 const LINES_SQL = `
-      SELECT d.oid, d.product_oid, pr.name AS product_name, pr.sku, pr.restock_threshold::int AS restock_threshold,
+      SELECT d.oid, d.product_oid, pr.name AS product_name, pr.sku, pr.restock_threshold::int AS restock_threshold, pr.has_expiry,
              replace(pr.photo, '/image/upload/', '/image/upload/c_fill,w_48,h_48,f_auto,q_auto/') AS photo_thumb,
              d.warehouse_oid, w.name AS warehouse_name, d.aisle_oid, a.name AS aisle_name,
              d.ordered_quantity::int AS ordered_quantity, d.ordered_unit_price::bigint AS ordered_unit_price,
@@ -59,7 +59,8 @@ const LINES_SQL = `
             SELECT json_agg(json_build_object(
                        'oid', i.oid, 'batch_code', i.batch_code, 'intended_use', i.intended_use, 'status', i.status,
                        'initial_quantity', i.initial_quantity::int, 'quantity_available', i.quantity_available::int,
-                       'selling_price', i.selling_price::bigint, 'maximum_discount', i.maximum_discount::bigint
+                       'selling_price', i.selling_price::bigint, 'maximum_discount', i.maximum_discount::bigint,
+                       'expiry_date', to_char(i.expiry_date, 'YYYY-MM-DD')
                    ) ORDER BY i.created_on, i.oid) AS batches
               FROM ${TABLE.INVENTORY} i
              WHERE i.purchase_details_oid = d.oid

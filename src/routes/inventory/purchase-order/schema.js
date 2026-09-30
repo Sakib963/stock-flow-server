@@ -78,6 +78,14 @@ const purchase_order_cancel_schema = Joi.object({
       reason: Joi.string().trim().min(3).max(500).required(),
 });
 
+// A calendar day, kept as text end to end: a Date would shift a day across the business's timezone.
+const expiry_date = Joi.string()
+      .pattern(/^\d{4}-\d{2}-\d{2}$/)
+      .custom((value, helpers) => (new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value ? value : helpers.error("any.invalid")))
+      .allow(null, "")
+      .empty("")
+      .default(null);
+
 // Selling price and max discount only mean something for stock that is for sale; internal use stock
 // is never sold, so they are dropped rather than stored.
 const purchase_order_verify_schema = Joi.object({
@@ -99,9 +107,15 @@ const purchase_order_verify_schema = Joi.object({
                         content_creation_cost: budget,
                         influencer_cost: budget,
                         cost_remarks: Joi.string().trim().max(500).allow(null, "").empty("").default(null),
+                        expiry_date,
                   })
             )
             .required(),
+});
+
+const batch_expiry_schema = Joi.object({
+      inventory_oid: Joi.string().uuid().required(),
+      expiry_date,
 });
 
 const purchase_product_picker_schema = Joi.object({
@@ -118,5 +132,6 @@ module.exports = {
       purchase_order_payment_schema,
       purchase_order_cancel_schema,
       purchase_order_verify_schema,
+      batch_expiry_schema,
       purchase_product_picker_schema,
 };

@@ -4,7 +4,7 @@ const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
 const DETAILS_SQL = `
-      SELECT p.oid, p.name, p.sku, p.photo, p.unit_type, p.description, p.restock_threshold::int AS restock_threshold, p.status,
+      SELECT p.oid, p.name, p.sku, p.photo, p.unit_type, p.description, p.restock_threshold::int AS restock_threshold, p.status, p.has_expiry,
              p.category_oid, c.name AS category_name, p.sub_category_oid, s.name AS sub_category_name, p.brand_oid, b.name AS brand_name,
              p.created_by, p.created_on, p.edited_by, p.edited_on,
              COALESCE(p.edited_on, p.created_on) AS last_action_on,
@@ -20,7 +20,8 @@ const BATCHES_SQL = `
       SELECT i.oid, i.batch_code, w.name AS warehouse_name, i.created_on AS received_on,
              i.quantity_available::int AS on_hand, h.held,
              (CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - h.held, 0) ELSE 0 END)::int AS sellable,
-             i.cost_price::int AS cost_price, i.selling_price::int AS selling_price, i.status
+             i.cost_price::int AS cost_price, i.selling_price::int AS selling_price, i.status,
+             to_char(i.expiry_date, 'YYYY-MM-DD') AS expiry_date
       FROM ${TABLE.INVENTORY} i
       LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
       LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid

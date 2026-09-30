@@ -11,6 +11,7 @@ const {
       purchase_order_payment_schema,
       purchase_order_cancel_schema,
       purchase_order_verify_schema,
+      batch_expiry_schema,
       purchase_product_picker_schema,
 } = require("./schema");
 const get_purchase_order_list = require("./controller/get-purchase-order-list");
@@ -20,6 +21,7 @@ const create_purchase_order = require("./controller/create-purchase-order");
 const update_purchase_order_details = require("./controller/update-purchase-order-details");
 const update_purchase_payment = require("./controller/update-purchase-payment");
 const verify_purchase_order = require("./controller/verify-purchase-order");
+const update_batch_expiry = require("./controller/update-batch-expiry");
 const cancel_purchase_order = require("./controller/cancel-purchase-order");
 const get_purchase_order_report = require("./controller/get-purchase-order-report");
 const get_purchase_order_products_report = require("./controller/get-purchase-order-products-report");
@@ -43,6 +45,8 @@ router.post(ROUTES.UPDATE_PURCHASE_DETAILS, [jwtMiddleware, requirePermission("i
 router.post(ROUTES.UPDATE_PURCHASE_PAYMENT, [jwtMiddleware, requirePermission("inventory.purchase-order.edit"), validator.post(purchase_order_payment_schema)], update_purchase_payment);
 
 router.post(ROUTES.VERIFY_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.approve"), validator.post(purchase_order_verify_schema)], verify_purchase_order);
+
+router.post(ROUTES.UPDATE_BATCH_EXPIRY, [jwtMiddleware, requirePermission("inventory.purchase-order.edit"), validator.post(batch_expiry_schema)], update_batch_expiry);
 
 router.post(ROUTES.CANCEL_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.cancel"), validator.post(purchase_order_cancel_schema)], cancel_purchase_order);
 

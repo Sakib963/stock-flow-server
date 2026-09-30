@@ -17,7 +17,7 @@ const update_product_details = async (request, res) => {
       try {
             await execute_transaction(async (tx) => {
                   const rows = await tx.get_data({
-                        text: `SELECT name, sku, category_oid, sub_category_oid, brand_oid, unit_type, description, photo, restock_threshold::int AS restock_threshold, status
+                        text: `SELECT name, sku, category_oid, sub_category_oid, brand_oid, unit_type, description, photo, restock_threshold::int AS restock_threshold, status, has_expiry
                                FROM ${TABLE.PRODUCT} WHERE oid = $1 AND is_deleted = FALSE FOR UPDATE`,
                         values: [payload.oid],
                   });
@@ -30,18 +30,20 @@ const update_product_details = async (request, res) => {
                   if (payload.brand_oid && payload.brand_oid !== current.brand_oid) await require_active_brand(tx, payload.brand_oid);
 
                   const sku = payload.sku ?? (await first_free_sku(tx.get_data, payload.name, payload.oid));
+                  const has_expiry = payload.has_expiry ?? current.has_expiry;
                   if (!sku) fail(400, "No SKU could be made from this name. Type one yourself.", { field: "sku" });
 
                   // Saving an untouched form writes nothing, so the timeline records only real changes.
-                  const changes = detectChanges(current, { ...payload, sku }, { sub_category_oid: "Sub-category", brand_oid: "Brand", unit_type: "Unit", restock_threshold: "Restock level", sku: "SKU" });
+                  const yes_no = (on) => (on ? "Yes" : "No");
+                  const changes = detectChanges({ ...current, has_expiry: yes_no(current.has_expiry) }, { ...payload, sku, has_expiry: yes_no(has_expiry) }, { sub_category_oid: "Sub-category", brand_oid: "Brand", unit_type: "Unit", restock_threshold: "Restock level", sku: "SKU", has_expiry: "Has an expiry date" });
                   if (!changes.length) {
                         changed = false;
                         return;
                   }
 
                   const updated = await tx.execute_value({
-                        text: `UPDATE ${TABLE.PRODUCT} SET name = $1, sku = $2, category_oid = $3, sub_category_oid = $4, brand_oid = $5, unit_type = $6, description = $7, photo = $8, restock_threshold = $9, status = $10, edited_on = clock_timestamp(), edited_by = $11 WHERE oid = $12 AND is_deleted = FALSE`,
-                        values: [payload.name, sku, category_oid, payload.sub_category_oid, payload.brand_oid, payload.unit_type, payload.description, payload.photo, payload.restock_threshold, payload.status, user_id, payload.oid],
+                        text: `UPDATE ${TABLE.PRODUCT} SET name = $1, sku = $2, category_oid = $3, sub_category_oid = $4, brand_oid = $5, unit_type = $6, description = $7, photo = $8, restock_threshold = $9, status = $10, has_expiry = $11, edited_on = clock_timestamp(), edited_by = $12 WHERE oid = $13 AND is_deleted = FALSE`,
+                        values: [payload.name, sku, category_oid, payload.sub_category_oid, payload.brand_oid, payload.unit_type, payload.description, payload.photo, payload.restock_threshold, payload.status, has_expiry, user_id, payload.oid],
                   });
                   if (updated.rowCount !== 1) fail(404, NOT_FOUND);
 

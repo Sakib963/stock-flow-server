@@ -49,11 +49,13 @@ const product_fields = {
       status: Joi.string().valid("Active", "Inactive").required(),
 };
 
-const product_create_schema = Joi.object(product_fields);
+const product_create_schema = Joi.object({ ...product_fields, has_expiry: Joi.boolean().default(false) });
 
+// Left out, the product keeps its setting: an older client must not switch expiry off by omission.
 const product_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
       ...product_fields,
+      has_expiry: Joi.boolean().optional(),
 });
 
 // `oid` is the product being edited, so its own SKU is not reported as taken.

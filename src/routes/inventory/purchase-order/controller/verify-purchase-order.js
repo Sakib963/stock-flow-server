@@ -34,7 +34,8 @@ const verify_purchase_order = async (request, res) => {
                   const po_number = moved.rows[0].po_number;
 
                   const ordered = await tx.get_data({
-                        text: `SELECT oid, product_oid, ordered_quantity::int AS ordered_quantity FROM ${TABLE.PURCHASE_DETAILS} WHERE purchase_oid = $1`,
+                        text: `SELECT d.oid, d.product_oid, d.ordered_quantity::int AS ordered_quantity, p.has_expiry
+                                 FROM ${TABLE.PURCHASE_DETAILS} d JOIN ${TABLE.PRODUCT} p ON p.oid = d.product_oid WHERE d.purchase_oid = $1`,
                         values: [oid],
                   });
                   const by_oid = new Map(ordered.map((line) => [line.oid, line]));
@@ -46,7 +47,7 @@ const verify_purchase_order = async (request, res) => {
                   let units = 0;
                   let batches = 0;
                   for (const line of lines) {
-                        const { product_oid, ordered_quantity } = by_oid.get(line.oid);
+                        const { product_oid, ordered_quantity, has_expiry } = by_oid.get(line.oid);
                         if (line.received_quantity > ordered_quantity) {
                               fail(400, `More arrived than was ordered on one line (${line.received_quantity} of ${ordered_quantity}). Record what was ordered and set the extra aside, or raise a new order for it.`, { line: line.oid });
                         }
@@ -63,9 +64,9 @@ const verify_purchase_order = async (request, res) => {
                         const for_sale = line.intended_use === "for_sale";
                         const batch_oid = uuidv4();
                         await tx.execute_value({
-                              text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, created_by)
-                                     VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11)`,
-                              values: [batch_oid, await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, user_id],
+                              text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, expiry_date, created_by)
+                                     VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                              values: [batch_oid, await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, has_expiry ? line.expiry_date : null, user_id],
                         });
                         await receiveStock(tx, { inventory_oid: batch_oid, quantity: line.received_quantity, purchase_oid: oid, user_id });
                         units += line.received_quantity;

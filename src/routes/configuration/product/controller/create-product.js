@@ -21,8 +21,8 @@ const create_product = async (request, res) => {
                   if (!sku) fail(400, "No SKU could be made from this name. Type one yourself.", { field: "sku" });
 
                   await tx.execute_value({
-                        text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, brand_oid, unit_type, description, photo, restock_threshold, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                        values: [productOid, payload.name, sku, category_oid, payload.sub_category_oid, payload.brand_oid, payload.unit_type, payload.description, payload.photo, payload.restock_threshold, payload.status, user_id],
+                        text: `INSERT INTO ${TABLE.PRODUCT} (oid, name, sku, category_oid, sub_category_oid, brand_oid, unit_type, description, photo, restock_threshold, status, has_expiry, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                        values: [productOid, payload.name, sku, category_oid, payload.sub_category_oid, payload.brand_oid, payload.unit_type, payload.description, payload.photo, payload.restock_threshold, payload.status, payload.has_expiry, user_id],
                   });
                   await tx.execute_value({
                         text: `INSERT INTO ${TABLE.PRODUCT_STATS} (oid, product_oid) VALUES ($1, $2)`,

@@ -202,6 +202,7 @@ module.exports = {
     GET_PURCHASE_DETAILS: "/get-purchase-details",
     GET_PURCHASE_LIST_FOR_DROPDOWN: "/get-purchase-list-for-dropdown",
     VERIFY_PURCHASE: "/verify-purchase",
+    UPDATE_BATCH_EXPIRY: "/update-batch-expiry",
     CANCEL_PURCHASE: "/cancel-purchase",
     UPDATE_PURCHASE_PAYMENT: "/update-purchase-payment",
     GET_PRODUCT_LIST_FOR_PURCHASE: "/get-product-list-for-purchase",
