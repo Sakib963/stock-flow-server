@@ -13,6 +13,39 @@ const { TABLE } = require("../../../utils/constant");
 const { fail } = require("../../../db/database");
 const { v4: uuidv4 } = require("uuid");
 
+// Every change to a batch's quantity writes one row, in the same transaction and after the guarded
+// update, so the batch row is still locked and balance_after is exactly what it now holds. The rows of
+// a batch therefore always add up to its quantity. Only these helpers call it.
+const recordMovement = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
+    const [batch] = await tx.get_data({
+        text: `SELECT product_oid, quantity_available::int AS balance FROM ${TABLE.INVENTORY} WHERE oid = $1`,
+        values: [inventory_oid],
+    });
+    await tx.execute_value({
+        text: `INSERT INTO ${TABLE.STOCK_MOVEMENT} (oid, inventory_oid, product_oid, quantity, balance_after, reason, source_oid, created_by, created_on)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, clock_timestamp())`,
+        values: [uuidv4(), inventory_oid, batch.product_oid, quantity, batch.balance, reason, source_oid, user_id],
+    });
+};
+
+// A new batch received from a purchase order. It is inserted with its full quantity, so the movement
+// is that quantity.
+const receiveStock = (tx, { inventory_oid, quantity, purchase_oid, user_id }) => recordMovement(tx, { inventory_oid, quantity, reason: "received", source_oid: purchase_oid, user_id });
+
+// Take physical stock off a batch, guarded so it never goes below zero. Returns false when the batch
+// holds less than asked, and then nothing is written.
+const deductStock = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
+    const deducted = await tx.execute_value({
+        text: `UPDATE ${TABLE.INVENTORY}
+                  SET quantity_available = quantity_available - $1, edited_by = $2, edited_on = clock_timestamp()
+                WHERE oid = $3 AND quantity_available >= $1`,
+        values: [quantity, user_id, inventory_oid],
+    });
+    if (deducted.rowCount !== 1) return false;
+    await recordMovement(tx, { inventory_oid, quantity: -quantity, reason, source_oid, user_id });
+    return true;
+};
+
 // Sum of Active holds per batch, for a set of inventory oids. Returns Map<oid, qty>.
 const getActiveHolds = async (tx, inventory_oids) => {
     if (!inventory_oids.length) return new Map();
@@ -53,7 +86,7 @@ const holdStock = async (tx, { order_oid, order_item_oid = null, product_oid, in
 
 // POS deduct: remove physical stock, but only if SELLABLE (on-hand minus other
 // Active holds) covers it. Returns true on success, false if blocked.
-const deductSellableStock = async (tx, { inventory_oid, quantity, user_id }) => {
+const deductSellableStock = async (tx, { inventory_oid, quantity, order_oid, user_id }) => {
     const result = await tx.execute_value({
         text: `UPDATE ${TABLE.INVENTORY}
                   SET quantity_available = quantity_available - $1,
@@ -64,7 +97,9 @@ const deductSellableStock = async (tx, { inventory_oid, quantity, user_id }) => 
                           WHERE inventory_oid = $3 AND status = 'Active'), 0) >= $1`,
         values: [quantity, user_id, inventory_oid],
     });
-    return result.rowCount === 1;
+    if (result.rowCount !== 1) return false;
+    await recordMovement(tx, { inventory_oid, quantity: -quantity, reason: "sold", source_oid: order_oid, user_id });
+    return true;
 };
 
 // Release all Active holds of an order (cancellation before dispatch). Physical
@@ -89,13 +124,8 @@ const deductHeldStock = async (tx, { order_oid, user_id }) => {
         values: [order_oid],
     });
     for (const h of holds) {
-        const deducted = await tx.execute_value({
-            text: `UPDATE ${TABLE.INVENTORY}
-                      SET quantity_available = quantity_available - $1, edited_by = $2, edited_on = clock_timestamp()
-                    WHERE oid = $3 AND quantity_available >= $1`,
-            values: [h.quantity, user_id, h.inventory_oid],
-        });
-        if (deducted.rowCount !== 1) return { ok: false };
+        const deducted = await deductStock(tx, { inventory_oid: h.inventory_oid, quantity: h.quantity, reason: "dispatched", source_oid: order_oid, user_id });
+        if (!deducted) return { ok: false };
         await tx.execute_value({
             text: `UPDATE ${TABLE.STOCK_HOLD} SET status = 'Deducted', edited_by = $1, edited_on = clock_timestamp() WHERE oid = $2`,
             values: [user_id, h.oid],
@@ -104,7 +134,7 @@ const deductHeldStock = async (tx, { order_oid, user_id }) => {
     return { ok: true, count: holds.length };
 };
 
-// Restock: add physical stock back (good-condition returns / reversals).
+// Restock: add physical stock back (good-condition returns, reversed disposals).
 // Stock never goes back onto a deleted product: it would sit in the warehouse in no list anyone
 // can see (decided by the user, 2026-09-27). The shared lock waits for a delete in flight, which
 // holds the product row for update, and the delete in turn refuses a product with stock.
@@ -116,7 +146,7 @@ const refuseDeletedProduct = async (tx, inventory_oid) => {
     if (row?.is_deleted) fail(409, `${row.name} has been deleted, so no stock can be put back on it. Restore the product first.`, { reason: "product_deleted" });
 };
 
-const restockStock = async (tx, { inventory_oid, quantity, user_id }) => {
+const restockStock = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
     await refuseDeletedProduct(tx, inventory_oid);
     await tx.execute_value({
         text: `UPDATE ${TABLE.INVENTORY}
@@ -125,6 +155,7 @@ const restockStock = async (tx, { inventory_oid, quantity, user_id }) => {
                 WHERE oid = $3`,
         values: [quantity, user_id, inventory_oid],
     });
+    await recordMovement(tx, { inventory_oid, quantity, reason, source_oid, user_id });
 };
 
 // Increment a product_stats counter, creating the row if the product has none yet.
@@ -146,6 +177,8 @@ const incrementProductStat = async (tx, { product_oid, column, quantity, user_id
 };
 
 module.exports = {
+    receiveStock,
+    deductStock,
     refuseDeletedProduct,
     getActiveHolds,
     holdStock,

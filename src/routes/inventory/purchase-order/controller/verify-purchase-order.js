@@ -3,6 +3,7 @@ const { execute_transaction, TransactionError, fail } = require("../../../../db/
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { next_batch_code } = require("../utils/batch-code");
+const { receiveStock } = require("../../../sales/utils/stock-movement");
 const { v4: uuidv4 } = require("uuid");
 
 const BUDGETS = ["ad_run_cost", "packaging_cost", "gift_cost", "content_creation_cost", "influencer_cost"];
@@ -60,11 +61,13 @@ const verify_purchase_order = async (request, res) => {
                         if (!line.received_quantity) continue;
 
                         const for_sale = line.intended_use === "for_sale";
+                        const batch_oid = uuidv4();
                         await tx.execute_value({
                               text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, created_by)
                                      VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11)`,
-                              values: [uuidv4(), await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, user_id],
+                              values: [batch_oid, await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, user_id],
                         });
+                        await receiveStock(tx, { inventory_oid: batch_oid, quantity: line.received_quantity, purchase_oid: oid, user_id });
                         units += line.received_quantity;
                         batches += 1;
 

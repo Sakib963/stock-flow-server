@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
+const { deductStock } = require("../../../sales/utils/stock-movement");
 
 // Map a per-line reason code to the product_stats counter it feeds.
 const stats_column_for_reason = (reason) => {
@@ -38,13 +39,8 @@ const approve_product_dispose = async (request, res) => {
             if (!lines.length) fail(400, "Disposal has no line items to approve");
 
             for (const line of lines) {
-                // Deduct stock with an over-dispose guard: only succeeds if enough remains
-                const stockResult = await tx.execute_value({
-                    text: `UPDATE ${TABLE.INVENTORY} SET quantity_available = quantity_available - $1, edited_by = $2, edited_on = clock_timestamp() WHERE oid = $3 AND quantity_available >= $1`,
-                    values: [line.dispose_quantity, user_id, line.inventory_oid],
-                });
-
-                if (stockResult.rowCount !== 1) fail(409, "Insufficient stock for one or more batches. Nothing was disposed.");
+                const deducted = await deductStock(tx, { inventory_oid: line.inventory_oid, quantity: line.dispose_quantity, reason: "disposed", source_oid: dispose_oid, user_id });
+                if (!deducted) fail(409, "Insufficient stock for one or more batches. Nothing was disposed.");
 
                 // Feed product-level dispose analytics (best-effort within the txn)
                 await tx.execute_value({

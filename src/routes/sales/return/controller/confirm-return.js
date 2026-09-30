@@ -116,7 +116,7 @@ const confirm_return = async (request, res) => {
                 });
 
                 if (is_good) {
-                    await restockStock(tx, { inventory_oid: l.inventory_oid, quantity: l.return_quantity, user_id });
+                    await restockStock(tx, { inventory_oid: l.inventory_oid, quantity: l.return_quantity, reason: "returned", source_oid: return_oid, user_id });
                     await incrementProductStat(tx, { product_oid: l.product_oid, column: "total_returned", quantity: l.return_quantity, user_id });
                     restocked_units += l.return_quantity;
                 } else {

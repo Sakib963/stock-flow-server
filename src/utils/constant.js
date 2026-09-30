@@ -29,6 +29,7 @@ module.exports = {
     SALE_DETAILS: "order_items",
     CUSTOMERS: "customers",
     STOCK_HOLD: "stock_hold",
+    STOCK_MOVEMENT: "stock_movement",
     ORDER_STATUS_HISTORY: "order_status_history",
     // Pre-order: a booking for stock not yet held. Deliberately NOT the orders
     // spine -- a pre-order is part of the sales process but is neither a sale
@@ -76,6 +77,7 @@ module.exports = {
     PURCHASE: "/purchase",
     PURCHASE_ORDER: "/purchase-order",
     INVENTORY_OVERVIEW: "/inventory-overview",
+    STOCK_MOVEMENT: "/stock-movement",
     // Sales & Orders module (revamp)
     POS: "/pos",
     ONLINE: "/online",
@@ -263,6 +265,7 @@ module.exports = {
     REJECT_PRODUCT_DISPOSE: "/reject-product-dispose",
     CANCEL_PRODUCT_DISPOSE: "/cancel-product-dispose",
     REVERSE_PRODUCT_DISPOSE: "/reverse-product-dispose",
+    GET_STOCK_MOVEMENT_LIST: "/get-stock-movement-list",
     GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN:
       "/get-product-list-for-dispose-dropdown",
 

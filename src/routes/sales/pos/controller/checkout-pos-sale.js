@@ -104,7 +104,7 @@ const checkout_pos_sale = async (request, res) => {
                     values: [uuidv4(), order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
                 });
 
-                const ok = await deductSellableStock(tx, { inventory_oid: p.inventory_oid, quantity: p.quantity, user_id });
+                const ok = await deductSellableStock(tx, { inventory_oid: p.inventory_oid, quantity: p.quantity, order_oid, user_id });
                 if (!ok) fail(409, `Insufficient sellable stock for "${p.product_name}". Nothing was charged.`);
 
                 await incrementProductStat(tx, { product_oid: p.product_oid, column: "total_sold", quantity: p.quantity, user_id });

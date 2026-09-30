@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { refuseDeletedProduct } = require("../../../sales/utils/stock-movement");
+const { restockStock } = require("../../../sales/utils/stock-movement");
 
 const stats_column_for_reason = (reason) => {
     const damaged = new Set(["damaged", "breakage"]);
@@ -36,12 +36,7 @@ const reverse_product_dispose = async (request, res) => {
             });
 
             for (const line of lines) {
-                await refuseDeletedProduct(tx, line.inventory_oid);
-                // Restore the previously deducted stock
-                await tx.execute_value({
-                    text: `UPDATE ${TABLE.INVENTORY} SET quantity_available = quantity_available + $1, edited_by = $2, edited_on = clock_timestamp() WHERE oid = $3`,
-                    values: [line.dispose_quantity, user_id, line.inventory_oid],
-                });
+                await restockStock(tx, { inventory_oid: line.inventory_oid, quantity: line.dispose_quantity, reason: "dispose_reversed", source_oid: dispose_oid, user_id });
 
                 // Roll back the product-level counter that approval incremented
                 await tx.execute_value({
