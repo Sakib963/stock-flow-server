@@ -207,9 +207,10 @@ module.exports = {
     UPDATE_PURCHASE_PAYMENT: "/update-purchase-payment",
     GET_PRODUCT_LIST_FOR_PURCHASE: "/get-product-list-for-purchase",
 
-    GET_PRODUCT_LIST_FOR_OVERVIEW: "/get-product-list",
-    GET_PRODUCT_DETAILS_FOR_OVERVIEW: "/get-product-details",
-    UPDATE_PRICING: "/update-pricing",
+    GET_STOCK_OVERVIEW_LIST: "/get-stock-overview-list",
+    GET_PRODUCT_STOCK: "/get-product-stock",
+    UPDATE_BATCH_PRICING: "/update-batch-pricing",
+    UPDATE_BATCH_BUDGET: "/update-batch-budget",
 
     // --- Sales & Orders module (revamp; POS + online on the `orders` spine) ---
     GET_POS_PRODUCT_LIST: "/get-product-list",

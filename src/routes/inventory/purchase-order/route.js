@@ -46,7 +46,7 @@ router.post(ROUTES.UPDATE_PURCHASE_PAYMENT, [jwtMiddleware, requirePermission("i
 
 router.post(ROUTES.VERIFY_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.approve"), validator.post(purchase_order_verify_schema)], verify_purchase_order);
 
-router.post(ROUTES.UPDATE_BATCH_EXPIRY, [jwtMiddleware, requirePermission("inventory.purchase-order.edit"), validator.post(batch_expiry_schema)], update_batch_expiry);
+router.post(ROUTES.UPDATE_BATCH_EXPIRY, [jwtMiddleware, requirePermission(["inventory.purchase-order.edit", "inventory.overview.edit"]), validator.post(batch_expiry_schema)], update_batch_expiry);
 
 router.post(ROUTES.CANCEL_PURCHASE, [jwtMiddleware, requirePermission("inventory.purchase-order.cancel"), validator.post(purchase_order_cancel_schema)], cancel_purchase_order);
 
