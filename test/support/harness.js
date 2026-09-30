@@ -127,4 +127,7 @@ const eventually = async (read, accept, { tries = 20, every = 50 } = {}) => {
     return value;
 };
 
-module.exports = { ROUTE, PASSWORD, start, stop, query, reset, seed_user, call, sign_in, refresh, refresh_token_of, hash, sign_token, session, token_row, events, eventually };
+/** The running server, for a test that reads a response as bytes rather than JSON. */
+const url = () => base;
+
+module.exports = { url, ROUTE, PASSWORD, start, stop, query, reset, seed_user, call, sign_in, refresh, refresh_token_of, hash, sign_token, session, token_row, events, eventually };

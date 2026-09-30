@@ -1,5 +1,6 @@
 const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
+const ExcelJS = require("exceljs");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { execute_transaction } = require("../../src/db/database");
@@ -220,5 +221,57 @@ describe("changing a batch's price and budget", () => {
         await h.query("UPDATE product SET has_expiry = true WHERE oid = $1", [ids.cream]);
         const res = await post(EXPIRY, token, { inventory_oid: ids.cream_batch.oid, expiry_date: "2027-03-31" });
         assert.equal(res.status, 200, JSON.stringify(res.body));
+    });
+});
+
+describe("a product's stock report", () => {
+    const REPORT = OVERVIEW + ROUTES.GENERATE_PRODUCT_STOCK_REPORT;
+    const EXPORTER = [...OWNER, "inventory.overview.export"];
+
+    // The rows under the column titles, as values, read back from the file the server sent.
+    const download = async (token, oid) => {
+        const res = await fetch(`${h.url()}${REPORT}/${oid}`, { headers: { authorization: `Bearer ${token}` } });
+        const workbook = new ExcelJS.Workbook();
+        if (res.status === 200) await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+        const sheet = workbook.getWorksheet("Stock");
+        const rows = [];
+        sheet?.eachRow((row) => rows.push(row.values.slice(1)));
+        const head = rows.findIndex((r) => r[0] === "Batch code");
+        return { status: res.status, filename: res.headers.get("x-filename"), titles: rows[head], rows: rows.slice(head + 1) };
+    };
+
+    let ids;
+    beforeEach(async () => (ids = await seed()));
+
+    it("writes each batch holding stock with its figures, and the product totals, for someone who may see money", async () => {
+        const report = await download(await sign_in_with(EXPORTER), ids.cream);
+        assert.equal(report.status, 200);
+        assert.match(decodeURIComponent(report.filename), /^SUN_stock_report_\d{4}-\d{2}-\d{2}\.xlsx$/);
+        const col = (name) => report.titles.indexOf(name);
+        const batch = report.rows[0];
+        assert.equal(batch[col("Batch code")], ids.cream_batch.batch_code);
+        assert.deepEqual([batch[col("On hand")], batch[col("Held")], batch[col("Sellable")]], [10, 2, 8]);
+        assert.deepEqual([batch[col("Selling price")], batch[col("Max discount")], batch[col("Cost price")], batch[col("Budget per unit")]], [500, 50, 300, 20]);
+        assert.deepEqual([batch[col("Stock value")], batch[col("Probable revenue")], batch[col("Probable profit")]], [3000, 5000, 1800]);
+        const total = (label) => report.rows.find((r) => r[0] === label)?.[1];
+        assert.deepEqual([total("On hand"), total("Held for orders"), total("Sellable")], [10, 2, 8]);
+        assert.deepEqual([total("Stock value at cost"), total("Probable profit at full price"), total("Probable profit at full discount")], [3000, 1800, 1300]);
+    });
+
+    it("leaves cost, value and profit out of the file for someone who may not see money", async () => {
+        const report = await download(await sign_in_with(["inventory.overview.view", "inventory.overview.export"]), ids.cream);
+        assert.equal(report.status, 200);
+        for (const title of ["Cost price", "Budget per unit", "Stock value", "Probable revenue", "Probable profit"]) assert.ok(!report.titles.includes(title), title);
+        assert.ok(!report.rows.some((r) => /value|profit|revenue/i.test(String(r[0]))));
+        assert.equal(report.rows[0][report.titles.indexOf("Selling price")], 500);
+    });
+
+    it("is refused without the export permission, and without a sign in", async () => {
+        assert.equal((await download(await sign_in_with(OWNER), ids.cream)).status, 403);
+        assert.equal((await h.call(`${REPORT}/${ids.cream}`, { method: "GET" })).status, 401);
+    });
+
+    it("answers 404 for a product that does not exist", async () => {
+        assert.equal((await download(await sign_in_with(EXPORTER), uuidv4())).status, 404);
     });
 });

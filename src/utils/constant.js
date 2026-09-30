@@ -209,6 +209,7 @@ module.exports = {
 
     GET_STOCK_OVERVIEW_LIST: "/get-stock-overview-list",
     GET_PRODUCT_STOCK: "/get-product-stock",
+    GENERATE_PRODUCT_STOCK_REPORT: "/generate-product-stock-report",
     UPDATE_BATCH_PRICING: "/update-batch-pricing",
     UPDATE_BATCH_BUDGET: "/update-batch-budget",
 

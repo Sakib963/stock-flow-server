@@ -6,6 +6,7 @@ const { validator } = require("../../../middleware/validator");
 const { stock_overview_list_schema, product_stock_schema, batch_pricing_schema, batch_budget_schema } = require("./schema");
 const get_stock_overview_list = require("./controller/get-stock-overview-list");
 const get_product_stock = require("./controller/get-product-stock");
+const generate_product_stock_report = require("./controller/generate-product-stock-report");
 const update_batch_pricing = require("./controller/update-batch-pricing");
 const update_batch_budget = require("./controller/update-batch-budget");
 
@@ -14,6 +15,8 @@ const router = Router();
 router.get(ROUTES.GET_STOCK_OVERVIEW_LIST, [jwtMiddleware, requirePermission("inventory.overview.view"), validator.get(stock_overview_list_schema)], get_stock_overview_list);
 
 router.get(ROUTES.GET_PRODUCT_STOCK + "/:oid", [jwtMiddleware, requirePermission("inventory.overview.view"), validator.params(product_stock_schema)], get_product_stock);
+
+router.get(ROUTES.GENERATE_PRODUCT_STOCK_REPORT + "/:oid", [jwtMiddleware, requirePermission("inventory.overview.export"), validator.params(product_stock_schema)], generate_product_stock_report);
 
 router.post(ROUTES.UPDATE_BATCH_PRICING, [jwtMiddleware, requirePermission("inventory.overview.edit"), validator.post(batch_pricing_schema)], update_batch_pricing);
 
