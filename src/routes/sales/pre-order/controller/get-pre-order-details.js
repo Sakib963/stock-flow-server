@@ -3,6 +3,7 @@ const { get_data } = require("../../../../db/database");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { SELLABLE_BY_PRODUCT_CTE } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
+const { business_day, business_today } = require("../../../../utils/business-time");
 
 // Detail payload: { details, items, stats, activity } (FR-35).
 // `items` carries per-line stock readiness so the page can gate Create Order
@@ -138,9 +139,9 @@ const generate_stats_sql = (oid) => ({
                CAST(po.total_amount - po.advance_paid AS INTEGER) AS balance_due,
                ls.item_count,
                ls.total_units,
-               (CURRENT_DATE - po.created_on::date)::int AS days_since_booking,
+               (${business_today} - ${business_day("po.created_on")})::int AS days_since_booking,
                CASE WHEN po.expected_date IS NULL THEN NULL
-                    ELSE (po.expected_date - CURRENT_DATE)::int
+                    ELSE (po.expected_date - ${business_today})::int
                END AS days_to_expected
           FROM ${TABLE.PRE_ORDERS} po
           CROSS JOIN line_stats ls

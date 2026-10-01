@@ -3,6 +3,7 @@ const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 const { sees_money } = require("../../utils/sees-money");
 const { TOTALS, without_money } = require("../utils/adjustment-sql");
+const { business_month_start } = require("../../../../utils/business-time");
 
 const SELECT = `s.oid, s.adjustment_number, s.reason, s.status, s.note, s.created_on, s.created_by, u.name AS created_by_name,
                 t.line_count, t.units_in, t.units_out, t.value_in, t.value_out`;
@@ -11,7 +12,7 @@ const FROM = `${TABLE.STOCK_ADJUSTMENT} s
               LEFT JOIN ${TABLE.LOGIN} u ON u.email = s.created_by
               ${TOTALS}`;
 
-const THIS_MONTH = (column) => `date_trunc('month', ${column}) = date_trunc('month', CURRENT_DATE)`;
+const THIS_MONTH = (column) => `${column} >= ${business_month_start}`;
 
 const STATS = {
       draft: `COUNT(*) FILTER (WHERE s.status = 'Draft')::int`,

@@ -2,6 +2,7 @@ const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_day } = require("../../../../utils/business-time");
 
 const get_product_dispose_details = async (request, res) => {
   try {
@@ -73,11 +74,11 @@ const generate_details_sql = (disposeOid) => {
             CAST(pd.total_dispose_quantity AS INTEGER) AS total_dispose_quantity,
             CAST(pd.total_dispose_value AS INTEGER) AS total_dispose_value,
             to_char(pd.disposal_date, 'YYYY-MM-DD') as disposal_date,
-            pd.created_by, to_char(pd.created_on, 'DD/MM/YYYY') as created_on,
-            pd.approved_by, to_char(pd.approved_on, 'DD/MM/YYYY') as approved_on,
-            pd.rejected_by, to_char(pd.rejected_on, 'DD/MM/YYYY') as rejected_on,
-            pd.cancelled_by, to_char(pd.cancelled_on, 'DD/MM/YYYY') as cancelled_on,
-            pd.reversed_by, to_char(pd.reversed_on, 'DD/MM/YYYY') as reversed_on
+            pd.created_by, TO_CHAR(${business_day("pd.created_on")}, 'DD/MM/YYYY') as created_on,
+            pd.approved_by, TO_CHAR(${business_day("pd.approved_on")}, 'DD/MM/YYYY') as approved_on,
+            pd.rejected_by, TO_CHAR(${business_day("pd.rejected_on")}, 'DD/MM/YYYY') as rejected_on,
+            pd.cancelled_by, TO_CHAR(${business_day("pd.cancelled_on")}, 'DD/MM/YYYY') as cancelled_on,
+            pd.reversed_by, TO_CHAR(${business_day("pd.reversed_on")}, 'DD/MM/YYYY') as reversed_on
       FROM ${TABLE.PRODUCT_DISPOSE} pd
       WHERE pd.oid = $1`;
   return { text: query, values: [disposeOid] };

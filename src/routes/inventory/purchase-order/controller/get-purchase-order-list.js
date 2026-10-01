@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
+const { business_today } = require("../../../../utils/business-time");
 
 // Paid follows payment_status, never the stored figure alone: two old orders are marked paid with
 // less than their total against them.
@@ -30,7 +31,7 @@ const FROM = `${TABLE.PURCHASE} p
                    WHERE d.purchase_oid = p.oid
               ) l ON TRUE`;
 
-const OVERDUE = `p.status = 'Submitted' AND p.expected_delivery_date < CURRENT_DATE`;
+const OVERDUE = `p.status = 'Submitted' AND p.expected_delivery_date < ${business_today}`;
 
 const STATS = {
     draft: `COUNT(*) FILTER (WHERE p.status = 'Draft')::int`,

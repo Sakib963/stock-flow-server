@@ -8,6 +8,7 @@ const { COMPANY_INFO } = require("../../../../utils/company-info");
 
 const fs = require("fs");
 const path = require("path");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 
 const change_password = async (request, res) => {
   const payload = request.body;
@@ -95,7 +96,7 @@ const send_otp = async (request, otp, user_name) => {
   html = html.replace(/{{USER_NAME}}/g, user_name);
   html = html.replace(
     /{{CURRENT_DATE}}/g,
-    new Date().toLocaleDateString("en-GB"),
+    format_business(new Date(), await business_zone(), { time: false }),
   );
   html = html.replace(/{{APP_NAME}}/g, COMPANY_INFO.appName);
   html = html.replace(/{{SUPPORT_EMAIL}}/g, COMPANY_INFO.supportEmail);

@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_month_start } = require("../../../../utils/business-time");
 
 // KPI strip for the returns list.
 //
@@ -13,7 +14,7 @@ const get_return_list_kpis = async (request, res) => {
             text: `WITH month_returns AS (
                          SELECT oid FROM ${TABLE.PRODUCT_RETURN}
                           WHERE status <> 'Cancelled'
-                            AND created_on >= date_trunc('month', CURRENT_DATE)
+                            AND created_on >= ${business_month_start}
                    )
                    SELECT
                          (SELECT COUNT(*)::int FROM ${TABLE.PRODUCT_RETURN} WHERE status = 'Pending') AS pending_count,
@@ -30,7 +31,7 @@ const get_return_list_kpis = async (request, res) => {
                          (SELECT COALESCE(SUM(refund_amount), 0)::int
                             FROM ${TABLE.PRODUCT_RETURN}
                            WHERE status <> 'Cancelled'
-                             AND created_on >= date_trunc('month', CURRENT_DATE)) AS month_refund_value,
+                             AND created_on >= ${business_month_start}) AS month_refund_value,
                          (SELECT COALESCE(SUM(return_quantity), 0)::int
                             FROM ${TABLE.RETURN_DETAILS}
                            WHERE action = 'Restocked'

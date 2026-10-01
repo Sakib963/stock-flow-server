@@ -1,4 +1,12 @@
-const { Pool } = require("pg");
+const { Pool, types, defaults } = require("pg");
+
+// Stored times are UTC wall clock (timestamp without time zone). Read them as UTC and write Dates as
+// UTC, whatever zone this machine runs in: on a laptop in Dhaka the driver would otherwise shift both
+// by six hours. A date column is a calendar day and stays the string it is, never a midnight that moves.
+types.setTypeParser(types.builtins.TIMESTAMP, (value) => new Date(value.replace(" ", "T") + "Z"));
+types.setTypeParser(types.builtins.DATE, (value) => value);
+defaults.parseInputDatesAsUTC = true;
+
 // ENV_FILE lets a local dev point at a different env (e.g. ./src/env/.env.local)
 // without touching the committed cloud .env. Defaults to the cloud env.
 require("dotenv").config({ path: process.env.ENV_FILE || `./src/env/.env` });

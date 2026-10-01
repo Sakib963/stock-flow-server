@@ -4,13 +4,11 @@ const { log } = require("../../../../utils/log");
 const { addReportHeader } = require("../../../../utils/report-header");
 const { sees_money } = require("../../utils/sees-money");
 const { PRODUCT_SQL, FIGURES_SQL, BATCHES_SQL } = require("../utils/product-stock-sql");
+const { business_zone, format_business, zone_label } = require("../../../../utils/business-time");
 
 const QUANTITY_COLUMNS = ["Batch code", "Status", "Received on", "Purchase order", "Supplier", "Warehouse", "Aisle", "Received", "On hand", "Held", "Sellable", "Expiry date", "Selling price", "Max discount"];
 const MONEY_COLUMNS = ["Cost price", "Budget per unit", "Stock value", "Probable revenue", "Probable profit"];
 
-// created_on has no zone and pg reads it as local time, so the local parts are the day as stored,
-// the day the page shows. toISOString would move a batch received after midnight to the day before.
-const stored_day = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const readable = (status) => (status ? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ") : "");
 
@@ -19,11 +17,11 @@ const readable = (status) => (status ? status.charAt(0).toUpperCase() + status.s
 const generate_product_stock_report = async (request, res) => {
       const oid = request.params.oid;
       try {
-            const [[product], [figures], batches, money] = await Promise.all([get_data({ text: PRODUCT_SQL, values: [oid] }), get_data({ text: FIGURES_SQL, values: [oid] }), get_data({ text: BATCHES_SQL, values: [oid] }), sees_money(request)]);
+            const [[product], [figures], batches, money, zone] = await Promise.all([get_data({ text: PRODUCT_SQL, values: [oid] }), get_data({ text: FIGURES_SQL, values: [oid] }), get_data({ text: BATCHES_SQL, values: [oid] }), sees_money(request), business_zone()]);
             if (!product) return res.status(404).json({ code: 404, message: "That product no longer exists. It may have been deleted." });
 
-            const buffer = await build_workbook(product, figures, batches.filter((b) => b.on_hand > 0 || b.held > 0), money);
-            const file_name = `${product.sku || product.name.replace(/\s+/g, "_")}_stock_report_${stored_day(new Date())}.xlsx`;
+            const buffer = await build_workbook(product, figures, batches.filter((b) => b.on_hand > 0 || b.held > 0), money, zone);
+            const file_name = `${product.sku || product.name.replace(/\s+/g, "_")}_stock_report_${format_business(new Date(), zone, { time: false })}.xlsx`;
             const file_name_encoded = encodeURIComponent(file_name);
 
             res.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -38,7 +36,7 @@ const generate_product_stock_report = async (request, res) => {
       }
 };
 
-const build_workbook = async (product, figures, batches, money) => {
+const build_workbook = async (product, figures, batches, money, zone) => {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Stock");
       const titles = money ? [...QUANTITY_COLUMNS, ...MONEY_COLUMNS] : QUANTITY_COLUMNS;
@@ -47,7 +45,7 @@ const build_workbook = async (product, figures, batches, money) => {
       sheet.addRow(titles).font = { bold: true };
 
       for (const b of batches) {
-            const row = [b.batch_code, readable(b.status), stored_day(b.received_on), b.po_number ?? "", b.supplier_name ?? "", b.warehouse_name ?? "", b.aisle_name ?? "", b.initial_quantity, b.on_hand, b.held, b.sellable, b.expiry_date ?? "", b.selling_price === null ? "" : Number(b.selling_price), b.maximum_discount === null ? "" : Number(b.maximum_discount)];
+            const row = [b.batch_code, readable(b.status), format_business(b.received_on, zone, { time: false }), b.po_number ?? "", b.supplier_name ?? "", b.warehouse_name ?? "", b.aisle_name ?? "", b.initial_quantity, b.on_hand, b.held, b.sellable, b.expiry_date ?? "", b.selling_price === null ? "" : Number(b.selling_price), b.maximum_discount === null ? "" : Number(b.maximum_discount)];
             if (money) row.push(Number(b.cost_price), Number(b.budget_per_unit), b.stock_value, b.expected_revenue ?? "", b.profit_full ?? "");
             sheet.addRow(row);
       }
@@ -66,7 +64,7 @@ const build_workbook = async (product, figures, batches, money) => {
       if (money) {
             summary.push(["Stock value at cost", figures.stock_value], ["Probable revenue", figures.expected_revenue], ["Probable profit at full price", figures.profit_full], ["Probable profit at full discount", figures.profit_discounted]);
       }
-      summary.push(["Generated on", new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC"]);
+      summary.push(["Generated on", format_business(new Date(), zone)], ["Times", zone_label(zone)]);
       for (const [label, value] of summary) sheet.addRow([label, value]).getCell(1).font = { bold: true };
 
       sheet.columns.forEach((column) => {

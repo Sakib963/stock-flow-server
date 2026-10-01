@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../utils/constant");
 const { get_data } = require("../../../db/database");
 const { log } = require("../../../utils/log");
+const { business_day_start } = require("../../../utils/business-time");
 
 const FEATURE_LABELS = {
   category: "Category",
@@ -83,12 +84,12 @@ const generate_count_sql = (payload) => {
   }
 
   if (payload.date_from) {
-    query += ` AND performed_on >= $${values.length + 1}::date`;
+    query += ` AND performed_on >= ${business_day_start(`$${values.length + 1}`)}`;
     values.push(payload.date_from);
   }
 
   if (payload.date_to) {
-    query += ` AND performed_on <= ($${values.length + 1}::date + interval '1 day')`;
+    query += ` AND performed_on < ${business_day_start(`$${values.length + 1}::date + 1`)}`;
     values.push(payload.date_to);
   }
 
@@ -115,12 +116,12 @@ const generate_data_sql = (payload) => {
   }
 
   if (payload.date_from) {
-    query += ` AND performed_on >= $${values.length + 1}::date`;
+    query += ` AND performed_on >= ${business_day_start(`$${values.length + 1}`)}`;
     values.push(payload.date_from);
   }
 
   if (payload.date_to) {
-    query += ` AND performed_on <= ($${values.length + 1}::date + interval '1 day')`;
+    query += ` AND performed_on < ${business_day_start(`$${values.length + 1}::date + 1`)}`;
     values.push(payload.date_to);
   }
 

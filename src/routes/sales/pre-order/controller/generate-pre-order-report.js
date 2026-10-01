@@ -3,6 +3,7 @@ const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 
 // Single pre-order report: the booking, its lines, and the money position.
 // Advance held is labelled a LIABILITY, not revenue (FR-20/FR-38) -- this money
@@ -68,6 +69,7 @@ const generate_pre_order_report = async (request, res) => {
 };
 
 const generate_report_xlsx = async (details, items) => {
+    const zone = await business_zone();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Pre-Order");
 
@@ -90,7 +92,7 @@ const generate_report_xlsx = async (details, items) => {
     addSectionTitle("Booking");
     addPair("Pre-Order No", details.preorder_no);
     addPair("Status", details.status);
-    addPair("Booked On", details.created_on);
+    addPair("Booked On", format_business(details.created_on, zone));
     addPair("Booked By", details.created_by);
     addPair("Expected Availability", details.expected_date);
     addPair("Notes", details.notes);

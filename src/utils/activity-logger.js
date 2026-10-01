@@ -125,7 +125,7 @@ const getLogActivities = async (reference_type, reference_oid, limit = 10) => {
                         title,
                         description,
                         performed_by,
-                        TO_CHAR(performed_on, 'YYYY-MM-DD"T"HH24:MI:SS.MS') as performed_on
+                        performed_on
                   FROM ${TABLE.ACTIVITY_LOG}
                   WHERE reference_type = $1 AND reference_oid = $2
                   ORDER BY performed_on DESC

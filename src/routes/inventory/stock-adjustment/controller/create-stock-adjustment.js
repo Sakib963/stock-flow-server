@@ -4,6 +4,7 @@ const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { REASON_LABEL, shape_lines, check_lines, insert_lines, units } = require("../utils/adjustment-rules");
 const { v4: uuidv4 } = require("uuid");
+const { business_number } = require("../../../../utils/business-time");
 
 // Saving moves nothing, as a Draft or as Submitted: stock moves only when someone verifies it, in a
 // separate click on the record page (decided 2026-09-30).
@@ -20,8 +21,8 @@ const create_stock_adjustment = async (request, res) => {
 
                   const [created] = (
                         await tx.execute_value({
-                              text: `INSERT INTO ${TABLE.STOCK_ADJUSTMENT} (oid, reason, note, status, created_by, submitted_by, submitted_on)
-                                     VALUES ($1, $2, $3, $4::varchar, $5, $6, CASE WHEN $4::varchar = 'Submitted' THEN clock_timestamp() END) RETURNING adjustment_number`,
+                              text: `INSERT INTO ${TABLE.STOCK_ADJUSTMENT} (oid, adjustment_number, reason, note, status, created_by, submitted_by, submitted_on)
+                                     VALUES ($1, ${business_number("ADJ", "stock_adjustment_number_seq")}, $2, $3, $4::varchar, $5, $6, CASE WHEN $4::varchar = 'Submitted' THEN clock_timestamp() END) RETURNING adjustment_number`,
                               values: [adjustment_oid, payload.reason, payload.note, status, user_id, status === "Submitted" ? user_id : null],
                         })
                   ).rows;

@@ -4,6 +4,7 @@ const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { taka, order_total, resolve_paid, draft_paid, check_references, insert_lines } = require("../utils/order-rules");
 const { v4: uuidv4 } = require("uuid");
+const { business_number } = require("../../../../utils/business-time");
 
 const create_purchase_order = async (request, res) => {
       const payload = request.body;
@@ -20,8 +21,8 @@ const create_purchase_order = async (request, res) => {
 
                   const [created] = (
                         await tx.execute_value({
-                              text: `INSERT INTO ${TABLE.PURCHASE} (oid, supplier_oid, total_amount, special_notes, payment_status, paid_amount, purchase_type, expected_delivery_date, status, created_by)
-                                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING po_number`,
+                              text: `INSERT INTO ${TABLE.PURCHASE} (oid, po_number, supplier_oid, total_amount, special_notes, payment_status, paid_amount, purchase_type, expected_delivery_date, status, created_by)
+                                     VALUES ($1, ${business_number("PO", "purchase_po_number_seq")}, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING po_number`,
                               values: [purchase_oid, payload.supplier_oid, total_amount, payload.special_notes, payload.payment_status, paid_amount, payload.purchase_type, payload.expected_delivery_date, status, user_id],
                         })
                   ).rows;

@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_day } = require("../../../../utils/business-time");
 
 const get_product_dispose_list = async (request, res) => {
   try {
@@ -57,7 +58,7 @@ const generate_data_sql = (request) => {
               CAST(pd.total_dispose_value AS INTEGER) AS total_dispose_value,
               COUNT(DISTINCT dd.oid) AS product_count,
               to_char(pd.disposal_date, 'DD/MM/YYYY') as disposal_date,
-              to_char(pd.created_on, 'DD/MM/YYYY') as created_on, pd.created_by
+              TO_CHAR(${business_day("pd.created_on")}, 'DD/MM/YYYY') as created_on, pd.created_by
         FROM ${TABLE.PRODUCT_DISPOSE} pd
         LEFT JOIN ${TABLE.DISPOSE_DETAILS} dd ON dd.dispose_oid = pd.oid
         LEFT JOIN ${TABLE.PRODUCT} p ON p.oid = dd.product_oid

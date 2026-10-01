@@ -1,5 +1,6 @@
 const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
+const ExcelJS = require("exceljs");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { execute_transaction } = require("../../src/db/database");
@@ -312,7 +313,22 @@ describe("who may do what", () => {
         const res = await fetch(`${h.url()}${REPORT}/${created.body.data.oid}`, { headers: { authorization: `Bearer ${token}` } });
         assert.equal(res.status, 200);
         assert.match(decodeURIComponent(res.headers.get("x-filename")), /^ADJ-\d{4}-\d{4}\.xlsx$/);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+        const cells = [];
+        workbook.getWorksheet("Adjustment").eachRow((row) => cells.push(...row.values.slice(1).map(String)));
+        assert.ok(cells.includes("Times in Asia/Dhaka (GMT+6)"), "the file says which clock its times are in");
+        assert.ok(cells.some((cell) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2} by /.test(cell)), "created shows the business date and time");
         const viewer = await sign_in_with(["inventory.stock-adjustment.view"]);
         assert.equal((await fetch(`${h.url()}${REPORT}/${created.body.data.oid}`, { headers: { authorization: `Bearer ${viewer}` } })).status, 403);
+    });
+
+    it("numbers an adjustment by the business's month, not UTC's", async () => {
+        await h.query("INSERT INTO settings (oid, name) SELECT gen_random_uuid()::text, 'Test' WHERE NOT EXISTS (SELECT 1 FROM settings)");
+        await h.query("UPDATE settings SET time_zone = 'Pacific/Kiritimati'");
+        const created = await post(CREATE, token, { draft: true, reason: "found", lines: [] });
+        const [{ yymm }] = await h.query("SELECT to_char((now() AT TIME ZONE 'Pacific/Kiritimati')::date, 'YYMM') AS yymm");
+        await h.query("UPDATE settings SET time_zone = 'Asia/Dhaka'");
+        assert.match(created.body.data.adjustment_number, new RegExp(`^ADJ-${yymm}-\\d{4}$`));
     });
 });

@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 const { addReportHeader } = require("../../../../utils/report-header");
 
 const get_purchase_order_report = async (request, res) => {
@@ -96,6 +97,7 @@ const get_report_data = async (oid) => {
 };
 
 const generate_purchase_report_xlsx = async (data) => {
+  const zone = await business_zone();
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Purchase Order Report");
 
@@ -120,13 +122,13 @@ const generate_purchase_report_xlsx = async (data) => {
     [
       "Created On:",
       purchaseOrder.created_on
-        ? new Date(purchaseOrder.created_on).toLocaleString()
+        ? format_business(purchaseOrder.created_on, zone)
         : "",
     ],
     [
       "Verified On:",
       purchaseOrder.verified_on
-        ? new Date(purchaseOrder.verified_on).toLocaleString()
+        ? format_business(purchaseOrder.verified_on, zone)
         : "",
     ],
     ["Special Notes:", purchaseOrder.special_notes || ""],

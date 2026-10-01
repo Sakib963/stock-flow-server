@@ -3,6 +3,7 @@ const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
+const { business_day } = require("../../../../utils/business-time");
 
 const generate_inventory_report_by_warehouse = async (request, res) => {
   try {
@@ -96,8 +97,8 @@ const generate_inventory_sql = (warehouseOid) => {
                   i.maximum_discount,
                   i.status AS batch_status,
                   i.intended_use,
-                  TO_CHAR(pu.created_on, 'YYYY-MM-DD') AS purchase_date,
-                  TO_CHAR(i.created_on, 'YYYY-MM-DD') AS batch_created_date,
+                  TO_CHAR(${business_day("pu.created_on")}, 'YYYY-MM-DD') AS purchase_date,
+                  TO_CHAR(${business_day("i.created_on")}, 'YYYY-MM-DD') AS batch_created_date,
                   sup.name AS supplier_name
             FROM ${TABLE.INVENTORY} i
             INNER JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid

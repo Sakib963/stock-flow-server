@@ -66,7 +66,7 @@ const get_user_info = async (request, res) => {
                        WHERE status = 'Active'
                        ORDER BY sort_order`,
             }),
-            get_data({ text: `SELECT name, logo_url, order_system FROM ${TABLE.SETTINGS} LIMIT 1` }),
+            get_data({ text: `SELECT name, logo_url, order_system, time_zone FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` }),
         ]);
 
         const permissions = permissionRows.map((r) => r.code);
@@ -88,6 +88,7 @@ const get_user_info = async (request, res) => {
                 name: settings.name ?? null,
                 logoUrl: settings.logo_url ?? null,
                 orderSystem: settings.order_system ?? "both",
+                timeZone: settings.time_zone ?? "Asia/Dhaka",
             },
             permissions,
             menu: build_menu(menuRows, new Set(permissions)),

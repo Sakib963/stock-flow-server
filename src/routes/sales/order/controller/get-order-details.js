@@ -38,7 +38,7 @@ const get_order_details = async (request, res) => {
             }),
             get_data({
                 text: `SELECT from_status, to_status, reason, performed_by,
-                              TO_CHAR(performed_on, 'YYYY-MM-DD"T"HH24:MI:SS') AS performed_on
+                              performed_on
                          FROM ${TABLE.ORDER_STATUS_HISTORY} WHERE order_oid = $1 ORDER BY performed_on ASC`,
                 values: [oid],
             }),

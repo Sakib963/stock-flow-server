@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 const { addReportHeader } = require("../../../../utils/report-header");
 
 const export_supplier_data = async (request, res) => {
@@ -170,6 +171,7 @@ const generate_export_xlsx = async (
   products,
   purchaseHistory,
 ) => {
+  const zone = await business_zone();
   const workbook = new ExcelJS.Workbook();
 
   // Sheet 1: Supplier Information
@@ -205,14 +207,14 @@ const generate_export_xlsx = async (
   infoSheet.addRow([
     "Created On",
     supplierDetails.created_on
-      ? new Date(supplierDetails.created_on).toLocaleString()
+      ? format_business(supplierDetails.created_on, zone)
       : "N/A",
   ]);
   infoSheet.addRow(["Last Edited By", supplierDetails.edited_by || "N/A"]);
   infoSheet.addRow([
     "Last Edited On",
     supplierDetails.edited_on
-      ? new Date(supplierDetails.edited_on).toLocaleString()
+      ? format_business(supplierDetails.edited_on, zone)
       : "N/A",
   ]);
 
@@ -324,10 +326,10 @@ const generate_export_xlsx = async (
       parseInt(p.qty_purchased_from_supplier || 0),
       parseInt(p.purchase_order_count || 0),
       p.first_purchase_date
-        ? new Date(p.first_purchase_date).toLocaleDateString()
+        ? format_business(p.first_purchase_date, zone, { time: false })
         : "N/A",
       p.last_purchase_date
-        ? new Date(p.last_purchase_date).toLocaleDateString()
+        ? format_business(p.last_purchase_date, zone, { time: false })
         : "N/A",
       parseFloat(p.avg_purchase_price_from_supplier || 0).toFixed(2),
       parseFloat(p.min_purchase_price || 0).toFixed(2),
@@ -338,7 +340,7 @@ const generate_export_xlsx = async (
       parseFloat(p.potential_profit_per_unit || 0).toFixed(2),
       parseFloat(p.total_inventory_value_all_sources || 0).toFixed(2),
       p.created_by,
-      p.created_on ? new Date(p.created_on).toLocaleDateString() : "N/A",
+      p.created_on ? format_business(p.created_on, zone, { time: false }) : "N/A",
     ];
 
     // Alternating row colors
@@ -575,7 +577,7 @@ const generate_export_xlsx = async (
     totalPurchaseAmount += parseFloat(po.total_amount || 0);
 
     historySheet.addRow([
-      po.order_date ? new Date(po.order_date).toLocaleDateString() : "N/A",
+      po.order_date ? format_business(po.order_date, zone, { time: false }) : "N/A",
       po.status,
       po.purchase_type || "N/A",
       po.payment_status || "N/A",
@@ -585,7 +587,7 @@ const generate_export_xlsx = async (
       po.product_names || "N/A",
       po.notes || "",
       po.created_by,
-      po.created_on ? new Date(po.created_on).toLocaleDateString() : "N/A",
+      po.created_on ? format_business(po.created_on, zone, { time: false }) : "N/A",
     ]);
   });
 

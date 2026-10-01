@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_day } = require("../../../../utils/business-time");
 
 // Pre-order list. Reads ONLY `pre_orders` -- a pre-order is never an order, so
 // this never touches the orders spine.
@@ -36,12 +37,12 @@ const build_filters = (query) => {
 
     if (query.date_from && query.date_from !== "null") {
         values.push(query.date_from);
-        where += ` AND po.created_on::date >= $${values.length}`;
+        where += ` AND ${business_day("po.created_on")} >= ${values.length}`;
     }
 
     if (query.date_to && query.date_to !== "null") {
         values.push(query.date_to);
-        where += ` AND po.created_on::date <= $${values.length}`;
+        where += ` AND ${business_day("po.created_on")} <= ${values.length}`;
     }
 
     return { where, values };

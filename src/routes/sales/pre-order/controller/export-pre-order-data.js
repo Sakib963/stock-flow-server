@@ -4,6 +4,7 @@ const { SELLABLE_BY_PRODUCT_CTE } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 
 // Export the whole pre-order book: every booking, plus an advance-liability
 // summary (FR-38) and the demand-by-product roll-up that says what to reorder.
@@ -81,6 +82,7 @@ const generate_liability_sql = () => ({
 });
 
 const generate_export_xlsx = async (preOrders, demand, liability) => {
+    const zone = await business_zone();
     const workbook = new ExcelJS.Workbook();
 
     const styleHeader = (row) => {
@@ -97,7 +99,7 @@ const generate_export_xlsx = async (preOrders, demand, liability) => {
     listSheet.addRow([]);
     styleHeader(listSheet.addRow(["Pre-Order No", "Customer", "Phone", "Status", "Expected Date", "Booked On", "Total", "Advance", "Refunded", "Balance Due", "Items", "Converted Order"]));
     preOrders.forEach((p) =>
-        listSheet.addRow([p.preorder_no, p.customer_name, p.customer_phone, p.status, p.expected_date, p.created_on, p.total_amount, p.advance_paid, p.advance_refunded, p.balance_due, p.item_count, p.converted_invoice_no || "N/A"])
+        listSheet.addRow([p.preorder_no, p.customer_name, p.customer_phone, p.status, p.expected_date, format_business(p.created_on, zone), p.total_amount, p.advance_paid, p.advance_refunded, p.balance_due, p.item_count, p.converted_invoice_no || "N/A"])
     );
 
     // Sheet 2 -- the reorder signal

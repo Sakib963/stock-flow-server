@@ -8,6 +8,7 @@ const { render_email } = require("../../../email/render-email");
 const { check_rate_limit, client_ip } = require("../../../middleware/rate-limit");
 const { end_sessions_for_login, request_context } = require("../../../auth/auth-session");
 const { record_sessions_ended } = require("../../../auth/auth-event");
+const { business_zone, format_business } = require("../../../utils/business-time");
 
 // A 6 digit code is a million guesses. Behind a token that is defensible; on an open endpoint it
 // is not, so every wrong answer is counted and the code dies at the cap.
@@ -145,7 +146,7 @@ const notify_password_changed = async (user) => {
     const email = render_email(__dirname, "password_changed_template", {
         USER_NAME: user.name || "there",
         // The template calls this CURRENT_DATE, and shows it as the moment of the change.
-        CURRENT_DATE: new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }),
+        CURRENT_DATE: format_business(new Date(), await business_zone()),
     });
 
     await send_email({ to: user.email, subject: email.subject, text: email.text, html: email.html });

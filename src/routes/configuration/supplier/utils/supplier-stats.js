@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { business_day } = require("../../../../utils/business-time");
 
 // What an owner opens a supplier to find out: how much was bought and is still owed, whether orders
 // arrive complete and on the promised day, how much of it had to be written off for the supplier's
@@ -61,9 +62,9 @@ const SUPPLIER_STATS_SQL = `
             (SELECT COALESCE(SUM(total_amount), 0) FROM received) AS spent,
             (SELECT COALESCE(SUM(paid), 0) FROM received) AS paid,
             (SELECT MAX(created_on) FROM received) AS last_purchase_on,
-            (SELECT ROUND(AVG(verified_on::date - created_on::date), 1) FROM received WHERE verified_on IS NOT NULL) AS lead_days,
+            (SELECT ROUND(AVG(${business_day("verified_on")} - ${business_day("created_on")}), 1) FROM received WHERE verified_on IS NOT NULL) AS lead_days,
             (SELECT COUNT(*) FROM received WHERE expected_delivery_date IS NOT NULL AND verified_on IS NOT NULL)::int AS promised,
-            (SELECT COUNT(*) FROM received WHERE expected_delivery_date IS NOT NULL AND verified_on::date <= expected_delivery_date)::int AS on_time,
+            (SELECT COUNT(*) FROM received WHERE expected_delivery_date IS NOT NULL AND ${business_day("verified_on")} <= expected_delivery_date)::int AS on_time,
             lines.ordered, lines.received, lines.received_value, faulty.units AS faulty, sold.units AS sold, sold.sales, sold.cost
       FROM lines, faulty, sold
 `;

@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { BUDGETS } = require("../../utils/cost-budget");
+const { business_today } = require("../../../../utils/business-time");
 
 // One row per batch with what it holds and what it is worth. The list adds these up per product and
 // the product page shows them, so the two can never disagree.
@@ -31,11 +32,11 @@ const PRODUCT_FIGURES = `
       SUM(b.on_hand)::int AS on_hand, SUM(b.held)::int AS held, SUM(b.sellable)::int AS sellable,
       COUNT(*) FILTER (WHERE b.on_hand > 0 OR b.held > 0)::int AS batches,
       COUNT(*) FILTER (WHERE b.on_hand > 0 AND b.intended_use = 'for_sale' AND NOT b.priced)::int AS unpriced_batches,
-      COALESCE(SUM(b.on_hand) FILTER (WHERE b.expiry_date::date < CURRENT_DATE), 0)::int AS expired_units,
-      COALESCE(SUM(b.on_hand) FILTER (WHERE b.expiry_date::date >= CURRENT_DATE AND b.expiry_date::date <= CURRENT_DATE + 30), 0)::int AS expiring_units,
+      COALESCE(SUM(b.on_hand) FILTER (WHERE b.expiry_date::date < ${business_today}), 0)::int AS expired_units,
+      COALESCE(SUM(b.on_hand) FILTER (WHERE b.expiry_date::date >= ${business_today} AND b.expiry_date::date <= ${business_today} + 30), 0)::int AS expiring_units,
       COALESCE(SUM(b.on_hand * b.cost_price), 0)::float8 AS stock_value,
       COALESCE(SUM(b.on_hand * b.cost_price) FILTER (WHERE b.intended_use = 'internal_use'), 0)::float8 AS internal_value,
-      COALESCE(SUM(b.on_hand * b.cost_price) FILTER (WHERE b.expiry_date::date <= CURRENT_DATE + 30), 0)::float8 AS expiring_value,
+      COALESCE(SUM(b.on_hand * b.cost_price) FILTER (WHERE b.expiry_date::date <= ${business_today} + 30), 0)::float8 AS expiring_value,
       COALESCE(SUM(b.on_hand * b.selling_price) FILTER (WHERE b.priced), 0)::float8 AS expected_revenue,
       COALESCE(SUM(b.on_hand * (b.selling_price - b.cost_price - b.budget_per_unit)) FILTER (WHERE b.priced), 0)::float8 AS profit_full,
       COALESCE(SUM(b.on_hand * (b.selling_price - COALESCE(b.maximum_discount, 0) - b.cost_price - b.budget_per_unit)) FILTER (WHERE b.priced), 0)::float8 AS profit_discounted`;

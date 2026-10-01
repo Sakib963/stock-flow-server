@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { business_month_start } = require("../../../../utils/business-time");
 
 // How the catalogue is set up, never how it sells: nothing here reads orders, and stock is read only
 // to say where it is (an aisle with nothing on it, how full a warehouse is).
@@ -21,7 +22,7 @@ const COUNTS = [
 
 const count_sql = ({ table, active = "status = 'Active'", all = "TRUE" }) => `
       SELECT COUNT(*) FILTER (WHERE ${active})::int AS active,
-             COUNT(*) FILTER (WHERE ${all} AND created_on >= date_trunc('month', CURRENT_TIMESTAMP))::int AS added
+             COUNT(*) FILTER (WHERE ${all} AND created_on >= ${business_month_start})::int AS added
       FROM ${table}`;
 
 // Each check is a list of records someone can fix, named so the page can link to each one.

@@ -1,6 +1,7 @@
 // Shared helpers for the Sales & Orders module.
 const { TABLE } = require("../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
+const { business_day, business_today } = require("../../../utils/business-time");
 
 // Append an audit row to order_status_history. Takes the `tx` handle from
 // `execute_transaction` so it lands inside the caller's transaction.
@@ -37,7 +38,7 @@ const resolveAmountPaid = ({ payment_status, total_amount, amount_paid }) => {
 // caller's transaction so two concurrent sales cannot mint the same number.
 const nextInvoiceNo = async (read) => {
     const rows = await read({
-        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.ORDERS} WHERE created_on::date = CURRENT_DATE`,
+        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.ORDERS} WHERE ${business_day("created_on")} = ${business_today}`,
         values: [],
     });
     const count = rows?.[0]?.today_count ?? 0;

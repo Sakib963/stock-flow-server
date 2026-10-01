@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
+const { business_zone, format_business } = require("../../../../utils/business-time");
 const { addReportHeader } = require("../../../../utils/report-header");
 
 const generate_supplier_performance_report = async (request, res) => {
@@ -173,6 +174,7 @@ const generate_performance_xlsx = async (
   purchaseOrders,
   products,
 ) => {
+  const zone = await business_zone();
   const workbook = new ExcelJS.Workbook();
 
   // Sheet 1: Supplier Overview
@@ -286,9 +288,9 @@ const generate_performance_xlsx = async (
     }
 
     ordersSheet.addRow([
-      po.order_date ? new Date(po.order_date).toLocaleDateString() : "N/A",
+      po.order_date ? format_business(po.order_date, zone, { time: false }) : "N/A",
       po.verification_date
-        ? new Date(po.verification_date).toLocaleDateString()
+        ? format_business(po.verification_date, zone, { time: false })
         : "Pending",
       po.status,
       po.purchase_type || "N/A",
@@ -433,10 +435,10 @@ const generate_performance_xlsx = async (
       parseInt(p.qty_purchased_from_supplier || 0),
       parseInt(p.purchase_order_count || 0),
       p.first_purchase_date
-        ? new Date(p.first_purchase_date).toLocaleDateString()
+        ? format_business(p.first_purchase_date, zone, { time: false })
         : "N/A",
       p.last_purchase_date
-        ? new Date(p.last_purchase_date).toLocaleDateString()
+        ? format_business(p.last_purchase_date, zone, { time: false })
         : "N/A",
       parseFloat(p.avg_purchase_price_from_supplier || 0).toFixed(2),
       parseFloat(p.lowest_purchase_price || 0).toFixed(2),

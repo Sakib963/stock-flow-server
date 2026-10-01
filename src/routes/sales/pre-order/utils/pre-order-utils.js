@@ -3,6 +3,7 @@
 // order, so it keeps its own numbering and its own status history.
 const { TABLE } = require("../../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
+const { business_day, business_today } = require("../../../../utils/business-time");
 
 // Append an audit row to pre_order_status_history. Takes the `tx` handle from
 // `execute_transaction` so it lands inside the caller's transaction.
@@ -22,7 +23,7 @@ const recordPreOrderStatusHistory = async (tx, { pre_order_oid, from_status, to_
 // caller's transaction so two concurrent bookings cannot mint the same number.
 const nextPreOrderNo = async (read) => {
     const rows = await read({
-        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.PRE_ORDERS} WHERE created_on::date = CURRENT_DATE`,
+        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.PRE_ORDERS} WHERE ${business_day("created_on")} = ${business_today}`,
         values: [],
     });
     const count = rows?.[0]?.today_count ?? 0;

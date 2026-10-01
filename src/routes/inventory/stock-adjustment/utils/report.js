@@ -1,6 +1,3 @@
-// A timestamp without a zone is read by pg as local time, so its local parts are the day as stored.
-const stored_day = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
 const fit_columns = (sheet) =>
       sheet.columns.forEach((column) => {
             let widest = 0;
@@ -20,4 +17,4 @@ const send_workbook = async (res, workbook, file_name) => {
             .send(buffer);
 };
 
-module.exports = { stored_day, fit_columns, send_workbook };
+module.exports = { fit_columns, send_workbook };

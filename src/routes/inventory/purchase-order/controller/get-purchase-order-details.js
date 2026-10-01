@@ -2,6 +2,7 @@ const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_day, business_today } = require("../../../../utils/business-time");
 
 // Dates go out as ISO strings or plain YYYY-MM-DD: the old DD/MM/YYYY text was read month first by
 // the date pipe, so 6 October showed as 10 June and any day past the 12th showed nothing.
@@ -11,7 +12,7 @@ const DETAILS_SQL = `
              (CASE p.payment_status WHEN 'paid' THEN p.total_amount WHEN 'partially_paid' THEN COALESCE(p.paid_amount, 0) ELSE 0 END)::bigint AS paid_amount,
              to_char(p.expected_delivery_date, 'YYYY-MM-DD') AS expected_delivery_date,
              p.supplier_oid, s.name AS supplier_name, s.phone_number AS supplier_phone, s.status AS supplier_status,
-             (SELECT COUNT(*)::int FROM ${TABLE.PURCHASE} x WHERE x.supplier_oid = p.supplier_oid AND x.status IN ('Submitted', 'Verified') AND date_trunc('year', x.created_on) = date_trunc('year', CURRENT_DATE)) AS supplier_orders_this_year,
+             (SELECT COUNT(*)::int FROM ${TABLE.PURCHASE} x WHERE x.supplier_oid = p.supplier_oid AND x.status IN ('Submitted', 'Verified') AND date_trunc('year', ${business_day('x.created_on')}) = date_trunc('year', ${business_today})) AS supplier_orders_this_year,
              p.created_on, p.created_by, cu.name AS created_by_name,
              p.verified_on, p.verified_by, vu.name AS verified_by_name,
              p.cancelled_on, p.cancelled_by, xu.name AS cancelled_by_name,

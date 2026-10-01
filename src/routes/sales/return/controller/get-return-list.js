@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { business_day_start } = require("../../../../utils/business-time");
 
 // Returns list. Every return is rooted in an order, so the order supplies the
 // customer, the channel and the invoice the return is filed against.
@@ -41,7 +42,7 @@ const apply_filters = (request, values) => {
 
     if (request.query.date_to) {
         // Inclusive of the whole end day.
-        clause += ` AND pr.created_on < ($${values.length + 1}::date + INTERVAL '1 day')`;
+        clause += ` AND pr.created_on < ${business_day_start(`${values.length + 1}::date + 1`)}`;
         values.push(request.query.date_to);
     }
 

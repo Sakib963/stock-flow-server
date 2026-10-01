@@ -5,6 +5,7 @@ const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { deductHeldStock } = require("../../utils/stock-movement");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { log } = require("../../../../utils/log");
+const { business_day } = require("../../../../utils/business-time");
 
 // Send for Delivery (dispatch). Available on CONFIRMED, not-yet-dispatched orders.
 // Single (oid) or bulk (date range). Deducts the held stock exactly once, sets
@@ -37,8 +38,8 @@ const send_for_delivery = async (request, res) => {
             const values = [];
             let where = `status = 'Confirmed' AND dispatched_on IS NULL AND channel = 'ONLINE'`;
             if (oid) { values.push(oid); where += ` AND oid = $${values.length}`; }
-            if (date_from) { values.push(date_from); where += ` AND created_on::date >= $${values.length}`; }
-            if (date_to) { values.push(date_to); where += ` AND created_on::date <= $${values.length}`; }
+            if (date_from) { values.push(date_from); where += ` AND ${business_day("created_on")} >= ${values.length}`; }
+            if (date_to) { values.push(date_to); where += ` AND ${business_day("created_on")} <= ${values.length}`; }
 
             const selected = await tx.get_data({
                 text: `SELECT oid, invoice_no, customer_name, customer_phone, customer_address,
