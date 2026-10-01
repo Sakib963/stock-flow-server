@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { deductFreeStock } = require("../../../sales/utils/stock-movement");
+const { deductFreeStock, incrementProductStat } = require("../../../sales/utils/stock-movement");
 const { describe } = require("../utils/dispose-rules");
 const { business_today } = require("../../../../utils/business-time");
 
@@ -30,7 +30,9 @@ const approve_product_dispose = async (request, res) => {
                   const lines = await tx.get_data({ text: `SELECT product_oid, inventory_oid, dispose_quantity::int AS quantity, reason FROM ${TABLE.DISPOSE_DETAILS} WHERE dispose_oid = $1 ORDER BY created_on, oid`, values: [oid] });
                   if (!lines.length) fail(409, "This disposal has no lines. Edit it and add at least one.");
 
-                  for (const [index, line] of lines.entries()) {
+                  // Batches are locked in one order, so two approvals or a checkout touching the same batches cannot deadlock.
+                  const ordered = [...lines.entries()].sort(([, a], [, b]) => (a.inventory_oid < b.inventory_oid ? -1 : a.inventory_oid > b.inventory_oid ? 1 : 0));
+                  for (const [index, line] of ordered) {
                         const taken = await deductFreeStock(tx, { inventory_oid: line.inventory_oid, quantity: line.quantity, reason: "disposed", source_oid: oid, user_id });
                         if (!taken) {
                               const [batch] = await tx.get_data({
@@ -42,7 +44,7 @@ const approve_product_dispose = async (request, res) => {
                         }
                         // The product's own figures count damage apart from other waste.
                         const column = line.reason === "damaged" || line.reason === "quality_reject" ? "total_damaged" : "total_wasted";
-                        await tx.execute_value({ text: `UPDATE ${TABLE.PRODUCT_STATS} SET ${column} = ${column} + $1, last_edited_on = clock_timestamp() WHERE product_oid = $2`, values: [line.quantity, line.product_oid] });
+                        await incrementProductStat(tx, { product_oid: line.product_oid, column, quantity: line.quantity, user_id });
                   }
 
                   await saveLogActivity({ reference_type: "product-dispose", reference_oid: oid, title: "Approved", description: describe(dispose_no, lines) }, { tx, request });

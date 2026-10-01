@@ -125,6 +125,15 @@ describe("disposing stock", () => {
         await assert_balanced(batch);
     });
 
+    it("counts damage even for a product that had no figures row yet", async () => {
+        const batch = await batch_of_ten();
+        await h.query("DELETE FROM product_stats WHERE product_oid = $1", [ids.cream]);
+        const created = await post(CREATE, token, { lines: [line(batch, 3)] });
+        assert.equal((await post(APPROVE, token, { oid: created.body.data.oid })).status, 200);
+        const [stats] = await h.query("SELECT total_damaged::int AS damaged FROM product_stats WHERE product_oid = $1", [ids.cream]);
+        assert.equal(stats.damaged, 3);
+    });
+
     it("needs a line note when the reason is Other", async () => {
         const batch = await batch_of_ten();
         const bare = await post(CREATE, token, { lines: [line(batch, 1, "other")] });

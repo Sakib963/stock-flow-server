@@ -3,7 +3,7 @@ const { execute_transaction, TransactionError, fail } = require("../../../../db/
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 
-// Guarded in the UPDATE itself, so a verify landing at the same moment cannot leave a rejected
+// Guarded in the UPDATE itself, so an approval landing at the same moment cannot leave a rejected
 // disposal whose stock already left. Only a Submitted one is waiting on someone's decision.
 const reject_product_dispose = async (request, res) => {
       const { oid, reason } = request.body;
