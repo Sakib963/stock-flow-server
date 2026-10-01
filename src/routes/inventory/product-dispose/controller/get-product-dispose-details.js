@@ -1,128 +1,47 @@
-const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { business_day } = require("../../../../utils/business-time");
+const { sees_money } = require("../../utils/sees-money");
+const { LINES_SQL, TOTALS, without_money } = require("../utils/dispose-sql");
+
+const DETAILS_SQL = `
+      SELECT d.oid, d.dispose_no, to_char(d.disposal_date, 'YYYY-MM-DD') AS disposal_date, d.disposal_method AS method, d.status, d.notes AS note,
+             d.reject_reason, d.cancel_reason,
+             d.created_on, d.created_by, cu.name AS created_by_name,
+             d.submitted_on, d.submitted_by, su.name AS submitted_by_name,
+             d.approved_on, d.approved_by, au.name AS approved_by_name,
+             d.rejected_on, d.rejected_by, ru.name AS rejected_by_name,
+             d.cancelled_on, d.cancelled_by, xu.name AS cancelled_by_name,
+             t.line_count, t.units, t.value
+        FROM ${TABLE.PRODUCT_DISPOSE} d
+        LEFT JOIN ${TABLE.LOGIN} cu ON cu.email = d.created_by
+        LEFT JOIN ${TABLE.LOGIN} su ON su.email = d.submitted_by
+        LEFT JOIN ${TABLE.LOGIN} au ON au.email = d.approved_by
+        LEFT JOIN ${TABLE.LOGIN} ru ON ru.email = d.rejected_by
+        LEFT JOIN ${TABLE.LOGIN} xu ON xu.email = d.cancelled_by
+        ${TOTALS}
+       WHERE d.oid = $1`;
 
 const get_product_dispose_details = async (request, res) => {
-  try {
-    const disposeOid = request.params.oid || request.query.oid;
-
-    const details_set = await get_data(generate_details_sql(disposeOid));
-    const details = details_set.length ? details_set[0] : null;
-
-    if (!details) {
-      log.warn(`Product dispose not found for oid: ${disposeOid}`);
-      return res.status(404).json({
-        code: 404,
-        message: "Product dispose not found",
-        data: null,
-      });
-    }
-
-    const [lines_set, aggregate_set, by_reason_set, activity_set] =
-      await Promise.all([
-        get_data(generate_lines_sql(disposeOid)),
-        get_data(generate_aggregate_sql(disposeOid)),
-        get_data(generate_by_reason_sql(disposeOid)),
-        getLogActivities("product-dispose", disposeOid, 10),
-      ]);
-
-    const aggregate = aggregate_set.length ? aggregate_set[0] : {};
-    const byReason = by_reason_set.map((row) => ({
-      reason: row.reason,
-      quantity: parseInt(row.quantity) || 0,
-      value: parseFloat(row.value) || 0,
-    }));
-
-    return res.status(200).json({
-      code: 200,
-      message: "Product dispose details found",
-      data: {
-        details,
-        lines: lines_set.length ? lines_set : [],
-        stats: {
-          totalLossValue: parseFloat(aggregate.total_loss) || 0,
-          totalQuantity: parseInt(aggregate.total_quantity) || 0,
-          distinctProducts: parseInt(aggregate.distinct_products) || 0,
-          lineCount: parseInt(aggregate.line_count) || 0,
-          topReason: byReason.length ? byReason[0].reason : null,
-          byReason,
-        },
-        activity: activity_set.map((activity) => ({
-          date: activity.performed_on,
-          user: activity.performed_by,
-          action: activity.title,
-          description: activity.description,
-        })),
-      },
-    });
-  } catch (e) {
-    log.error(
-      `An exception occurred while getting product dispose details: ${e?.message}`,
-    );
-    return res.status(500).json({
-      code: 500,
-      message: "Something Went Wrong! Please try again later!",
-    });
-  }
-};
-
-const generate_details_sql = (disposeOid) => {
-  const query = `
-      SELECT pd.oid, pd.dispose_no, pd.disposal_method, pd.notes, pd.status,
-            CAST(pd.total_dispose_quantity AS INTEGER) AS total_dispose_quantity,
-            CAST(pd.total_dispose_value AS INTEGER) AS total_dispose_value,
-            to_char(pd.disposal_date, 'YYYY-MM-DD') as disposal_date,
-            pd.created_by, TO_CHAR(${business_day("pd.created_on")}, 'DD/MM/YYYY') as created_on,
-            pd.approved_by, TO_CHAR(${business_day("pd.approved_on")}, 'DD/MM/YYYY') as approved_on,
-            pd.rejected_by, TO_CHAR(${business_day("pd.rejected_on")}, 'DD/MM/YYYY') as rejected_on,
-            pd.cancelled_by, TO_CHAR(${business_day("pd.cancelled_on")}, 'DD/MM/YYYY') as cancelled_on,
-            pd.reversed_by, TO_CHAR(${business_day("pd.reversed_on")}, 'DD/MM/YYYY') as reversed_on
-      FROM ${TABLE.PRODUCT_DISPOSE} pd
-      WHERE pd.oid = $1`;
-  return { text: query, values: [disposeOid] };
-};
-
-const generate_lines_sql = (disposeOid) => {
-  const query = `
-      SELECT dd.oid, dd.product_oid, p.name as product_name,
-            dd.inventory_oid, i.batch_code,
-            CAST(dd.dispose_quantity AS INTEGER) AS dispose_quantity,
-            dd.reason,
-            CAST(dd.cost_price AS INTEGER) AS cost_price,
-            CAST(COALESCE(dd.cost_price, 0) * dd.dispose_quantity AS INTEGER) AS line_loss,
-            dd.line_note
-      FROM ${TABLE.DISPOSE_DETAILS} dd
-      LEFT JOIN ${TABLE.PRODUCT} p ON p.oid = dd.product_oid
-      LEFT JOIN ${TABLE.INVENTORY} i ON i.oid = dd.inventory_oid
-      WHERE dd.dispose_oid = $1
-      ORDER BY dd.created_on ASC`;
-  return { text: query, values: [disposeOid] };
-};
-
-const generate_aggregate_sql = (disposeOid) => {
-  const query = `
-      SELECT
-            COUNT(dd.oid) AS line_count,
-            COUNT(DISTINCT dd.product_oid) AS distinct_products,
-            COALESCE(SUM(dd.dispose_quantity), 0) AS total_quantity,
-            COALESCE(SUM(COALESCE(dd.cost_price, 0) * dd.dispose_quantity), 0) AS total_loss
-      FROM ${TABLE.DISPOSE_DETAILS} dd
-      WHERE dd.dispose_oid = $1`;
-  return { text: query, values: [disposeOid] };
-};
-
-const generate_by_reason_sql = (disposeOid) => {
-  const query = `
-      SELECT dd.reason,
-            COALESCE(SUM(dd.dispose_quantity), 0) AS quantity,
-            COALESCE(SUM(COALESCE(dd.cost_price, 0) * dd.dispose_quantity), 0) AS value
-      FROM ${TABLE.DISPOSE_DETAILS} dd
-      WHERE dd.dispose_oid = $1
-      GROUP BY dd.reason
-      ORDER BY value DESC`;
-  return { text: query, values: [disposeOid] };
+      const oid = request.params.oid;
+      try {
+            const [[details], lines, activity, money] = await Promise.all([get_data({ text: DETAILS_SQL, values: [oid] }), get_data({ text: LINES_SQL, values: [oid] }), getLogActivities("product-dispose", oid, 20), sees_money(request)]);
+            if (!details) return res.status(404).json({ code: 404, message: "That disposal no longer exists.", data: null });
+            return res.status(200).json({
+                  code: 200,
+                  message: "Disposal",
+                  data: {
+                        details: money ? details : without_money(details),
+                        lines: money ? lines : lines.map(without_money),
+                        activity: activity.map((a) => ({ oid: a.oid, date: a.performed_on, user: a.performed_by, action: a.title, description: a.description })),
+                        sees_money: money,
+                  },
+            });
+      } catch (e) {
+            log.error(`An exception occurred while loading disposal ${oid}: ${e?.message}`);
+            return res.status(500).json({ code: 500, message: "Could not load this disposal. Try again in a moment." });
+      }
 };
 
 module.exports = get_product_dispose_details;

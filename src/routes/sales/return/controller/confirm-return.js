@@ -87,7 +87,7 @@ const confirm_return = async (request, res) => {
                 await tx.execute_value({
                     text: `INSERT INTO ${TABLE.PRODUCT_DISPOSE}
                                (oid, dispose_no, disposal_date, disposal_method, total_dispose_quantity, total_dispose_value, notes, status, approved_by, approved_on, created_by)
-                           VALUES ($1, $2, ${business_today}, 'destroy', $3, $4, $5, 'Approved', $6, clock_timestamp(), $6)`,
+                           VALUES ($1, $2, ${business_today}, 'destroyed', $3, $4, $5, 'Approved', $6, clock_timestamp(), $6)`,
                     values: [dispose_oid, `DISP-${ret.return_no}`, total_qty, total_value, `Damaged customer return ${ret.return_no} on order ${order.invoice_no}`, user_id],
                 });
 

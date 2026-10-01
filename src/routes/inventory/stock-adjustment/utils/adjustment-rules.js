@@ -75,8 +75,8 @@ const insert_lines = async (tx, adjustment_oid, lines, user_id, new_oid) => {
       for (const line of lines) {
             const oid = new_oid();
             await tx.execute_value({
-                  text: `INSERT INTO ${TABLE.STOCK_ADJUSTMENT_LINE} (oid, adjustment_oid, product_oid, direction, quantity, inventory_oid, cost_price, intended_use, selling_price, maximum_discount, warehouse_oid, aisle_oid, expiry_date, created_by)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                  text: `INSERT INTO ${TABLE.STOCK_ADJUSTMENT_LINE} (oid, adjustment_oid, product_oid, direction, quantity, inventory_oid, cost_price, intended_use, selling_price, maximum_discount, warehouse_oid, aisle_oid, expiry_date, created_by, created_on)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, clock_timestamp())`,
                   values: [oid, adjustment_oid, line.product_oid, line.direction, line.quantity, line.inventory_oid, line.cost_price, line.intended_use, line.selling_price, line.maximum_discount, line.warehouse_oid, line.aisle_oid, line.expiry_date, user_id],
             });
             if (has_budget(line)) await save_budget(tx, { owner: "stock_adjustment_line_oid", owner_oid: oid, values: line, user_id });

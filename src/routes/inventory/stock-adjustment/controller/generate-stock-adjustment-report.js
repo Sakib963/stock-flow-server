@@ -6,7 +6,7 @@ const { addReportHeader } = require("../../../../utils/report-header");
 const { sees_money } = require("../../utils/sees-money");
 const { LINES_SQL } = require("../utils/adjustment-sql");
 const { REASON_LABEL } = require("../utils/adjustment-rules");
-const { send_workbook, fit_columns } = require("../utils/report");
+const { send_workbook, fit_columns } = require("../../utils/report");
 const { business_zone, format_business, zone_label } = require("../../../../utils/business-time");
 
 const HEADER_SQL = `SELECT oid, adjustment_number, reason, status, note, reject_reason, cancel_reason, created_on, created_by, verified_on, verified_by FROM ${TABLE.STOCK_ADJUSTMENT} WHERE oid = $1`;

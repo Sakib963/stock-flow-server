@@ -1,57 +1,38 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_value, get_data } = require("../../../../db/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 
+// Guarded in the UPDATE itself: checking the status first and then writing would let an approval land in
+// between, leaving a cancelled disposal whose stock left.
 const cancel_product_dispose = async (request, res) => {
-  try {
-    const user_id = request.credentials.user_id;
-    const dispose_oid = request.body.oid;
+      const { oid, reason } = request.body;
+      const user_id = request.credentials.user_id;
 
-    const statusData = await get_data({
-      text: `SELECT status FROM ${TABLE.PRODUCT_DISPOSE} WHERE oid = $1`,
-      values: [dispose_oid],
-    });
-    if (!statusData.length) {
-      return res
-        .status(404)
-        .json({ code: 404, message: "Product dispose not found" });
-    }
-    if (statusData[0].status !== "Submitted") {
-      return res.status(400).json({
-        code: 400,
-        message: "Only submitted disposals can be cancelled",
-      });
-    }
+      try {
+            await execute_transaction(async (tx) => {
+                  const cancelled = await tx.execute_value({
+                        text: `UPDATE ${TABLE.PRODUCT_DISPOSE}
+                                  SET status = 'Cancelled', cancel_reason = $1, cancelled_by = $2, cancelled_on = clock_timestamp(), edited_by = $2, edited_on = clock_timestamp()
+                                WHERE oid = $3 AND status IN ('Draft', 'Submitted')
+                            RETURNING dispose_no`,
+                        values: [reason, user_id, oid],
+                  });
+                  if (!cancelled.rowCount) {
+                        const [disposal] = await tx.get_data({ text: `SELECT status FROM ${TABLE.PRODUCT_DISPOSE} WHERE oid = $1`, values: [oid] });
+                        if (!disposal) fail(404, "That disposal no longer exists.");
+                        fail(409, `This disposal is already ${disposal.status}, so it cannot be cancelled.`, { status: disposal.status });
+                  }
+                  await saveLogActivity({ reference_type: "product-dispose", reference_oid: oid, title: "Cancelled", description: `${cancelled.rows[0].dispose_no}: ${reason}` }, { tx, request });
+            });
+      } catch (e) {
+            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
+            log.error(`An exception occurred while cancelling disposal ${oid}: ${e?.message}`);
+            return res.status(500).json({ code: 500, message: "Could not cancel the disposal. Try again in a moment." });
+      }
 
-    await execute_value({
-      text: `UPDATE ${TABLE.PRODUCT_DISPOSE} SET status = $1, cancelled_by = $2, cancelled_on = clock_timestamp() WHERE oid = $3`,
-      values: ["Cancelled", user_id, dispose_oid],
-    });
-
-    saveLogActivity({
-      reference_type: "product-dispose",
-      reference_oid: dispose_oid,
-      title: "Dispose Cancelled",
-      description: "Disposal cancelled by requester",
-      performed_by: user_id,
-    });
-
-    log.info(`Product dispose ${dispose_oid} cancelled by: ${user_id}`);
-    return res.status(200).json({
-      code: 200,
-      message: "Product dispose cancelled successfully!",
-      data: null,
-    });
-  } catch (e) {
-    log.error(
-      `An exception occurred while cancelling product dispose: ${e?.message}`,
-    );
-    return res.status(500).json({
-      code: 500,
-      message: "Something Went Wrong! Please try again later!",
-    });
-  }
+      log.info(`Disposal ${oid} cancelled by ${user_id}`);
+      return res.status(200).json({ code: 200, message: "Disposal cancelled" });
 };
 
 module.exports = cancel_product_dispose;

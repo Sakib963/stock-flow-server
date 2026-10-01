@@ -265,12 +265,13 @@ module.exports = {
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",
-    UPDATE_PRODUCT_DISPOSE_DETAILS: "/update-product-dispose-details",
+    UPDATE_PRODUCT_DISPOSE: "/update-product-dispose",
     GET_PRODUCT_DISPOSE_DETAILS: "/get-product-dispose-details",
     APPROVE_PRODUCT_DISPOSE: "/approve-product-dispose",
     REJECT_PRODUCT_DISPOSE: "/reject-product-dispose",
     CANCEL_PRODUCT_DISPOSE: "/cancel-product-dispose",
-    REVERSE_PRODUCT_DISPOSE: "/reverse-product-dispose",
+    GENERATE_PRODUCT_DISPOSE_REPORT: "/generate-product-dispose-report",
+    GET_PRODUCT_LIST_FOR_DISPOSE: "/get-product-list-for-dispose",
     GET_STOCK_MOVEMENT_LIST: "/get-stock-movement-list",
     GET_STOCK_ADJUSTMENT_LIST: "/get-stock-adjustment-list",
     GET_STOCK_ADJUSTMENT_DETAILS: "/get-stock-adjustment-details",
@@ -281,8 +282,6 @@ module.exports = {
     REJECT_STOCK_ADJUSTMENT: "/reject-stock-adjustment",
     CANCEL_STOCK_ADJUSTMENT: "/cancel-stock-adjustment",
     GENERATE_STOCK_ADJUSTMENT_REPORT: "/generate-stock-adjustment-report",
-    GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN:
-      "/get-product-list-for-dispose-dropdown",
 
     CHANGE_PASSWORD: "/change-user-password",
     VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change",
