@@ -113,8 +113,8 @@ const generate_inventory_sql = (productOid) => {
             LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
             LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = pd.purchase_oid
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
-            LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
-            LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
+            LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = i.warehouse_oid
+            LEFT JOIN ${TABLE.AISLE} a ON a.oid = i.aisle_oid
             WHERE i.product_oid = $1
             ORDER BY i.created_on DESC
       `;

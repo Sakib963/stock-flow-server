@@ -25,8 +25,8 @@ const BATCHES_SQL = `
         LEFT JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = b.purchase_details_oid
         LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = d.purchase_oid
         LEFT JOIN ${TABLE.SUPPLIER} su ON su.oid = pu.supplier_oid
-        LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = d.warehouse_oid
-        LEFT JOIN ${TABLE.AISLE} a ON a.oid = d.aisle_oid
+        LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = b.warehouse_oid
+        LEFT JOIN ${TABLE.AISLE} a ON a.oid = b.aisle_oid
        WHERE b.product_oid = $1
        ORDER BY b.received_on ASC, b.oid ASC`;
 

@@ -2,11 +2,10 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { next_batch_code } = require("../utils/batch-code");
+const { next_batch_code } = require("../../utils/batch-code");
 const { receiveStock } = require("../../../sales/utils/stock-movement");
 const { v4: uuidv4 } = require("uuid");
-
-const BUDGETS = ["ad_run_cost", "packaging_cost", "gift_cost", "content_creation_cost", "influencer_cost"];
+const { has_budget, save_budget } = require("../../utils/cost-budget");
 
 // The delivery is counted by hand and this is the one place stock comes in. The status moves first,
 // guarded, so a second verify of the same order (a double click, a retried request, a second tab)
@@ -34,7 +33,7 @@ const verify_purchase_order = async (request, res) => {
                   const po_number = moved.rows[0].po_number;
 
                   const ordered = await tx.get_data({
-                        text: `SELECT d.oid, d.product_oid, d.ordered_quantity::int AS ordered_quantity, p.has_expiry
+                        text: `SELECT d.oid, d.product_oid, d.ordered_quantity::int AS ordered_quantity, d.warehouse_oid, d.aisle_oid, p.has_expiry
                                  FROM ${TABLE.PURCHASE_DETAILS} d JOIN ${TABLE.PRODUCT} p ON p.oid = d.product_oid WHERE d.purchase_oid = $1`,
                         values: [oid],
                   });
@@ -47,7 +46,7 @@ const verify_purchase_order = async (request, res) => {
                   let units = 0;
                   let batches = 0;
                   for (const line of lines) {
-                        const { product_oid, ordered_quantity, has_expiry } = by_oid.get(line.oid);
+                        const { product_oid, ordered_quantity, warehouse_oid, aisle_oid, has_expiry } = by_oid.get(line.oid);
                         if (line.received_quantity > ordered_quantity) {
                               fail(400, `More arrived than was ordered on one line (${line.received_quantity} of ${ordered_quantity}). Record what was ordered and set the extra aside, or raise a new order for it.`, { line: line.oid });
                         }
@@ -64,21 +63,15 @@ const verify_purchase_order = async (request, res) => {
                         const for_sale = line.intended_use === "for_sale";
                         const batch_oid = uuidv4();
                         await tx.execute_value({
-                              text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, expiry_date, created_by)
-                                     VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                              values: [batch_oid, await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, has_expiry ? line.expiry_date : null, user_id],
+                              text: `INSERT INTO ${TABLE.INVENTORY} (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, intended_use, status, selling_price, maximum_discount, expiry_date, created_by, warehouse_oid, aisle_oid)
+                                     VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                              values: [batch_oid, await next_batch_code(tx), product_oid, line.oid, line.received_quantity, line.unit_price, line.intended_use, for_sale ? "ready_for_sale" : "internal_use", for_sale ? line.selling_price : null, for_sale ? line.maximum_discount : null, has_expiry ? line.expiry_date : null, user_id, warehouse_oid, aisle_oid],
                         });
                         await receiveStock(tx, { inventory_oid: batch_oid, quantity: line.received_quantity, purchase_oid: oid, user_id });
                         units += line.received_quantity;
                         batches += 1;
 
-                        if (BUDGETS.some((key) => line[key] !== null) || line.cost_remarks) {
-                              await tx.execute_value({
-                                    text: `INSERT INTO ${TABLE.PURCHASE_DETAILS_COST_PROFILE} (oid, purchase_details_oid, ad_run_cost, packaging_cost, gift_cost, content_creation_cost, influencer_cost, cost_remarks, created_by)
-                                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                                    values: [uuidv4(), line.oid, ...BUDGETS.map((key) => line[key]), line.cost_remarks, user_id],
-                              });
-                        }
+                        if (has_budget(line)) await save_budget(tx, { owner: "purchase_details_oid", owner_oid: line.oid, values: line, user_id });
                   }
 
                   const ordered_units = ordered.reduce((sum, line) => sum + line.ordered_quantity, 0);

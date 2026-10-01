@@ -1,7 +1,8 @@
 const { TABLE } = require("../../../../utils/constant");
 const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
-const { BATCH_FIGURES, PRODUCT_FIGURES, sees_money, without_money } = require("../utils/stock-figures");
+const { BATCH_FIGURES, PRODUCT_FIGURES, without_money } = require("../utils/stock-figures");
+const { sees_money } = require("../../utils/sees-money");
 
 // Every product that is not deleted and has ever had a batch, Active or Inactive: the old list showed
 // Active products only, so an Inactive product's stock on the shelf appeared on no stock page at all.

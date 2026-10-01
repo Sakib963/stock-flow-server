@@ -24,7 +24,7 @@ const post = (route, token, body) => h.call(route, { method: "POST", token, body
 const sign_in_with = async (permissions) => (await h.sign_in(await h.seed_user({ email: `bx-${uuidv4().slice(0, 8)}@arithmalabs.test`, permissions }))).access;
 
 const seed = async () => {
-    await h.query("TRUNCATE stock_movement, purchase, purchase_details, purchase_details_cost_profile, inventory, stock_hold, product, sub_categories, categories, aisle, warehouse, supplier, activity_log CASCADE");
+    await h.query("TRUNCATE stock_movement, purchase, purchase_details, cost_budget, inventory, stock_hold, product, sub_categories, categories, aisle, warehouse, supplier, activity_log CASCADE");
     const ids = { category: uuidv4(), sub_category: uuidv4(), cream: uuidv4(), bag: uuidv4(), main: uuidv4(), supplier: uuidv4() };
     await h.query("INSERT INTO categories (oid, name, category_code, status) VALUES ($1, 'Skincare', 'SKIN', 'Active')", [ids.category]);
     await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, 'Creams', 'CREA', $2, 'Active')", [ids.sub_category, ids.category]);

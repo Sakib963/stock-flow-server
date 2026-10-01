@@ -25,7 +25,7 @@ router.get(
 // The picker behind the aisle form as well as the warehouse's own screens.
 router.get(
       ROUTES.GET_WAREHOUSE_LIST_FOR_DROPDOWN,
-      [jwtMiddleware, requirePermission(["configuration.warehouse.view", "configuration.aisle.view", "inventory.purchase-order.create", "inventory.purchase-order.edit"]), validator.get(warehouse_dropdown_schema)],
+      [jwtMiddleware, requirePermission(["configuration.warehouse.view", "configuration.aisle.view", "inventory.purchase-order.create", "inventory.purchase-order.edit", "inventory.stock-adjustment.create", "inventory.stock-adjustment.edit"]), validator.get(warehouse_dropdown_schema)],
       get_warehouse_list_for_dropdown
 );
 

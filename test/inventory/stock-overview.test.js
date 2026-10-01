@@ -30,7 +30,7 @@ const sign_in_with = async (permissions) => (await h.sign_in(await h.seed_user({
 // A cream for sale (10 at 300, priced 500 with up to 50 off, 20 packaging per unit) and a bag kept
 // for internal use (5 at 100), received through one real purchase order. Two creams are then held.
 const seed = async () => {
-    await h.query("TRUNCATE stock_movement, purchase, purchase_details, purchase_details_cost_profile, inventory, stock_hold, order_items, orders, product, sub_categories, categories, brands, aisle, warehouse, supplier, activity_log CASCADE");
+    await h.query("TRUNCATE stock_movement, purchase, purchase_details, cost_budget, inventory, stock_hold, order_items, orders, product, sub_categories, categories, brands, aisle, warehouse, supplier, activity_log CASCADE");
     const ids = { category: uuidv4(), sub_category: uuidv4(), cream: uuidv4(), bag: uuidv4(), main: uuidv4(), supplier: uuidv4() };
     await h.query("INSERT INTO categories (oid, name, category_code, status) VALUES ($1, 'Skincare', 'SKIN', 'Active')", [ids.category]);
     await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, 'Creams', 'CREA', $2, 'Active')", [ids.sub_category, ids.category]);
@@ -215,6 +215,13 @@ describe("changing a batch's price and budget", () => {
         assert.doesNotMatch(log.description, /30/, "the activity log never carries a budget amount");
         assert.equal(await movements(), 2, "a budget moves no stock");
         assert.equal((await post(BUDGET, token, { inventory_oid: ids.cream_batch.oid, ad_run_cost: 30, packaging_cost: 20 })).body.data.changed, false);
+    });
+
+    it("never changes a batch's unit cost, which is fixed once verified", async () => {
+        const res = await post(BUDGET, token, { inventory_oid: ids.cream_batch.oid, cost_price: 330, packaging_cost: 20 });
+        assert.equal(res.status, 400, "a unit cost is not something this route accepts");
+        const [batch] = await h.query("SELECT cost_price::int AS cost FROM inventory WHERE oid = $1", [ids.cream_batch.oid]);
+        assert.equal(batch.cost, 300);
     });
 
     it("lets someone who may edit the stock overview change a batch's expiry", async () => {

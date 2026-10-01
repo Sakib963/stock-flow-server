@@ -40,7 +40,7 @@ const LINES_SQL = `
         JOIN ${TABLE.PRODUCT} pr ON pr.oid = d.product_oid
         LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = d.warehouse_oid
         LEFT JOIN ${TABLE.AISLE} a ON a.oid = d.aisle_oid
-        LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} cp ON cp.purchase_details_oid = d.oid
+        LEFT JOIN ${TABLE.COST_BUDGET} cp ON cp.purchase_details_oid = d.oid
         LEFT JOIN LATERAL (
             SELECT COALESCE(SUM(GREATEST(i.quantity_available - COALESCE((SELECT SUM(h.quantity) FROM ${TABLE.STOCK_HOLD} h WHERE h.inventory_oid = i.oid AND h.status = 'Active'), 0), 0)), 0)::int AS sellable
               FROM ${TABLE.INVENTORY} i

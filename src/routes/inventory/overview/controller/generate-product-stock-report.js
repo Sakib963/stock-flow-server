@@ -2,7 +2,7 @@ const ExcelJS = require("exceljs");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const { addReportHeader } = require("../../../../utils/report-header");
-const { sees_money } = require("../utils/stock-figures");
+const { sees_money } = require("../../utils/sees-money");
 const { PRODUCT_SQL, FIGURES_SQL, BATCHES_SQL } = require("../utils/product-stock-sql");
 
 const QUANTITY_COLUMNS = ["Batch code", "Status", "Received on", "Purchase order", "Supplier", "Warehouse", "Aisle", "Received", "On hand", "Held", "Sellable", "Expiry date", "Selling price", "Max discount"];

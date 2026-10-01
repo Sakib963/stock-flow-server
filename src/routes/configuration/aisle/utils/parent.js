@@ -18,7 +18,7 @@ const require_active_warehouse = async (tx, warehouse_oid) => {
  * disagree with itself.
  */
 const refuse_move_with_stock = async (tx, aisle_oid) => {
-      const rows = await tx.get_data({ text: `SELECT 1 FROM ${TABLE.PURCHASE_DETAILS} WHERE aisle_oid = $1 LIMIT 1`, values: [aisle_oid] });
+      const rows = await tx.get_data({ text: `SELECT 1 FROM ${TABLE.PURCHASE_DETAILS} WHERE aisle_oid = $1 UNION ALL SELECT 1 FROM ${TABLE.INVENTORY} WHERE aisle_oid = $1 LIMIT 1`, values: [aisle_oid] });
       if (rows.length) fail(400, "Stock has been received into this aisle, so it cannot move to another warehouse.", { field: "warehouse_oid", reason: "has_stock" });
 };
 

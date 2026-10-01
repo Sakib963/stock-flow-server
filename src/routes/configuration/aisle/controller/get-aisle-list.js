@@ -16,7 +16,7 @@ const FROM = `${TABLE.AISLE} a
               LEFT JOIN ${TABLE.LOGIN} u ON u.email = COALESCE(a.edited_by, a.created_by)
               LEFT JOIN ${TABLE.ROLE} r ON r.oid = u.role_oid`;
 
-const STOCK_HERE = `EXISTS (SELECT 1 FROM ${TABLE.INVENTORY} i JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid WHERE d.aisle_oid = a.oid AND i.quantity_available > 0)`;
+const STOCK_HERE = `EXISTS (SELECT 1 FROM ${TABLE.INVENTORY} i WHERE i.aisle_oid = a.oid AND i.quantity_available > 0)`;
 
 const STATS = {
     active: `COUNT(*) FILTER (WHERE a.status = 'Active')::int`,

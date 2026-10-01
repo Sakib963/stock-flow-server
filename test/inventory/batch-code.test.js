@@ -1,6 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { batch_code_of } = require("../../src/routes/inventory/purchase-order/utils/batch-code");
+const { batch_code_of } = require("../../src/routes/inventory/utils/batch-code");
 
 describe("a batch code", () => {
       it("never repeats, so a scanned label names exactly one product's batch", () => {

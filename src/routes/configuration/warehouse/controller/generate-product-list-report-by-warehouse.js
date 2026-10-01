@@ -103,13 +103,13 @@ const generate_products_sql = (warehouseOid) => {
                   BOOL_OR(i.intended_use = 'for_sale') AS has_for_sale_batch
             FROM ${TABLE.PRODUCT} p
             INNER JOIN ${TABLE.INVENTORY} i ON i.product_oid = p.oid
-            INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
-            INNER JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
+            LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
+            INNER JOIN ${TABLE.WAREHOUSE} w ON w.oid = i.warehouse_oid
             LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
             LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
-            WHERE pd.warehouse_oid = $1
+            WHERE i.warehouse_oid = $1
             GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, w.name, w.code, w.location, w.status, ps.total_sold, ps.total_returned
             ORDER BY p.name ASC
       `;

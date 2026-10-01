@@ -32,6 +32,9 @@ const recordMovement = async (tx, { inventory_oid, quantity, reason, source_oid,
 // is that quantity.
 const receiveStock = (tx, { inventory_oid, quantity, purchase_oid, user_id }) => recordMovement(tx, { inventory_oid, quantity, reason: "received", source_oid: purchase_oid, user_id });
 
+// A new batch a stock adjustment created, inserted with its full quantity, like a received one.
+const openBatch = (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => recordMovement(tx, { inventory_oid, quantity, reason, source_oid, user_id });
+
 // Take physical stock off a batch, guarded so it never goes below zero. Returns false when the batch
 // holds less than asked, and then nothing is written.
 const deductStock = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
@@ -84,9 +87,13 @@ const holdStock = async (tx, { order_oid, order_item_oid = null, product_oid, in
     return { ok: true, sellable };
 };
 
-// POS deduct: remove physical stock, but only if SELLABLE (on-hand minus other
-// Active holds) covers it. Returns true on success, false if blocked.
-const deductSellableStock = async (tx, { inventory_oid, quantity, order_oid, user_id }) => {
+// Remove physical stock, but only what is free of Active holds: units promised to an online order
+// are not anyone else's to take. Returns true on success, false if blocked.
+const deductFreeStock = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
+    // The batch is locked in its own statement first. The guarded UPDATE then starts after any hold still
+    // being written on it has committed, and counts it: taking its snapshot before the lock let a theft
+    // and an order's hold both have the same last units.
+    await tx.get_data({ text: `SELECT 1 FROM ${TABLE.INVENTORY} WHERE oid = $1 FOR UPDATE`, values: [inventory_oid] });
     const result = await tx.execute_value({
         text: `UPDATE ${TABLE.INVENTORY}
                   SET quantity_available = quantity_available - $1,
@@ -98,9 +105,12 @@ const deductSellableStock = async (tx, { inventory_oid, quantity, order_oid, use
         values: [quantity, user_id, inventory_oid],
     });
     if (result.rowCount !== 1) return false;
-    await recordMovement(tx, { inventory_oid, quantity: -quantity, reason: "sold", source_oid: order_oid, user_id });
+    await recordMovement(tx, { inventory_oid, quantity: -quantity, reason, source_oid, user_id });
     return true;
 };
+
+// POS deduct: what is sold at the counter comes out of what is free of holds.
+const deductSellableStock = (tx, { inventory_oid, quantity, order_oid, user_id }) => deductFreeStock(tx, { inventory_oid, quantity, reason: "sold", source_oid: order_oid, user_id });
 
 // Release all Active holds of an order (cancellation before dispatch). Physical
 // quantity_available never changed while held, so nothing to add back -- the units
@@ -178,6 +188,8 @@ const incrementProductStat = async (tx, { product_oid, column, quantity, user_id
 
 module.exports = {
     receiveStock,
+    openBatch,
+    deductFreeStock,
     deductStock,
     refuseDeletedProduct,
     getActiveHolds,

@@ -17,10 +17,9 @@ const STOCK_SQL = `
              CASE WHEN i.status = 'ready_for_sale' THEN GREATEST(i.quantity_available - COALESCE(h.held, 0), 0) ELSE 0 END AS sellable,
              i.quantity_available * i.cost_price AS value
       FROM ${TABLE.INVENTORY} i
-      JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
       JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
       LEFT JOIN holds h ON h.inventory_oid = i.oid
-      WHERE d.aisle_oid = $1 AND i.quantity_available > 0
+      WHERE i.aisle_oid = $1 AND i.quantity_available > 0
 `;
 
 // Sellable across every location, for the products on this aisle, to decide which are low.

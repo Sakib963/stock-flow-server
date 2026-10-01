@@ -29,7 +29,7 @@ const sign_in_with = async (permissions) => (await h.sign_in(await h.seed_user({
 
 // Two products, two warehouses with one aisle each, one supplier: enough to put a line in the wrong aisle.
 const seed = async () => {
-      await h.query("TRUNCATE purchase, purchase_details, purchase_details_cost_profile, inventory, stock_hold, order_items, orders, product, sub_categories, categories, aisle, warehouse, supplier CASCADE");
+      await h.query("TRUNCATE purchase, purchase_details, cost_budget, inventory, stock_hold, order_items, orders, product, sub_categories, categories, aisle, warehouse, supplier CASCADE");
       const ids = { category: uuidv4(), sub_category: uuidv4(), kurti: uuidv4(), scarf: uuidv4(), main: uuidv4(), annex: uuidv4(), shelf: uuidv4(), rack: uuidv4(), supplier: uuidv4(), idle_supplier: uuidv4() };
       await h.query("INSERT INTO categories (oid, name, category_code, status) VALUES ($1, 'Clothing', 'CLOT', 'Active')", [ids.category]);
       await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, 'Tops', 'TOPS', $2, 'Active')", [ids.sub_category, ids.category]);

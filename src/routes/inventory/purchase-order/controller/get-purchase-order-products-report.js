@@ -89,7 +89,7 @@ const get_products_report_data = async (oid) => {
       LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
       LEFT JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
       LEFT JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = pd.oid
-          LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} pcp ON pcp.purchase_details_oid = pd.oid
+          LEFT JOIN ${TABLE.COST_BUDGET} pcp ON pcp.purchase_details_oid = pd.oid
       WHERE po.oid = $1
       ORDER BY p.name ASC
   `;

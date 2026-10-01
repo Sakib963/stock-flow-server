@@ -2,7 +2,8 @@ const { get_data } = require("../../../../db/database");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { getSettings } = require("../../../../utils/settings-cache");
-const { sees_money, without_money } = require("../utils/stock-figures");
+const { without_money } = require("../utils/stock-figures");
+const { sees_money } = require("../../utils/sees-money");
 const { PRODUCT_SQL, FIGURES_SQL, BATCHES_SQL } = require("../utils/product-stock-sql");
 
 const get_product_stock = async (request, res) => {

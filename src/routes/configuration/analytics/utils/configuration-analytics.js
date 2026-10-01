@@ -66,8 +66,8 @@ const ATTENTION = [
             permission: "configuration.aisle.view",
             sql: `SELECT a.oid, a.name, w.name AS detail FROM ${TABLE.AISLE} a JOIN ${TABLE.WAREHOUSE} w ON w.oid = a.warehouse_oid
                   WHERE a.status = 'Active' AND NOT EXISTS (
-                        SELECT 1 FROM ${TABLE.PURCHASE_DETAILS} d JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = d.oid
-                        WHERE d.aisle_oid = a.oid AND i.quantity_available > 0)`,
+                        SELECT 1 FROM ${TABLE.INVENTORY} i
+                        WHERE i.aisle_oid = a.oid AND i.quantity_available > 0)`,
       },
       {
             // Bought from means units received on a verified purchase order: a submitted one may still be cancelled,
@@ -137,8 +137,7 @@ const SPREAD_SHOWN = 8;
 const WAREHOUSE_FULLNESS_SQL = `
       SELECT w.oid, w.name, w.capacity_units AS capacity, COALESCE(SUM(i.quantity_available), 0)::int AS on_hand
       FROM ${TABLE.WAREHOUSE} w
-      LEFT JOIN ${TABLE.PURCHASE_DETAILS} d ON d.warehouse_oid = w.oid
-      LEFT JOIN ${TABLE.INVENTORY} i ON i.purchase_details_oid = d.oid
+      LEFT JOIN ${TABLE.INVENTORY} i ON i.warehouse_oid = w.oid
       WHERE w.status = 'Active'
       GROUP BY w.oid, w.name, w.capacity_units
       ORDER BY w.name`;

@@ -14,11 +14,11 @@ const update_batch_expiry = async (request, res) => {
       try {
             await execute_transaction(async (tx) => {
                   const [batch] = await tx.get_data({
-                        text: `SELECT i.batch_code, to_char(i.expiry_date, 'YYYY-MM-DD') AS expiry_date, p.name AS product_name, p.has_expiry, pu.oid AS purchase_oid, pu.po_number
+                        text: `SELECT i.batch_code, i.product_oid, to_char(i.expiry_date, 'YYYY-MM-DD') AS expiry_date, p.name AS product_name, p.has_expiry, pu.oid AS purchase_oid, pu.po_number
                                  FROM ${TABLE.INVENTORY} i
                                  JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
-                                 JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
-                                 JOIN ${TABLE.PURCHASE} pu ON pu.oid = d.purchase_oid
+                                 LEFT JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
+                                 LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = d.purchase_oid
                                 WHERE i.oid = $1
                                   FOR UPDATE OF i`,
                         values: [inventory_oid],
@@ -38,10 +38,11 @@ const update_batch_expiry = async (request, res) => {
 
                   await saveLogActivity(
                         {
-                              reference_type: "purchase-order",
-                              reference_oid: batch.purchase_oid,
+                              // A batch a stock adjustment made has no order, so its change is logged on the product's stock.
+                              reference_type: batch.purchase_oid ? "purchase-order" : "product-stock",
+                              reference_oid: batch.purchase_oid ?? batch.product_oid,
                               title: "Expiry date changed",
-                              description: `${batch.po_number}, ${batch.product_name} batch ${batch.batch_code}: ${batch.expiry_date ?? "no date"} to ${expiry_date ?? "no date"}`,
+                              description: `${batch.po_number ? `${batch.po_number}, ` : ""}${batch.product_name} batch ${batch.batch_code}: ${batch.expiry_date ?? "no date"} to ${expiry_date ?? "no date"}`,
                         },
                         { tx, request }
                   );

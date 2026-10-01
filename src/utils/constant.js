@@ -18,7 +18,7 @@ module.exports = {
     AISLE: "aisle",
     PURCHASE: "purchase",
     PURCHASE_DETAILS: "purchase_details",
-    PURCHASE_DETAILS_COST_PROFILE: "purchase_details_cost_profile",
+    COST_BUDGET: "cost_budget",
     INVENTORY: "inventory",
     PRODUCT_STATS: "product_stats",
     // Order spine (renamed from sales/sales_details). SALES/SALE_DETAILS keys are
@@ -30,6 +30,8 @@ module.exports = {
     CUSTOMERS: "customers",
     STOCK_HOLD: "stock_hold",
     STOCK_MOVEMENT: "stock_movement",
+    STOCK_ADJUSTMENT: "stock_adjustment",
+    STOCK_ADJUSTMENT_LINE: "stock_adjustment_line",
     ORDER_STATUS_HISTORY: "order_status_history",
     // Pre-order: a booking for stock not yet held. Deliberately NOT the orders
     // spine -- a pre-order is part of the sales process but is neither a sale
@@ -78,6 +80,7 @@ module.exports = {
     PURCHASE_ORDER: "/purchase-order",
     INVENTORY_OVERVIEW: "/inventory-overview",
     STOCK_MOVEMENT: "/stock-movement",
+    STOCK_ADJUSTMENT: "/stock-adjustment",
     // Sales & Orders module (revamp)
     POS: "/pos",
     ONLINE: "/online",
@@ -269,6 +272,15 @@ module.exports = {
     CANCEL_PRODUCT_DISPOSE: "/cancel-product-dispose",
     REVERSE_PRODUCT_DISPOSE: "/reverse-product-dispose",
     GET_STOCK_MOVEMENT_LIST: "/get-stock-movement-list",
+    GET_STOCK_ADJUSTMENT_LIST: "/get-stock-adjustment-list",
+    GET_STOCK_ADJUSTMENT_DETAILS: "/get-stock-adjustment-details",
+    GET_PRODUCT_LIST_FOR_ADJUSTMENT: "/get-product-list-for-adjustment",
+    CREATE_STOCK_ADJUSTMENT: "/create-stock-adjustment",
+    UPDATE_STOCK_ADJUSTMENT: "/update-stock-adjustment",
+    VERIFY_STOCK_ADJUSTMENT: "/verify-stock-adjustment",
+    REJECT_STOCK_ADJUSTMENT: "/reject-stock-adjustment",
+    CANCEL_STOCK_ADJUSTMENT: "/cancel-stock-adjustment",
+    GENERATE_STOCK_ADJUSTMENT_REPORT: "/generate-stock-adjustment-report",
     GET_PRODUCT_LIST_FOR_DISPOSE_DROPDOWN:
       "/get-product-list-for-dispose-dropdown",
 

@@ -24,7 +24,7 @@ const BATCHES_SQL = `
              to_char(i.expiry_date, 'YYYY-MM-DD') AS expiry_date
       FROM ${TABLE.INVENTORY} i
       LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
-      LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = pd.warehouse_oid
+      LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = i.warehouse_oid
       CROSS JOIN LATERAL (SELECT COALESCE(SUM(quantity), 0)::int AS held FROM ${TABLE.STOCK_HOLD} WHERE inventory_oid = i.oid AND status = 'Active') h
       WHERE i.product_oid = $1 AND (i.quantity_available > 0 OR h.held > 0)
       ORDER BY i.created_on ASC, i.oid ASC`;

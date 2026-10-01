@@ -87,7 +87,7 @@ const get_report_data = async (oid) => {
       LEFT JOIN ${TABLE.PURCHASE_DETAILS} AS pd ON po.oid = pd.purchase_oid
       LEFT JOIN ${TABLE.PRODUCT} AS p ON pd.product_oid = p.oid
       LEFT JOIN ${TABLE.INVENTORY} AS i ON pd.oid = i.purchase_details_oid
-          LEFT JOIN ${TABLE.PURCHASE_DETAILS_COST_PROFILE} AS pcp ON pcp.purchase_details_oid = pd.oid
+          LEFT JOIN ${TABLE.COST_BUDGET} AS pcp ON pcp.purchase_details_oid = pd.oid
       WHERE po.oid = $1
       GROUP BY po.oid, s.name
   `;

@@ -14,7 +14,7 @@ const FROM = `${TABLE.WAREHOUSE} w
               LEFT JOIN ${TABLE.ROLE} r ON r.oid = u.role_oid`;
 
 // Stock sits where its purchase order line was received; see utils/warehouse-stats.js.
-const STOCK_HERE = `EXISTS (SELECT 1 FROM ${TABLE.INVENTORY} i JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid WHERE d.warehouse_oid = w.oid AND i.quantity_available > 0)`;
+const STOCK_HERE = `EXISTS (SELECT 1 FROM ${TABLE.INVENTORY} i WHERE i.warehouse_oid = w.oid AND i.quantity_available > 0)`;
 
 const STATS = {
     active: `COUNT(*) FILTER (WHERE w.status = 'Active')::int`,

@@ -3,27 +3,29 @@ const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 
 // The document behind a movement, by its reason: a received batch names its purchase order, a sale
-// or dispatch its invoice, a return the invoice it came back from, a disposal its number.
+// or dispatch its invoice, a return the invoice it came back from, a disposal or an adjustment its number.
 const REFERENCE = `CASE WHEN m.reason = 'received' THEN pu.po_number
                         WHEN m.reason IN ('sold', 'dispatched') THEN o.invoice_no
                         WHEN m.reason = 'returned' THEN pr.invoice_no
-                        WHEN m.reason IN ('disposed', 'dispose_reversed') THEN pd.dispose_no END`;
+                        WHEN m.reason IN ('disposed', 'dispose_reversed') THEN pd.dispose_no
+                        WHEN m.reason IN ('adjusted', 'opening_stock') THEN sa.adjustment_number END`;
 
 const SELECT = `m.oid, m.created_on, m.reason, m.quantity, m.balance_after,
                 m.product_oid, p.name AS product_name, p.sku, i.batch_code,
                 w.name AS warehouse_name, ${REFERENCE} AS reference,
                 CASE WHEN m.reason = 'received' THEN m.source_oid END AS purchase_oid,
+                CASE WHEN m.reason IN ('adjusted', 'opening_stock') THEN m.source_oid END AS adjustment_oid,
                 m.created_by, u.name AS created_by_name`;
 
 const FROM = `${TABLE.STOCK_MOVEMENT} m
               JOIN ${TABLE.PRODUCT} p ON p.oid = m.product_oid
               JOIN ${TABLE.INVENTORY} i ON i.oid = m.inventory_oid
-              LEFT JOIN ${TABLE.PURCHASE_DETAILS} d ON d.oid = i.purchase_details_oid
-              LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = d.warehouse_oid
+              LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = i.warehouse_oid
               LEFT JOIN ${TABLE.PURCHASE} pu ON m.reason = 'received' AND pu.oid = m.source_oid
               LEFT JOIN ${TABLE.ORDERS} o ON m.reason IN ('sold', 'dispatched') AND o.oid = m.source_oid
               LEFT JOIN ${TABLE.PRODUCT_RETURN} pr ON m.reason = 'returned' AND pr.oid = m.source_oid
               LEFT JOIN ${TABLE.PRODUCT_DISPOSE} pd ON m.reason IN ('disposed', 'dispose_reversed') AND pd.oid = m.source_oid
+              LEFT JOIN ${TABLE.STOCK_ADJUSTMENT} sa ON m.reason IN ('adjusted', 'opening_stock') AND sa.oid = m.source_oid
               LEFT JOIN ${TABLE.LOGIN} u ON u.email = m.created_by`;
 
 const STATS = {

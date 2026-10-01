@@ -47,6 +47,7 @@ const seed_purchase = async ({ supplier, product, warehouse }, { status = "Verif
     );
     await h.query("INSERT INTO purchase_details (oid, purchase_oid, product_oid, warehouse_oid, ordered_quantity, verified_quantity, ordered_unit_price) VALUES ($1, $2, $3, $4, $5, $6, $7)", [line, purchase, product, warehouse, ordered, received, cost]);
     await h.query("INSERT INTO inventory (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, status) VALUES ($1, $1, $2, $3, $4, $4, $5, 'ready_for_sale')", [batch, product, line, received, cost]);
+    await h.query("UPDATE inventory i SET warehouse_oid = pd.warehouse_oid, aisle_oid = pd.aisle_oid FROM purchase_details pd WHERE pd.oid = i.purchase_details_oid AND i.oid = $1", [batch]);
     return batch;
 };
 

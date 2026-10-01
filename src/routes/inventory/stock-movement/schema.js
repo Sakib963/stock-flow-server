@@ -1,6 +1,6 @@
 const Joi = require("joi");
 
-const REASONS = ["carried_over", "received", "sold", "dispatched", "returned", "disposed", "dispose_reversed"];
+const REASONS = ["carried_over", "received", "sold", "dispatched", "returned", "disposed", "dispose_reversed", "adjusted", "opening_stock"];
 
 const stock_movement_list_schema = Joi.object({
     offset: Joi.number().integer().min(0).default(0),

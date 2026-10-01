@@ -45,6 +45,7 @@ const seed_stock = async (category_oid, { quantity, cost, price, threshold, stat
 
     const inventory_oid = uuidv4();
     await h.query("INSERT INTO inventory (oid, batch_code, product_oid, purchase_details_oid, initial_quantity, quantity_available, cost_price, selling_price, status) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8)", [inventory_oid, `B-${inventory_oid.slice(0, 6)}`, product_oid, purchase_details_oid, quantity, cost, price, status]);
+    await h.query("UPDATE inventory i SET warehouse_oid = pd.warehouse_oid, aisle_oid = pd.aisle_oid FROM purchase_details pd WHERE pd.oid = i.purchase_details_oid AND i.oid = $1", [inventory_oid]);
 
     return { product_oid, inventory_oid };
 };

@@ -107,12 +107,12 @@ const generate_inventory_sql = (aisleOid) => {
             LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
-            INNER JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
-            INNER JOIN ${TABLE.AISLE} a ON a.oid = pd.aisle_oid
+            LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
+            INNER JOIN ${TABLE.AISLE} a ON a.oid = i.aisle_oid
             LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = a.warehouse_oid
             LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = pd.purchase_oid
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
-            WHERE pd.aisle_oid = $1
+            WHERE i.aisle_oid = $1
             ORDER BY p.name ASC, i.batch_code ASC
       `;
   return { text: query, values: [aisleOid] };
