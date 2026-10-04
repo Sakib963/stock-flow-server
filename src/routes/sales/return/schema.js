@@ -30,7 +30,7 @@ const create_return_schema = Joi.object({
         .items(
             Joi.object({
                 order_item_oid: Joi.string().required(),
-                quantity: Joi.number().min(1).required(),
+                quantity: Joi.number().integer().min(1).required(),
                 condition: Joi.string().valid("Good", "Damaged").required(),
             })
         )

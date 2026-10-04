@@ -232,9 +232,10 @@ module.exports = {
 
     // --- Sales & Orders module (revamp; POS + online on the `orders` spine) ---
     GET_POS_PRODUCT_LIST: "/get-product-list",
-    GET_ORDER_INVOICE_NUMBER: "/get-invoice-number",
     CHECKOUT_POS_SALE: "/checkout",
-    SAVE_POS_DRAFT: "/save-draft",
+    PARK_POS_CART: "/park-cart",
+    GET_PARKED_CARTS: "/get-parked-carts",
+    DISCARD_PARKED_CART: "/discard-parked-cart",
     GET_ORDER_LIST: "/get-order-list",
     GET_ORDER_DETAILS: "/get-order-details",
     // Online order page

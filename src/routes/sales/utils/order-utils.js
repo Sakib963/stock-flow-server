@@ -34,20 +34,17 @@ const resolveAmountPaid = ({ payment_status, total_amount, amount_paid }) => {
 };
 
 // Invoice/order number: YYMMDD + 4-digit daily sequence, e.g. 2607200003.
-// `read` is the pool-level `get_data`, or `tx.get_data` to count inside the
-// caller's transaction so two concurrent sales cannot mint the same number.
+// `read` is `tx.get_data`. Counting alone let two counters selling at once both count the same rows
+// and mint the same number, so the count waits for any other sale minting one to commit first. The
+// date is the business's day, the same day the count is taken on: the server's own date let a sale
+// late in the evening reuse a number the next morning.
 const nextInvoiceNo = async (read) => {
-    const rows = await read({
-        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.ORDERS} WHERE ${business_day("created_on")} = ${business_today}`,
+    await read({ text: "SELECT pg_advisory_xact_lock(hashtext('orders.invoice_no'))", values: [] });
+    const [row] = await read({
+        text: `SELECT to_char(${business_today}, 'YYMMDD') AS day, COUNT(*)::int AS today_count FROM ${TABLE.ORDERS} WHERE ${business_day("created_on")} = ${business_today}`,
         values: [],
     });
-    const count = rows?.[0]?.today_count ?? 0;
-    const now = new Date();
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const seq = String(count + 1).padStart(4, "0");
-    return `${yy}${mm}${dd}${seq}`;
+    return `${row.day}${String(row.today_count + 1).padStart(4, "0")}`;
 };
 
 module.exports = { recordStatusHistory, nextInvoiceNo, resolveAmountPaid };

@@ -15,7 +15,7 @@ const pre_order_line_item = Joi.object({
     oid: Joi.string().allow(null, "").optional(),
     product_oid: Joi.string().required(),
     product_name: Joi.string().required(),
-    quantity: Joi.number().min(1).required(),
+    quantity: Joi.number().integer().min(1).required(),
     unit_price: Joi.number().min(0).required(),
     discount: Joi.number().min(0).allow(null).optional(),
     total: Joi.number().min(0).required(),

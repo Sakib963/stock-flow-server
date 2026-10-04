@@ -2,7 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail, get_data } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { holdStock } = require("../../utils/stock-movement");
-const { recordStatusHistory } = require("../../utils/order-utils");
+const { recordStatusHistory, resolveAmountPaid } = require("../../utils/order-utils");
 const { log } = require("../../../../utils/log");
 const { v4: uuidv4 } = require("uuid");
 
@@ -17,7 +17,7 @@ const edit_pending_order = async (request, res) => {
 
     try {
         await execute_transaction(async (tx) => {
-            const ordRows = await tx.get_data({ text: `SELECT channel, order_type, status, customer_oid, customer_address FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
+            const ordRows = await tx.get_data({ text: `SELECT channel, order_type, status, customer_oid, customer_address, payment_status, amount_paid, discount_total, delivery_charge FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
             if (!ordRows.length) fail(404, "Order not found");
             const order = ordRows[0];
             if (order.channel !== "ONLINE" || order.status !== "Pending") fail(409, "Only Pending online orders can be edited");
@@ -63,6 +63,9 @@ const edit_pending_order = async (request, res) => {
             const subtotal = products.reduce((s, p) => s + Number(p.total || 0), 0);
             const discount_total = request.body.discount_total !== undefined ? Number(request.body.discount_total) : null;
             const delivery_charge = request.body.delivery_charge !== undefined ? Number(request.body.delivery_charge) : null;
+            const payment_status = request.body.payment_status ?? order.payment_status;
+            const total_amount = subtotal - (discount_total ?? Number(order.discount_total)) + (delivery_charge ?? Number(order.delivery_charge));
+            const amount_paid = resolveAmountPaid({ payment_status, total_amount, amount_paid: request.body.amount_paid ?? order.amount_paid });
 
             // Update order header (COALESCE keeps existing when a field is omitted).
             await tx.execute_value({
@@ -78,8 +81,8 @@ const edit_pending_order = async (request, res) => {
                               delivery_zone = COALESCE($8, delivery_zone),
                               delivery_area = COALESCE($9, delivery_area),
                               delivery_postcode = COALESCE($10, delivery_postcode),
-                              payment_status = COALESCE($11, payment_status),
-                              amount_paid = COALESCE($12, amount_paid),
+                              payment_status = $11,
+                              amount_paid = $12,
                               notes = COALESCE($13, notes),
                               edited_by = $14, edited_on = clock_timestamp()
                         WHERE oid = $15`,
@@ -87,7 +90,7 @@ const edit_pending_order = async (request, res) => {
                     subtotal, discount_total, delivery_charge,
                     customer?.name ?? null, customer?.phone ?? null, customer?.address ?? null,
                     customer?.city ?? null, customer?.zone ?? null, customer?.area ?? null, customer?.postcode ?? null,
-                    request.body.payment_status ?? null, request.body.amount_paid ?? null,
+                    payment_status, amount_paid,
                     request.body.note ?? null, user_id, oid,
                 ],
             });

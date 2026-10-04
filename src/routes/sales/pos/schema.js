@@ -1,40 +1,51 @@
 const Joi = require("joi");
+const { joi_phone } = require("../utils/phone");
 
 const pos_product_list_schema = Joi.object({
-    search_text: Joi.string().trim().allow(null, "").optional(),
+    search_text: Joi.string().trim().max(100).allow(null, "").optional(),
 });
 
-const pos_line_item = Joi.object({
-    inventory_oid: Joi.string().required(),
-    product_name: Joi.string().required(),
-    product_oid: Joi.string().required(),
-    quantity_available: Joi.number().min(0).allow(null).optional(),
-    quantity: Joi.number().min(1).required(),
-    unit_price: Joi.number().min(0).required(),
-    discount: Joi.number().min(0).allow(null),
-    total: Joi.number().min(0).required(),
+// Only what the cashier chose. Price, product and name come from the batch on the server (sales REQ-17).
+const cart_line = Joi.object({
+    inventory_oid: Joi.string().trim().max(128).required(),
+    quantity: Joi.number().integer().min(1).max(9999).required(),
+    discount: Joi.number().integer().min(0).default(0),
 });
 
-// `oid` is present only when finalizing an existing POS Draft into a real sale.
+const cart_lines = Joi.array().items(cart_line).min(1).unique("inventory_oid").required().messages({ "array.unique": "A batch is in the cart twice. Change the quantity on one line instead." });
+
+const optional_text = (max) => Joi.string().trim().max(max).allow(null, "").empty("").default(null);
+
+// A new phone needs a name (REQ-20); a known one brings its own, so the name is optional here.
 const pos_checkout_schema = Joi.object({
-    oid: Joi.string().allow(null, "").optional(),
-    invoice_no: Joi.string().allow(null, "").optional(),
-    customer_name: Joi.string().allow(null, "").optional(),
-    customer_phone: Joi.string().allow(null, "").optional(),
-    customer_address: Joi.string().allow(null, "").optional(),
-    customer_email: Joi.string().allow(null, "").optional(),
-    payment_method: Joi.string().valid("cash", "bkash", "nagad", "card", "cod", "other").required(),
-    payment_reference: Joi.string().allow(null, "").optional(),
+    oid: Joi.string().uuid().required(),
+    customer: Joi.object({
+        phone: Joi.string().trim().max(32).custom(joi_phone).required(),
+        name: optional_text(255),
+    }).optional(),
+    payment_method: Joi.string().valid("cash", "bkash", "nagad", "card", "other").required(),
+    payment_reference: optional_text(64),
     payment_status: Joi.string().valid("paid", "partially_paid", "unpaid").required(),
-    // Only consulted when payment_status is partially_paid. On 'paid' the server
-    // fills the full total itself, so the cashier never types it twice.
-    amount_paid: Joi.number().min(0).optional(),
-    notes: Joi.string().allow(null, "").optional(),
-    total_amount: Joi.number().min(0).required(),
-    products: Joi.array().items(pos_line_item).min(1).required(),
+    amount_paid: Joi.when("payment_status", { is: "partially_paid", then: Joi.number().integer().min(1).required(), otherwise: Joi.forbidden() }),
+    // The total the cashier confirmed. The server prices the cart itself and refuses when they differ.
+    total_amount: Joi.number().integer().min(0).required(),
+    notes: optional_text(256),
+    lines: cart_lines,
 });
 
-// Draft shares the checkout shape; `oid` present -> update an existing draft.
-const pos_draft_schema = pos_checkout_schema;
+const pos_park_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+    draft_label: optional_text(64),
+    customer_name: optional_text(255),
+    customer_phone: Joi.string().trim().max(32).allow(null, "").empty("").default(null).custom(joi_phone),
+    notes: optional_text(256),
+    lines: cart_lines,
+});
 
-module.exports = { pos_product_list_schema, pos_checkout_schema, pos_draft_schema };
+const parked_cart_list_schema = Joi.object({});
+
+const parked_cart_oid_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+});
+
+module.exports = { pos_product_list_schema, pos_checkout_schema, pos_park_schema, parked_cart_list_schema, parked_cart_oid_schema };

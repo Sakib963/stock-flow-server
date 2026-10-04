@@ -48,7 +48,7 @@ const edit_pending_order_schema = Joi.object({
                 product_oid: Joi.string().required(),
                 product_name: Joi.string().required(),
                 quantity_available: Joi.number().min(0).optional(),
-                quantity: Joi.number().min(1).required(),
+                quantity: Joi.number().integer().min(1).required(),
                 unit_price: Joi.number().min(0).required(),
                 discount: Joi.number().min(0).allow(null),
                 total: Joi.number().min(0).required(),

@@ -1,133 +1,100 @@
 const { TABLE } = require("../../../../utils/constant");
-const { execute_transaction, TransactionError, fail, get_data } = require("../../../../db/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
+const { log } = require("../../../../utils/log");
 const { deductSellableStock, incrementProductStat } = require("../../utils/stock-movement");
 const { recordStatusHistory, nextInvoiceNo, resolveAmountPaid } = require("../../utils/order-utils");
-const { log } = require("../../../../utils/log");
-const { v4: uuidv4 } = require("uuid");
+const { find_or_create_customer } = require("../../customer/utils/find-or-create");
+const { price_lines, cart_totals, insert_lines, batch_name } = require("../utils/cart");
 
-// POS checkout: create (or finalize an existing Draft into) a CLOSED order
-// (channel POS, status Purchased) and deduct stock immediately -- no hold, no
-// delivery step. When `oid` is present the order is an existing POS Draft being
-// turned into a real sale, so we update it in place instead of inserting a new
-// row. Everything runs in ONE transaction with a guarded deduct so stock and
-// order state never diverge and the last unit can't be oversold under concurrency.
+const sellable_of = async (tx, inventory_oid) => {
+    const [row] = await tx.get_data({
+        text: `SELECT (i.quantity_available - COALESCE((SELECT SUM(h.quantity) FROM ${TABLE.STOCK_HOLD} h WHERE h.inventory_oid = i.oid AND h.status = 'Active'), 0))::int AS sellable
+                 FROM ${TABLE.INVENTORY} i WHERE i.oid = $1`,
+        values: [inventory_oid],
+    });
+    return Math.max(row?.sellable ?? 0, 0);
+};
+
+const refuse_existing = async (tx, oid) => {
+    const [order] = await tx.get_data({ text: `SELECT invoice_no, status FROM ${TABLE.ORDERS} WHERE oid = $1`, values: [oid] });
+    if (order?.status === "Cancelled") fail(409, "This cart was discarded at another counter.", { invoice_no: order.invoice_no, status: order.status });
+    fail(409, `This sale is already recorded as ${order?.invoice_no}. Nothing was charged twice.`, { invoice_no: order?.invoice_no, status: order?.status });
+};
+
+// A POS sale: priced from the batches, stock deducted from each exact batch at once (no hold), and
+// sold_on set in the same transaction (sales REQ-17, REQ-23, REQ-120). A parked cart held nothing
+// while it waited, so its stock is checked now (REQ-24).
 const checkout_pos_sale = async (request, res) => {
     const payload = request.body;
     const user_id = request.credentials.user_id;
-    const products = Array.isArray(payload.products) ? payload.products : [];
-
-    if (!products.length) {
-        return res.status(400).json({ code: 400, message: "At least one product line is required" });
-    }
-
-    // Validate batches server-side (never trust client on stock/pricing identity).
-    const inventory_oids = [...new Set(products.map((p) => p.inventory_oid))];
-    const inventoryRows = await get_data({
-        text: `SELECT oid, product_oid, intended_use, status FROM ${TABLE.INVENTORY} WHERE oid = ANY($1)`,
-        values: [inventory_oids],
-    });
-    const byOid = new Map(inventoryRows.map((r) => [r.oid, r]));
-    for (const p of products) {
-        const batch = byOid.get(p.inventory_oid);
-        if (!batch) return res.status(400).json({ code: 400, message: "One or more selected batches no longer exist" });
-        if (batch.product_oid !== p.product_oid) return res.status(400).json({ code: 400, message: "Product/batch mismatch in payload" });
-        if (batch.intended_use !== "for_sale" || batch.status !== "ready_for_sale") {
-            return res.status(400).json({ code: 400, message: "One or more batches are not available for sale" });
-        }
-    }
-
-    const subtotal = products.reduce((s, p) => s + Number(p.total || 0), 0);
-    const isFinalizingDraft = Boolean(payload.oid);
-
-    // Resolved here, not taken from the client: a sale marked paid records the full
-    // total automatically. Without this every POS sale was stored as paid with
-    // amount_paid still 0.
-    const amount_paid = resolveAmountPaid({ payment_status: payload.payment_status || "paid", total_amount: payload.total_amount, amount_paid: payload.amount_paid });
-
     try {
         const sale = await execute_transaction(async (tx) => {
-            let order_oid = payload.oid;
-            let invoice_no = payload.invoice_no;
-            let from_status = null;
+            const lines = await price_lines(tx, payload.lines);
+            const totals = cart_totals(lines);
+            if (totals.total_amount !== payload.total_amount) {
+                fail(409, `The total is now ${totals.total_amount}, not ${payload.total_amount}. A price changed: check the cart and confirm again.`, { total_amount: totals.total_amount });
+            }
 
-            if (isFinalizingDraft) {
-                // Turn an existing POS Draft into a real sale; it must still be a Draft.
-                const existing = await tx.get_data({ text: `SELECT oid, status, invoice_no FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [order_oid] });
-                if (!existing.length) fail(404, "Draft order not found");
-                if (existing[0].status !== "Draft") fail(409, "This order has already been finalized");
-                invoice_no = existing[0].invoice_no;
-                from_status = "Draft";
+            const customer = payload.customer ? await find_or_create_customer(tx, payload.customer, request) : null;
+            const payment_status = payload.payment_status;
+            const amount_paid = resolveAmountPaid({ payment_status, total_amount: totals.total_amount, amount_paid: payload.amount_paid });
+            if (payment_status === "partially_paid" && amount_paid === totals.total_amount) {
+                fail(400, `That covers the whole total of ${totals.total_amount}. Mark the sale paid instead.`, { field: "amount_paid" });
+            }
+            const header = [customer?.oid ?? null, customer?.name ?? null, customer?.phone ?? null, totals.subtotal, totals.discount_total, totals.total_amount, amount_paid, payload.payment_method, payload.payment_reference, payment_status, payload.notes, user_id];
 
-                await tx.execute_value({
-                    text: `UPDATE ${TABLE.ORDERS} SET
-                              customer_name = $2, customer_phone = $3, customer_address = $4, customer_email = $5,
-                              subtotal = $6, total_amount = $7,
-                              payment_method = $8, payment_reference = $9, payment_status = $10, amount_paid = $11,
-                              status = 'Purchased', sold_on = clock_timestamp(), notes = $12, edited_by = $13, edited_on = NOW()
-                            WHERE oid = $1`,
-                    values: [
-                        order_oid,
-                        payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
-                        subtotal, payload.total_amount,
-                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid", amount_paid,
-                        payload.notes || null, user_id,
-                    ],
-                });
-                // Replace line items (the cashier may have edited the draft).
+            // The page names every sale with its own oid: a parked cart's, or a new one per cart. A
+            // checkout pressed again after a lost answer, or at a second counter, then finds the sale
+            // already made and is refused instead of selling twice.
+            const order_oid = payload.oid;
+            const parked = await tx.execute_value({
+                text: `UPDATE ${TABLE.ORDERS}
+                          SET customer_oid = $1, customer_name = $2, customer_phone = $3, subtotal = $4, discount_total = $5, total_amount = $6, amount_paid = $7,
+                              payment_method = $8, payment_reference = $9, payment_status = $10, notes = $11, edited_by = $12, edited_on = clock_timestamp(),
+                              status = 'Purchased', sold_on = clock_timestamp(), draft_label = NULL
+                        WHERE oid = $13 AND channel = 'POS' AND status = 'Draft' AND sold_on IS NULL
+                    RETURNING invoice_no`,
+                values: [...header, order_oid],
+            });
+            let invoice_no = parked.rows[0]?.invoice_no;
+            if (parked.rowCount === 1) {
                 await tx.execute_value({ text: `DELETE FROM ${TABLE.ORDER_ITEMS} WHERE order_oid = $1`, values: [order_oid] });
             } else {
-                order_oid = uuidv4();
-                invoice_no = payload.invoice_no || (await nextInvoiceNo(tx.get_data));
-
-                await tx.execute_value({
+                invoice_no = await nextInvoiceNo(tx.get_data);
+                const created = await tx.execute_value({
                     text: `INSERT INTO ${TABLE.ORDERS}
-                             (oid, invoice_no, channel, order_type, customer_name, customer_phone, customer_address, customer_email,
-                              subtotal, discount_total, delivery_charge, total_amount, amount_paid,
-                              payment_type, payment_method, payment_reference, payment_status, status, sold_on, notes, created_by)
-                           VALUES ($1,$2,'POS','Standard',$3,$4,$5,$6,$7,0,0,$8,$9,NULL,$10,$11,$12,'Purchased',clock_timestamp(),$13,$14)`,
-                    values: [
-                        order_oid, invoice_no,
-                        payload.customer_name || null, payload.customer_phone || null, payload.customer_address || null, payload.customer_email || null,
-                        subtotal, payload.total_amount, amount_paid,
-                        payload.payment_method, payload.payment_reference || null, payload.payment_status || "paid",
-                        payload.notes || null, user_id,
-                    ],
+                               (customer_oid, customer_name, customer_phone, subtotal, discount_total, total_amount, amount_paid,
+                                payment_method, payment_reference, payment_status, notes, created_by, oid, invoice_no, channel, delivery_charge, status, sold_on)
+                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'POS', 0, 'Purchased', clock_timestamp())
+                           ON CONFLICT (oid) DO NOTHING`,
+                    values: [...header, order_oid, invoice_no],
                 });
+                if (created.rowCount !== 1) await refuse_existing(tx, order_oid);
             }
 
-            for (const p of products) {
-                await tx.execute_value({
-                    text: `INSERT INTO ${TABLE.ORDER_ITEMS}
-                             (oid, order_oid, inventory_oid, product_oid, product_name, available_stock, quantity, unit_price, discount, total, returned_qty)
-                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0)`,
-                    values: [uuidv4(), order_oid, p.inventory_oid, p.product_oid, p.product_name, p.quantity_available ?? null, p.quantity, p.unit_price, p.discount ?? 0, p.total],
-                });
-
-                const ok = await deductSellableStock(tx, { inventory_oid: p.inventory_oid, quantity: p.quantity, order_oid, user_id });
-                if (!ok) fail(409, `Insufficient sellable stock for "${p.product_name}". Nothing was charged.`);
-
-                await incrementProductStat(tx, { product_oid: p.product_oid, column: "total_sold", quantity: p.quantity, user_id });
+            await insert_lines(tx, order_oid, lines);
+            // Batches in one order, so two counters selling the same two batches cannot each wait on the other.
+            for (const line of [...lines].sort((a, b) => a.inventory_oid.localeCompare(b.inventory_oid))) {
+                const deducted = await deductSellableStock(tx, { inventory_oid: line.inventory_oid, quantity: line.quantity, order_oid, user_id });
+                if (!deducted) {
+                    const left = await sellable_of(tx, line.inventory_oid);
+                    fail(409, `Only ${left} left of ${batch_name(line)}. Reduce or remove the line.`, { inventory_oid: line.inventory_oid, sellable: left });
+                }
+                await incrementProductStat(tx, { product_oid: line.product_oid, column: "total_sold", quantity: line.quantity, user_id });
             }
 
-            await recordStatusHistory(tx, { order_oid, from_status, to_status: "Purchased", reason: isFinalizingDraft ? "POS draft finalized" : "POS checkout", user_id });
-            return { order_oid, invoice_no };
+            await recordStatusHistory(tx, { order_oid, from_status: parked.rowCount === 1 ? "Draft" : null, to_status: "Purchased", reason: parked.rowCount === 1 ? "Parked cart checked out" : "POS checkout", user_id });
+            await saveLogActivity({ reference_type: "order", reference_oid: order_oid, title: "Sold at the counter", description: `${invoice_no}, ${lines.length} line(s), total ${totals.total_amount}` }, { tx, request });
+            return { oid: order_oid, invoice_no, customer_oid: customer?.oid ?? null, total_amount: totals.total_amount, amount_paid };
         });
 
-        saveLogActivity({
-            reference_type: "order",
-            reference_oid: sale.order_oid,
-            title: "POS Sale Completed",
-            description: `POS sale ${sale.invoice_no} for ${products.length} line item(s), total ${payload.total_amount}`,
-            performed_by: user_id,
-        });
-
-        log.info(`POS sale ${sale.invoice_no} completed by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Sale completed successfully!", data: { oid: sale.order_oid, invoice_no: sale.invoice_no } });
+        log.info(`POS sale ${sale.invoice_no} by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Sale completed", data: sale });
     } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
         log.error(`An exception occurred during POS checkout: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
+        return res.status(500).json({ code: 500, message: "The sale was not saved and no stock was taken. Try again in a moment." });
     }
 };
 
