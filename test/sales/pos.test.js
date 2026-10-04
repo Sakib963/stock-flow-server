@@ -108,6 +108,7 @@ describe("selling at the counter", () => {
         const res = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { total_amount: 500 }), token });
         assert.equal(res.status, 409);
         assert.equal(res.body.data.total_amount, 890);
+        assert.deepEqual(res.body.data.lines, [{ inventory_oid: b1, unit_price: 890 }]);
         assert.equal(await on_hand(b1), 10);
     });
 
@@ -118,18 +119,28 @@ describe("selling at the counter", () => {
     });
 
     it("records what a part payment says was handed over, and never an amount sent with a full payment", async () => {
-        const part = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "partially_paid", amount_paid: 300 }), token });
+        const part = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "partially_paid", amount_paid: 300, customer: { phone: "01711000000", name: "Person B" } }), token });
         assert.equal(part.status, 200);
         assert.equal((await order_of(part.body.data.oid)).amount_paid, 300);
 
         const paid = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { amount_paid: 1 }), token });
         assert.equal(paid.status, 400);
 
-        const whole = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "partially_paid", amount_paid: 890 }), token });
+        const whole = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "partially_paid", amount_paid: 890, customer: { phone: "01711000000" } }), token });
         assert.equal(whole.status, 400);
         assert.match(whole.body.message, /Mark the sale paid/);
         assert.equal(await count("orders"), 1);
         await assert_balanced(b1);
+    });
+
+    it("refuses a sale on credit with no customer, so what is owed is owed by someone", async () => {
+        const unpaid = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "unpaid" }), token });
+        assert.equal(unpaid.status, 400);
+        assert.match(unpaid.body.data.details[0], /customer's phone/);
+        const part = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 1 }], { payment_status: "partially_paid", amount_paid: 300 }), token });
+        assert.equal(part.status, 400);
+        assert.equal(await count("orders"), 0);
+        assert.equal(await on_hand(b1), 10);
     });
 
     it("lets only one of two counters selling the last units have them", async () => {

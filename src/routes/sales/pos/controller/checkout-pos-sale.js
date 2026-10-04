@@ -33,7 +33,11 @@ const checkout_pos_sale = async (request, res) => {
             const lines = await price_lines(tx, payload.lines);
             const totals = cart_totals(lines);
             if (totals.total_amount !== payload.total_amount) {
-                fail(409, `The total is now ${totals.total_amount}, not ${payload.total_amount}. A price changed: check the cart and confirm again.`, { total_amount: totals.total_amount });
+                // Each line's price now, so the page can show the cart the server will accept instead of refusing it again.
+                fail(409, `The total is now ${totals.total_amount}, not ${payload.total_amount}. A price changed: check the cart and confirm again.`, {
+                    total_amount: totals.total_amount,
+                    lines: lines.map((l) => ({ inventory_oid: l.inventory_oid, unit_price: l.unit_price })),
+                });
             }
 
             const customer = payload.customer ? await find_or_create_customer(tx, payload.customer, request) : null;

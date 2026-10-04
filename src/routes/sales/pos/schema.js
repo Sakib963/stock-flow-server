@@ -17,12 +17,19 @@ const cart_lines = Joi.array().items(cart_line).min(1).unique("inventory_oid").r
 const optional_text = (max) => Joi.string().trim().max(max).allow(null, "").empty("").default(null);
 
 // A new phone needs a name (REQ-20); a known one brings its own, so the name is optional here.
+const sale_customer = Joi.object({
+    phone: Joi.string().trim().max(32).custom(joi_phone).required(),
+    name: optional_text(255),
+});
+
 const pos_checkout_schema = Joi.object({
     oid: Joi.string().uuid().required(),
-    customer: Joi.object({
-        phone: Joi.string().trim().max(32).custom(joi_phone).required(),
-        name: optional_text(255),
-    }).optional(),
+    // Money left owing must be owed by someone: Unpaid and Part paid need the customer (the user, 2026-10-04).
+    customer: Joi.when("payment_status", {
+        is: Joi.valid("unpaid", "partially_paid"),
+        then: sale_customer.required().messages({ "any.required": "A sale not paid in full needs the customer's phone, so what they owe is recorded against them." }),
+        otherwise: sale_customer.optional(),
+    }),
     payment_method: Joi.string().valid("cash", "bkash", "nagad", "card", "other").required(),
     payment_reference: optional_text(64),
     payment_status: Joi.string().valid("paid", "partially_paid", "unpaid").required(),
