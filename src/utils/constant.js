@@ -104,6 +104,7 @@ module.exports = {
     // the refund is sales money.
     RETURN: "/return",
     CUSTOMER: "/customer",
+    LOCATION: "/location",
     DELIVERY: "/delivery",
     PRODUCT_DISPOSE: "/product-dispose",
     CHANGE_PASSWORD: "/change-password",
@@ -315,6 +316,20 @@ module.exports = {
 
     // Analytics
     GET_CONFIGURATION_ANALYTICS: "/get-configuration-analytics",
+
+    // Customers and locations
+    GET_CUSTOMER_LIST: "/get-customer-list",
+    GET_CUSTOMER_DETAILS: "/get-customer-details",
+    FIND_CUSTOMER_BY_PHONE: "/find-customer-by-phone",
+    CREATE_CUSTOMER: "/create-customer",
+    UPDATE_CUSTOMER_DETAILS: "/update-customer-details",
+    FLAG_CUSTOMER: "/flag-customer",
+    CREATE_CUSTOMER_ADDRESS: "/create-customer-address",
+    UPDATE_CUSTOMER_ADDRESS: "/update-customer-address",
+    RETIRE_CUSTOMER_ADDRESS: "/retire-customer-address",
+    GENERATE_CUSTOMER_LIST_REPORT: "/generate-customer-list-report",
+    SEARCH_LOCATION: "/search-location",
+    MATCH_LOCATION: "/match-location",
     GET_SETTINGS: "/get-settings",
     UPDATE_SETTINGS: "/update-settings",
   },

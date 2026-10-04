@@ -6,6 +6,8 @@ const { orderRouter } = require("./order/route");
 const { deliveryRouter } = require("./delivery/route");
 const { preOrderRouter } = require("./pre-order/route");
 const { returnRouter } = require("./return/route");
+const { customerRouter } = require("./customer/route");
+const { locationRouter } = require("./location/route");
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use(SUB_CONTEXTS.PRE_ORDER, preOrderRouter);
 // Returns: raised from an order, recorded Pending, and only moved into stock on
 // an explicit confirm.
 router.use(SUB_CONTEXTS.RETURN, returnRouter);
+router.use(SUB_CONTEXTS.CUSTOMER, customerRouter);
+router.use(SUB_CONTEXTS.LOCATION, locationRouter);
 
 module.exports = { salesRouter: router };
