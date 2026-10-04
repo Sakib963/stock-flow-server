@@ -273,3 +273,25 @@ describe("access token", () => {
         assert.equal((await me(signed.access)).status, 401);
     });
 });
+
+describe("the business on the session", () => {
+    const me = (token) => h.call(h.ROUTE.ME, { method: "GET", token });
+    // The payload is cached per config_version, so each change here moves it, as a settings write should.
+    const set_business = async (address, phone, footer) => {
+        await h.query("UPDATE settings SET address = $1, phone_primary = $2, invoice_footer = $3", [address, phone, footer]);
+        await h.query("UPDATE config_version SET version = version + 1");
+    };
+
+    it("carries the address, phone and footer a counter receipt prints, and nothing when they are not set", async () => {
+        await h.reset();
+        const { access } = await h.sign_in(await h.seed_user());
+
+        await set_business("House 12, Road 5, Dhaka", "01711-223344", "Exchange within 7 days.");
+        const set = (await me(access)).body.data.business;
+        assert.deepEqual([set.address, set.phone, set.receiptFooter], ["House 12, Road 5, Dhaka", "01711-223344", "Exchange within 7 days."]);
+
+        await set_business(null, null, null);
+        const empty = (await me(access)).body.data.business;
+        assert.deepEqual([empty.address, empty.phone, empty.receiptFooter], [null, null, null]);
+    });
+});

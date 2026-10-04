@@ -66,7 +66,7 @@ const get_user_info = async (request, res) => {
                        WHERE status = 'Active'
                        ORDER BY sort_order`,
             }),
-            get_data({ text: `SELECT name, logo_url, order_system, time_zone FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` }),
+            get_data({ text: `SELECT name, logo_url, order_system, time_zone, address, phone_primary, invoice_footer FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` }),
         ]);
 
         const permissions = permissionRows.map((r) => r.code);
@@ -89,6 +89,10 @@ const get_user_info = async (request, res) => {
                 logoUrl: settings.logo_url ?? null,
                 orderSystem: settings.order_system ?? "both",
                 timeZone: settings.time_zone ?? "Asia/Dhaka",
+                // What a counter receipt prints under the name.
+                address: settings.address ?? null,
+                phone: settings.phone_primary ?? null,
+                receiptFooter: settings.invoice_footer ?? null,
             },
             permissions,
             menu: build_menu(menuRows, new Set(permissions)),
