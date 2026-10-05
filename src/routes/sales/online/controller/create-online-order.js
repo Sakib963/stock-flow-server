@@ -12,9 +12,13 @@ const { customer_stats } = require("../../customer/utils/customer-history");
 
 const PAYMENT_STATUS = { COD: "unpaid", ADVANCE: "partially_paid", PREPAID: "paid" };
 
-const refuse_existing = async (tx, oid) => {
-    const [order] = await tx.get_data({ text: `SELECT invoice_no, status FROM ${TABLE.ORDERS} WHERE oid = $1`, values: [oid] });
-    fail(409, `This order is already placed as ${order?.invoice_no}. Nothing was created twice.`, { invoice_no: order?.invoice_no, status: order?.status });
+// Only the person whose press already placed this order is told it is placed: a draft someone else
+// discarded or placed first must not read as this person's success.
+const refuse_existing = async (tx, oid, user_id) => {
+    const [order] = await tx.get_data({ text: `SELECT invoice_no, status, created_by, edited_by FROM ${TABLE.ORDERS} WHERE oid = $1`, values: [oid] });
+    const mine = order && !["Draft", "Cancelled"].includes(order.status) && (order.edited_by ?? order.created_by) === user_id;
+    if (mine) fail(409, `This order is already placed as ${order.invoice_no}. Nothing was created twice.`, { invoice_no: order.invoice_no, status: order.status });
+    fail(409, "This draft was placed or discarded by someone else. Check the drafts and the orders list.", { reason: "taken" });
 };
 
 // The address the parcel goes to: a saved one of this customer's, or a new one saved to them now.
@@ -73,7 +77,7 @@ const create_online_order = async (request, res) => {
 
             const address = await address_for(tx, customer.oid, payload.address, user_id);
             const [district] = await tx.get_data({ text: `SELECT division_oid FROM ${TABLE.DISTRICT} WHERE oid = $1`, values: [address.district_oid] });
-            const risk = await customer_stats(customer.oid, ["POS", "ONLINE"]);
+            const risk = await customer_stats(customer.oid, ["POS", "ONLINE"], (query) => tx.get_data(query));
 
             const order_oid = payload.oid;
             // The invoice carries a QR to the public tracker from the start, so a parcel packed before Confirm can be traced.
@@ -103,7 +107,7 @@ const create_online_order = async (request, res) => {
                            ON CONFLICT (oid) DO NOTHING`,
                     values: [...header, order_oid, invoice_no],
                 });
-                if (created.rowCount !== 1) await refuse_existing(tx, order_oid);
+                if (created.rowCount !== 1) await refuse_existing(tx, order_oid, user_id);
             }
             const placed_from_draft = converted.rowCount === 1;
 

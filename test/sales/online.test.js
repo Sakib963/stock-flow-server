@@ -279,6 +279,40 @@ describe("an online order saved as a draft", () => {
         const [o] = await h.query("SELECT status FROM orders WHERE oid = $1", [oid]);
         assert.equal(o.status, "Cancelled");
         assert.equal((await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token: await person(["sales.online.view"]) })).status, 403);
+        assert.equal((await h.call(DRAFTS, { method: "GET", token: await person(["sales.online.view"]) })).status, 403);
+    });
+
+    it("never tells a moderator a draft someone else discarded is placed", async () => {
+        const oid = uuidv4();
+        await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
+        await h.call(DISCARD_DRAFT, { body: { oid }, token: await person() });
+        const res = await h.call(CREATE, { body: { ...order([{ inventory_oid: b1, quantity: 1 }]), oid }, token });
+        assert.equal(res.status, 409);
+        assert.equal(res.body.data?.invoice_no, undefined);
+        assert.equal(await count("stock_hold"), 0);
+        assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM orders WHERE status = 'Pending'"))[0].n, 0);
+    });
+
+    it("keeps the first moderator's lines when two place the same draft, and tells the second", async () => {
+        const oid = uuidv4();
+        await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
+        const first = await h.call(CREATE, { body: { ...order([{ inventory_oid: b1, quantity: 1 }]), oid }, token });
+        assert.equal(first.status, 200);
+        const second = await h.call(CREATE, { body: { ...order([{ inventory_oid: b1, quantity: 2 }]), oid }, token: await person() });
+        assert.equal(second.status, 409);
+        assert.equal(second.body.data?.invoice_no, undefined);
+        const lines = await h.query("SELECT quantity::int FROM order_items WHERE order_oid = $1", [oid]);
+        assert.deepEqual(lines, [{ quantity: 1 }]);
+    });
+
+    it("copies a saved address into a draft only when it is the phone's own customer's", async () => {
+        const placed = await h.call(CREATE, { body: order([{ inventory_oid: b1, quantity: 1 }]), token });
+        const [address] = await h.query("SELECT oid FROM customer_address");
+        const oid = uuidv4();
+        await h.call(SAVE_DRAFT, { body: { oid, customer: { phone: "01711000000", name: "Person B" }, address: { oid: address.oid }, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
+        const [draft] = await h.query("SELECT customer_address_oid, address_line FROM online_order WHERE order_oid = $1", [oid]);
+        assert.equal(placed.status, 200);
+        assert.deepEqual(draft, { customer_address_oid: null, address_line: null });
     });
 });
 

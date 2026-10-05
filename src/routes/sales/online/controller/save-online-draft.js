@@ -4,15 +4,19 @@ const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { recordStatusHistory, nextInvoiceNo } = require("../../utils/order-utils");
 const { price_lines, cart_totals, insert_lines } = require("../../utils/cart");
+const { normalize_phone } = require("../../utils/phone");
 
 // The address part a draft keeps: a saved address by its oid, or a new one copied as typed. Nothing is
 // saved to a customer until the order is created.
-const address_copy = async (tx, address) => {
+// A saved address is copied only when it belongs to the customer behind the draft's phone.
+const address_copy = async (tx, address, phone) => {
     if (!address) return {};
     if (address.oid) {
         const [saved] = await tx.get_data({
-            text: `SELECT oid AS customer_address_oid, recipient_name, recipient_phone, address_line, district_oid, thana_oid, area_text, postal_code FROM ${TABLE.CUSTOMER_ADDRESS} WHERE oid = $1 AND status = 'Active'`,
-            values: [address.oid],
+            text: `SELECT a.oid AS customer_address_oid, a.recipient_name, a.recipient_phone, a.address_line, a.district_oid, a.thana_oid, a.area_text, a.postal_code
+                     FROM ${TABLE.CUSTOMER_ADDRESS} a JOIN ${TABLE.CUSTOMERS} c ON c.oid = a.customer_oid
+                    WHERE a.oid = $1 AND a.status = 'Active' AND c.phone_normalized = $2`,
+            values: [address.oid, normalize_phone(phone ?? "")],
         });
         return saved ?? {};
     }
@@ -57,7 +61,7 @@ const save_online_draft = async (request, res) => {
                 await recordStatusHistory(tx, { order_oid, from_status: null, to_status: "Draft", reason: "Online draft saved", user_id });
             }
 
-            const address = await address_copy(tx, payload.address);
+            const address = await address_copy(tx, payload.address, payload.customer.phone);
             await tx.execute_value({
                 text: `INSERT INTO ${TABLE.ONLINE_ORDER} (order_oid, customer_address_oid, recipient_name, recipient_phone, address_line, district_oid, thana_oid, area_text, postal_code, source_oid, created_by)
                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,

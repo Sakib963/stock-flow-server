@@ -64,8 +64,9 @@ const ORDERS_SQL = `
      ORDER BY o.created_on DESC, o.oid
      LIMIT $3`;
 
-const customer_stats = async (customer_oid, channels) => {
-    const [row] = await get_data({ text: STATS_SQL, values: [customer_oid, channels] });
+// Inside a transaction, pass its reader: a second pool connection per order can starve the pool.
+const customer_stats = async (customer_oid, channels, read = get_data) => {
+    const [row] = await read({ text: STATS_SQL, values: [customer_oid, channels] });
     const lifetime_value = Number(row.lifetime_value);
     const settled_parcels = row.delivered + row.refused_parcels;
     return {

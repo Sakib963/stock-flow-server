@@ -21,6 +21,9 @@ const SCHEMA = path.resolve(__dirname, "../../../stock-flow-documents/generated_
     await admin.connect();
     await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${name}`);
+    // The cloud database runs in GMT and business-time.js reads stored times as UTC; a local server in
+    // Dhaka time stamped evening orders on the next business day, so invoice numbers repeated after 18:00.
+    await admin.query(`ALTER DATABASE ${name} SET timezone TO 'UTC'`);
     await admin.end();
 
     const db = new Client({ ...connection, database: name });
