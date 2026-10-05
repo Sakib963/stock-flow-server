@@ -27,9 +27,9 @@ const get_online_drafts = async (request, res) => {
                 LEFT JOIN ${TABLE.DISTRICT} d ON d.oid = oo.district_oid
                 LEFT JOIN ${TABLE.THANA} t ON t.oid = oo.thana_oid
                 LEFT JOIN ${TABLE.LOGIN} saver ON saver.email = o.created_by
-                    WHERE o.channel = 'ONLINE' AND o.status = 'Draft'
+                    WHERE o.channel = 'ONLINE' AND o.status = 'Draft' AND o.created_by = $1
                  ORDER BY o.created_on`,
-            values: [],
+            values: [request.credentials.user_id],
         });
         return res.status(200).json({ code: 200, message: "Online drafts found", data });
     } catch (e) {

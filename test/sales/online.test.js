@@ -282,10 +282,19 @@ describe("an online order saved as a draft", () => {
         assert.equal((await h.call(DRAFTS, { method: "GET", token: await person(["sales.online.view"]) })).status, 403);
     });
 
+    it("shows and discards only the person's own drafts", async () => {
+        const oid = uuidv4();
+        await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
+        const other = await person();
+        assert.equal((await h.call(DRAFTS, { method: "GET", token: other })).body.data.length, 0);
+        assert.equal((await h.call(DISCARD_DRAFT, { body: { oid }, token: other })).status, 409);
+        assert.equal((await h.call(DRAFTS, { method: "GET", token })).body.data.length, 1);
+    });
+
     it("never tells a moderator a draft someone else discarded is placed", async () => {
         const oid = uuidv4();
         await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
-        await h.call(DISCARD_DRAFT, { body: { oid }, token: await person() });
+        await h.call(DISCARD_DRAFT, { body: { oid }, token });
         const res = await h.call(CREATE, { body: { ...order([{ inventory_oid: b1, quantity: 1 }]), oid }, token });
         assert.equal(res.status, 409);
         assert.equal(res.body.data?.invoice_no, undefined);

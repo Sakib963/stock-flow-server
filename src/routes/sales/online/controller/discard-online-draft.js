@@ -13,7 +13,7 @@ const discard_online_draft = async (request, res) => {
         await execute_transaction(async (tx) => {
             const discarded = await tx.execute_value({
                 text: `UPDATE ${TABLE.ORDERS} SET status = 'Cancelled', cancelled_on = clock_timestamp(), edited_by = $1, edited_on = clock_timestamp()
-                        WHERE oid = $2 AND channel = 'ONLINE' AND status = 'Draft'
+                        WHERE oid = $2 AND channel = 'ONLINE' AND status = 'Draft' AND created_by = $1
                     RETURNING invoice_no, draft_label`,
                 values: [user_id, oid],
             });

@@ -252,7 +252,7 @@ describe("parked carts", () => {
         b1 = await batch({ code: "B-1", quantity: 5 });
     });
 
-    it("parks a cart as a Draft that touches no stock and every counter can see", async () => {
+    it("parks a cart as a Draft that touches no stock, seen only by the person who parked it", async () => {
         const res = await h.call(PARK, { body: cart(b1), token });
         assert.equal(res.status, 200, JSON.stringify(res.body));
         const order = await order_of(res.body.data.oid);
@@ -261,8 +261,8 @@ describe("parked carts", () => {
         assert.equal((await movements(b1)).length, 1);
         assert.equal(await count("stock_hold"), 0);
 
-        const other = await person();
-        const parked = await get(PARKED, other);
+        assert.equal((await get(PARKED, await person())).body.data.length, 0, "another counter does not see it");
+        const parked = await get(PARKED, token);
         assert.equal(parked.status, 200);
         assert.equal(parked.body.data.length, 1);
         assert.deepEqual(parked.body.data[0].lines.map((l) => [l.batch_code, l.quantity, l.sellable, l.selling_price]), [["B-1", 2, 5, 890]]);

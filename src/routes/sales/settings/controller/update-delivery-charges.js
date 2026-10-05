@@ -18,13 +18,14 @@ const update_delivery_charges = async (request, res) => {
             const updated = await tx.execute_value({
                 text: `UPDATE ${TABLE.SETTINGS}
                           SET home_district_oid = $1, delivery_charge_inside = $2, delivery_charge_outside = $3, edited_by = $4, edited_on = clock_timestamp()
-                        WHERE oid = (SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1)`,
+                        WHERE oid = (SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1)
+                    RETURNING oid`,
                 values: [home_district_oid, delivery_charge_inside, delivery_charge_outside, request.credentials.user_id],
             });
             if (updated.rowCount !== 1) fail(409, "The business settings are missing. Ask support to set them up.");
 
             await bump_config_version(tx);
-            await saveLogActivity({ reference_type: "settings", reference_oid: home_district_oid, title: "Updated delivery charges", description: `${district.name_en}: ${delivery_charge_inside} inside, ${delivery_charge_outside} outside` }, { tx, request });
+            await saveLogActivity({ reference_type: "settings", reference_oid: updated.rows[0].oid, title: "Updated delivery charges", description: `${district.name_en}: ${delivery_charge_inside} inside, ${delivery_charge_outside} outside` }, { tx, request });
             return { home_district: district, delivery_charge_inside, delivery_charge_outside };
         });
 
