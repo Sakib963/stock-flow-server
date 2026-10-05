@@ -13,7 +13,6 @@ const CHECKOUT = BASE + ROUTES.CHECKOUT_POS_SALE;
 const PARK = BASE + ROUTES.PARK_POS_CART;
 const PARKED = BASE + ROUTES.GET_PARKED_CARTS;
 const DISCARD = BASE + ROUTES.DISCARD_PARKED_CART;
-const EDIT_ORDER = CONTEXTS.SALES + SUB_CONTEXTS.ORDER + ROUTES.EDIT_PENDING_ORDER;
 
 const COUNTER = ["sales.pos.view", "sales.pos.create"];
 const USER = "owner@arithmalabs.test";
@@ -366,18 +365,3 @@ describe("finding products at the counter", () => {
     });
 });
 
-describe("editing a Pending online order", () => {
-    it("records the paid amount from the payment status, never the amount the client sent", async () => {
-        await h.reset();
-        await seed_product();
-        const b1 = await batch({ code: "B-1", quantity: 5 });
-        const token = await person();
-        const oid = uuidv4();
-        await h.query("INSERT INTO orders (oid, invoice_no, channel, status, total_amount, subtotal, payment_status) VALUES ($1, 'ONLINE-2', 'ONLINE', 'Pending', 890, 890, 'unpaid')", [oid]);
-
-        const res = await h.call(EDIT_ORDER, { body: { oid, payment_status: "paid", amount_paid: 5, products: [{ inventory_oid: b1, product_oid: product, product_name: "Floral kurti", quantity: 1, unit_price: 890, discount: 0, total: 890 }] }, token });
-        assert.equal(res.status, 200, JSON.stringify(res.body));
-        const order = await order_of(oid);
-        assert.deepEqual([order.payment_status, order.amount_paid], ["paid", 890]);
-    });
-});

@@ -5,12 +5,13 @@ const { business_day, business_today } = require("../../../utils/business-time")
 
 // Append an audit row to order_status_history. Takes the `tx` handle from
 // `execute_transaction` so it lands inside the caller's transaction.
-const recordStatusHistory = async (tx, { order_oid, from_status, to_status, reason = null, user_id }) => {
+// `kind` is the axis that changed: Order, Delivery, Payment or Refund (sales REQ-118).
+const recordStatusHistory = async (tx, { order_oid, kind = "Order", from_status, to_status, reason = null, user_id }) => {
     await tx.execute_value({
         text: `INSERT INTO ${TABLE.ORDER_STATUS_HISTORY}
-                   (oid, order_oid, from_status, to_status, reason, performed_by)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
-        values: [uuidv4(), order_oid, from_status, to_status, reason, user_id],
+                   (oid, order_oid, kind, from_status, to_status, reason, performed_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        values: [uuidv4(), order_oid, kind, from_status, to_status, reason, user_id],
     });
 };
 

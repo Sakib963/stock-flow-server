@@ -1,86 +1,35 @@
-const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../db/database");
+const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 const { business_day } = require("../../../../utils/business-time");
+const { channels_of } = require("../../utils/channels");
+const { LIST, STATS } = require("../utils/order-list");
 
-// Unified order list (POS + online). Filter by channel, status, date range, and
-// free text on invoice/customer.
-//
-// This reads `orders` only. Pre-orders are bookings on their own tables and are
-// therefore structurally absent here -- there is nothing to exclude.
+// The orders list (sales REQ-02): only the person's channels, never a draft. "Mine" is what the
+// person placed themselves, so a salesperson opens the list on their own invoices.
 const get_order_list = async (request, res) => {
     try {
-        const [countResult, data_set] = await Promise.all([
-            get_data(generate_count_sql(request)),
-            get_data(generate_data_sql(request)),
-        ]);
-        const total = countResult[0]?.total || 0;
-        const data = data_set.length ? data_set : [];
-        log.info(`Order list found: ${data.length} of ${total}`);
-        return res.status(200).json({ code: 200, message: "Order list found", total, data });
+        const { query } = request;
+        const channels = await channels_of(request);
+        const where = ["o.channel = ANY($1)", "o.status <> 'Draft'"];
+        const values = [channels];
+        if (query.mine) {
+            values.push(request.credentials.user_id);
+            where.push(`o.created_by = $${values.length}`);
+        }
+        if (query.date_from) {
+            values.push(query.date_from);
+            where.push(`${business_day("o.created_on")} >= $${values.length}::date`);
+        }
+        if (query.date_to) {
+            values.push(query.date_to);
+            where.push(`${business_day("o.created_on")} <= $${values.length}::date`);
+        }
+        const { rows, total, stats } = await read_list({ ...LIST, where, values, stats: STATS, query });
+        return res.status(200).json({ code: 200, message: "Orders", data: stats ? { rows, stats } : { rows }, total });
     } catch (e) {
-        log.error(`An exception occurred while getting order list: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
+        log.error(`An exception occurred while listing orders: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not load the orders. Try again in a moment." });
     }
-};
-
-const build_filters = (query) => {
-    const values = [];
-    let where = " WHERE 1=1";
-
-    if (query.channel && query.channel.trim() && query.channel.toLowerCase() !== "null") {
-        values.push(query.channel);
-        where += ` AND o.channel = $${values.length}`;
-    }
-    if (query.status && query.status.trim() && query.status.toLowerCase() !== "null") {
-        values.push(query.status);
-        where += ` AND o.status = $${values.length}`;
-    }
-    if (query.date_from && query.date_from !== "null") {
-        values.push(query.date_from);
-        where += ` AND ${business_day("o.created_on")} >= ${values.length}`;
-    }
-    if (query.date_to && query.date_to !== "null") {
-        values.push(query.date_to);
-        where += ` AND ${business_day("o.created_on")} <= ${values.length}`;
-    }
-    if (query.search_text && query.search_text.trim() !== "") {
-        const s = `%${query.search_text.trim().toLowerCase()}%`;
-        values.push(s, s);
-        where += ` AND (LOWER(o.invoice_no) LIKE $${values.length - 1} OR LOWER(o.customer_name) LIKE $${values.length})`;
-    }
-    return { where, values };
-};
-
-const generate_count_sql = (request) => {
-    const { where, values } = build_filters(request.query);
-    return { text: `SELECT COUNT(*) AS total FROM ${TABLE.ORDERS} o${where}`, values };
-};
-
-const generate_data_sql = (request) => {
-    const { where, values } = build_filters(request.query);
-    let query = `
-    SELECT o.oid, o.invoice_no, o.channel, o.order_type, o.status,
-           o.customer_name, o.customer_phone,
-           CAST(o.total_amount AS INTEGER) AS total_amount,
-           o.payment_type, o.payment_status,
-           o.dispatched_on, o.delivered_on, o.created_on, o.created_by,
-           COUNT(oi.oid) AS item_count
-    FROM ${TABLE.ORDERS} o
-    LEFT JOIN ${TABLE.ORDER_ITEMS} oi ON oi.order_oid = o.oid
-    ${where}
-    GROUP BY o.oid
-    ORDER BY o.created_on DESC
-  `;
-    if (request.query.limit) {
-        values.push(Number(request.query.limit));
-        query += ` LIMIT $${values.length}`;
-    }
-    if (request.query.offset) {
-        values.push(Number(request.query.offset));
-        query += ` OFFSET $${values.length}`;
-    }
-    return { text: query, values };
 };
 
 module.exports = get_order_list;

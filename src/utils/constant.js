@@ -105,7 +105,6 @@ module.exports = {
     RETURN: "/return",
     CUSTOMER: "/customer",
     LOCATION: "/location",
-    DELIVERY: "/delivery",
     PRODUCT_DISPOSE: "/product-dispose",
     CHANGE_PASSWORD: "/change-password",
     PROFILE_INFO: "/profile-info",
@@ -245,12 +244,13 @@ module.exports = {
     SAVE_ONLINE_DRAFT: "/save-online-draft",
     GET_ONLINE_DRAFTS: "/get-online-drafts",
     DISCARD_ONLINE_DRAFT: "/discard-online-draft",
-    CONFIRM_ONLINE_ORDER: "/confirm",
-    CANCEL_ONLINE_ORDER: "/cancel",
-    MARK_DELIVERED: "/deliver",
-    // Send for Delivery (Pathao export)
-    SEND_FOR_DELIVERY: "/send-for-delivery",
-    EDIT_PENDING_ORDER: "/edit-pending",
+    // Orders list and record page
+    CONFIRM_ORDER: "/confirm-order",
+    CANCEL_ORDER: "/cancel-order",
+    MARK_ORDER_PACKED: "/mark-order-packed",
+    DISPATCH_ORDER: "/dispatch-order",
+    DELIVER_ORDER: "/deliver-order",
+    MARK_ORDER_NOT_DELIVERED: "/mark-order-not-delivered",
 
     // --- Returns feature (own router under /api/v1/sales/return) ---
     CREATE_RETURN: "/create-return",
