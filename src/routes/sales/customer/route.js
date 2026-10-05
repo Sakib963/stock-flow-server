@@ -14,6 +14,7 @@ const create_customer_address = require("./controller/create-customer-address");
 const update_customer_address = require("./controller/update-customer-address");
 const retire_customer_address = require("./controller/retire-customer-address");
 const generate_customer_list_report = require("./controller/generate-customer-list-report");
+const { online_sellers_only } = require("./utils/address");
 
 const router = Router();
 
@@ -32,11 +33,11 @@ router.post(ROUTES.UPDATE_CUSTOMER_DETAILS, [jwtMiddleware, requirePermission("s
 
 router.post(ROUTES.FLAG_CUSTOMER, [jwtMiddleware, requirePermission("sales.customer.edit"), validator.post(customer_flag_schema)], flag_customer);
 
-router.post(ROUTES.CREATE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.create"), validator.post(address_create_schema)], create_customer_address);
+router.post(ROUTES.CREATE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.create"), online_sellers_only, validator.post(address_create_schema)], create_customer_address);
 
-router.post(ROUTES.UPDATE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.edit"), validator.post(address_update_schema)], update_customer_address);
+router.post(ROUTES.UPDATE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.edit"), online_sellers_only, validator.post(address_update_schema)], update_customer_address);
 
-router.post(ROUTES.RETIRE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.edit"), validator.post(address_oid_schema)], retire_customer_address);
+router.post(ROUTES.RETIRE_CUSTOMER_ADDRESS, [jwtMiddleware, requirePermission("sales.customer.edit"), online_sellers_only, validator.post(address_oid_schema)], retire_customer_address);
 
 router.get(ROUTES.GENERATE_CUSTOMER_LIST_REPORT, [jwtMiddleware, requirePermission("sales.customer.export"), validator.get(customer_list_schema)], generate_customer_list_report);
 

@@ -4,7 +4,7 @@ const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { channels_of } = require("../../utils/channels");
 const { customer_stats, customer_orders } = require("../utils/customer-history");
-const { read_addresses } = require("../utils/address");
+const { read_addresses, sees_addresses, hides_address_activity } = require("../utils/address");
 
 const DETAILS_SQL = `
     SELECT c.oid, c.name, c.phone, c.gender, c.age_band, c.flag, c.flag_reason, c.social_handle, c.note, c.status,
@@ -24,7 +24,7 @@ const get_customer_details = async (request, res) => {
         if (!details) return res.status(404).json({ code: 404, message: "That customer no longer exists.", data: null });
 
         const channels = await channels_of(request);
-        const [stats, addresses, orders, activity] = await Promise.all([customer_stats(oid, channels), read_addresses(oid), customer_orders(oid, channels, 20), getLogActivities("customer", oid, 10)]);
+        const [stats, addresses, orders, activity] = await Promise.all([customer_stats(oid, channels), sees_addresses(channels) ? read_addresses(oid) : null, customer_orders(oid, channels, 20), getLogActivities("customer", oid, 10)]);
 
         return res.status(200).json({
             code: 200,
@@ -35,7 +35,7 @@ const get_customer_details = async (request, res) => {
                 addresses,
                 orders,
                 channels,
-                activity: activity.map((a) => ({ oid: a.oid, date: a.performed_on, user: a.performed_by, action: a.title, description: a.description })),
+                activity: (sees_addresses(channels) ? activity : activity.filter(hides_address_activity)).map((a) => ({ oid: a.oid, date: a.performed_on, user: a.performed_by, action: a.title, description: a.description })),
             },
         });
     } catch (e) {

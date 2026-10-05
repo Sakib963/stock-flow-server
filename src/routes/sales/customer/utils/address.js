@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require("uuid");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data, fail } = require("../../../../db/database");
+const { log } = require("../../../../utils/log");
+const { channels_of } = require("../../utils/channels");
 
 // The thana must be in the district and a picked area under the thana, or the analytics would count
 // a parcel in two places at once.
@@ -62,4 +64,26 @@ const read_addresses = (customer_oid) =>
         values: [customer_oid],
     });
 
-module.exports = { check_place, clear_default, insert_address, describe_address, read_addresses };
+// A counter-only person serves walk-ins and never sends a parcel, so a customer's saved addresses
+// stay out of everything they read (decided by the user, 2026-10-04).
+const sees_addresses = (channels) => channels.includes("ONLINE");
+
+const ADDRESS_COLUMNS = ["address_line", "district_oid", "district_name_en", "district_name_bn", "thana_oid", "thana_name_en", "thana_name_bn"];
+// A counter-only person keeps no addresses either: an answer to a write would tell them what one says.
+// Fails closed: a grant that cannot be read is a refusal.
+const online_sellers_only = async (request, res, next) => {
+    try {
+        if (sees_addresses(await channels_of(request))) return next();
+    } catch (e) {
+        log.error(`Could not read the channels for an address write: ${e?.message}`);
+    }
+    return res.status(403).json({ code: 403, message: "Addresses are kept by whoever sells online.", data: null });
+};
+
+// Address entries in a customer's activity carry the address itself.
+const ADDRESS_ACTIVITY = new Set(["Added address", "Updated address", "Removed address"]);
+const hides_address_activity = (entry) => !ADDRESS_ACTIVITY.has(entry.title);
+
+const without_address = (row) => Object.fromEntries(Object.entries(row).filter(([key]) => !ADDRESS_COLUMNS.includes(key)));
+
+module.exports = { check_place, clear_default, insert_address, describe_address, read_addresses, sees_addresses, without_address, online_sellers_only, hides_address_activity };

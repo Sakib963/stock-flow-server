@@ -3,14 +3,16 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
-const { insert_address, describe_address } = require("../utils/address");
+const { insert_address, describe_address, sees_addresses } = require("../utils/address");
 const { phone_taken, phone_conflict } = require("../utils/duplicate");
+const { channels_of } = require("../../utils/channels");
 
 const create_customer = async (request, res) => {
     const payload = request.body;
     const user_id = request.credentials.user_id;
     const oid = uuidv4();
     try {
+        if (payload.address && !sees_addresses(await channels_of(request))) return res.status(403).json({ code: 403, message: "Addresses are kept by whoever sells online.", data: null });
         const address = await execute_transaction(async (tx) => {
             await tx.execute_value({
                 text: `INSERT INTO ${TABLE.CUSTOMERS} (oid, name, phone, phone_normalized, gender, age_band, first_source_oid, social_handle, note, created_by)

@@ -341,6 +341,36 @@ describe("a customer's record", () => {
         assert.equal(res.body.data.history.owed, 180 + 300 + 300 + 60);
     });
 
+    it("never shows a counter-only salesperson a customer's saved addresses, on the record, the lookup or the list", async () => {
+        const counter = await person(["sales.customer.view", "sales.pos.view", "sales.pos.create"]);
+        const details = await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: counter });
+        assert.equal(details.body.data.addresses, null);
+        const found = await h.call(FIND, { body: { phone: "01987654321" }, token: counter });
+        assert.equal(found.body.data.addresses, null);
+        const list = await h.call(`${LIST}?search=Person`, { method: "GET", token: counter });
+        assert.equal(list.body.data.rows.length, 1);
+        assert.equal("address_line" in list.body.data.rows[0], false);
+        assert.equal("district_oid" in list.body.data.rows[0], false);
+
+        const owner = await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: await person() });
+        assert.equal(owner.body.data.addresses.length, 1);
+    });
+
+    it("leaks no address to a counter-only salesperson through the activity, the district filter or an address write", async () => {
+        const counter = await person(["sales.customer.view", "sales.customer.create", "sales.customer.edit", "sales.pos.view", "sales.pos.create"]);
+        const details = await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: counter });
+        assert.equal(details.body.data.activity.some((entry) => /address/i.test(entry.action)), false);
+
+        const unfiltered = await h.call(`${LIST}?search=Person`, { method: "GET", token: counter });
+        const elsewhere = await h.call(`${LIST}?search=Person&district=${uuidv4()}`, { method: "GET", token: counter });
+        assert.equal(elsewhere.body.total, unfiltered.body.total);
+
+        const write = await h.call(ADD_ADDRESS, { body: { customer_oid, ...home }, token: counter });
+        assert.equal(write.status, 403);
+        const created = await h.call(CREATE, { body: { name: "Person C", phone: "01711000009", address: home }, token: counter });
+        assert.equal(created.status, 403);
+    });
+
     it("shows a counter salesperson only the counter orders and their value", async () => {
         const counter = await person(["sales.customer.view", "sales.pos.view"]);
         const res = await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: counter });
