@@ -9,11 +9,15 @@ const { get_data } = require("../../../../db/database");
 // the lines are already the returned units, so they are not taken off a second time. An order
 // returned in full kept nothing and is not counted as a sale, though its sold_on stays (REQ-122).
 //
+// What the customer still owes comes from unpaid and part paid sales only: what they kept, less what
+// they paid (read by payment_status, as effectiveAmountPaid does), plus what confirmed returns handed
+// back out of that payment. A return worth more than was paid only lowers what is owed, never below 0.
+//
 // Parcels that came back count as refused until returns record the sub-reason (step 5 of the sales
 // build), when this narrows to Refused.
 const STATS_SQL = `
     WITH o AS (
-        SELECT oid, channel, status, sold_on, created_on, delivery_charge, cancel_reason_code
+        SELECT oid, channel, status, sold_on, created_on, delivery_charge, cancel_reason_code, payment_status, amount_paid
           FROM ${TABLE.ORDERS}
          WHERE customer_oid = $1 AND channel = ANY($2) AND status <> 'Draft'
     ),
@@ -26,6 +30,18 @@ const STATS_SQL = `
         SELECT SUM((oi.unit_price - COALESCE(oi.discount, 0)) * (oi.quantity - oi.returned_qty)) AS lines
           FROM ${TABLE.ORDER_ITEMS} oi
           JOIN o ON o.oid = oi.order_oid AND o.sold_on IS NOT NULL
+    ),
+    owed AS (
+        SELECT SUM(GREATEST(0, COALESCE(k.kept, 0)
+                   + CASE WHEN o.oid IN (SELECT order_oid FROM delivery_refunded) THEN 0 ELSE COALESCE(o.delivery_charge, 0) END
+                   - CASE WHEN o.payment_status = 'partially_paid' THEN COALESCE(o.amount_paid, 0) ELSE 0 END
+                   + COALESCE(r.refunded, 0))) AS amount
+          FROM o
+          LEFT JOIN (SELECT order_oid, SUM((unit_price - COALESCE(discount, 0)) * (quantity - returned_qty)) AS kept
+                       FROM ${TABLE.ORDER_ITEMS} WHERE order_oid IN (SELECT oid FROM o) GROUP BY order_oid) k ON k.order_oid = o.oid
+          LEFT JOIN (SELECT order_oid, SUM(refund_amount) AS refunded
+                       FROM ${TABLE.PRODUCT_RETURN} WHERE status IN ('Returned', 'Completed') AND order_oid IN (SELECT oid FROM o) GROUP BY order_oid) r ON r.order_oid = o.oid
+         WHERE o.sold_on IS NOT NULL AND o.status <> 'Cancelled' AND o.payment_status IN ('unpaid', 'partially_paid')
     )
     SELECT COUNT(*)::int AS orders,
            COUNT(*) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned')::int AS sales,
@@ -34,7 +50,8 @@ const STATS_SQL = `
            COUNT(*) FILTER (WHERE o.channel = 'ONLINE' AND o.sold_on IS NOT NULL)::int AS delivered,
            COUNT(*) FILTER (WHERE oo.delivery_status IN ('Failed', 'BackInShop'))::int AS refused_parcels,
            COUNT(*) FILTER (WHERE o.cancel_reason_code IN ('fake_order', 'unreachable'))::int AS cancelled_fake_or_unreachable,
-           MAX(o.created_on) AS last_order_on
+           MAX(o.created_on) AS last_order_on,
+           COALESCE((SELECT amount FROM owed), 0)::numeric AS owed
       FROM o
       LEFT JOIN ${TABLE.ONLINE_ORDER} oo ON oo.order_oid = o.oid`;
 
@@ -60,6 +77,7 @@ const customer_stats = async (customer_oid, channels) => {
         delivered_rate: settled_parcels ? Math.round((row.delivered / settled_parcels) * 1000) / 10 : null,
         cancelled_fake_or_unreachable: row.cancelled_fake_or_unreachable,
         last_order_on: row.last_order_on,
+        owed: Number(row.owed),
     };
 };
 

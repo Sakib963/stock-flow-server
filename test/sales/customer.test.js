@@ -314,6 +314,33 @@ describe("a customer's record", () => {
         assert.equal(res.body.data.addresses.length, 1);
     });
 
+    it("tells the counter what the customer still owes, from unpaid and part paid sales they kept", async () => {
+        const sale = async (payment_status, amount_paid, { status = "Purchased", quantity = 1, unit_price, discount = 0, sold = true }) => {
+            const oid = uuidv4();
+            await h.query("INSERT INTO orders (oid, invoice_no, total_amount, channel, status, customer_oid, sold_on, payment_status, amount_paid) VALUES ($1, $1, $2, 'POS', $3, $4, $5, $6, $7)", [oid, (unit_price - discount) * quantity, status, customer_oid, sold ? new Date() : null, payment_status, amount_paid]);
+            const item = uuidv4();
+            await h.query("INSERT INTO order_items (oid, order_oid, inventory_oid, product_oid, product_name, quantity, unit_price, discount, total) VALUES ($1, $2, 'I-1', 'P-1', 'Floral Kurti', $3, $4, $5, 0)", [item, oid, quantity, unit_price, discount]);
+            return { oid, item };
+        };
+        await sale("unpaid", 0, { quantity: 2, unit_price: 100, discount: 10 });
+        await sale("partially_paid", 200, { unit_price: 500 });
+        // Paid 500 of 800, then one unit (400) came back and all of it was refunded out of the 500.
+        const returned = await sale("partially_paid", 500, { status: "PartiallyReturned", quantity: 2, unit_price: 400 });
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status) VALUES ($1, $2, $1, 400, 'Returned')", [uuidv4(), returned.oid]);
+        await h.query("UPDATE order_items SET returned_qty = 1 WHERE oid = $1", [returned.item]);
+        await sale("paid", 0, { unit_price: 900 });
+        await sale("unpaid", 0, { status: "Cancelled", unit_price: 700, sold: false });
+        // Returned in full, but the return kept the delivery charge: the courier's 60 is still owed.
+        const full = await sale("unpaid", 0, { status: "Returned", unit_price: 1000 });
+        await h.query("UPDATE orders SET delivery_charge = 60 WHERE oid = $1", [full.oid]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge) VALUES ($1, $2, $1, 0, 'Returned', false)", [uuidv4(), full.oid]);
+        await h.query("UPDATE order_items SET returned_qty = 1 WHERE oid = $1", [full.item]);
+
+        const counter = await person(["sales.pos.view", "sales.pos.create"]);
+        const res = await h.call(FIND, { body: { phone: "01987654321" }, token: counter });
+        assert.equal(res.body.data.history.owed, 180 + 300 + 300 + 60);
+    });
+
     it("shows a counter salesperson only the counter orders and their value", async () => {
         const counter = await person(["sales.customer.view", "sales.pos.view"]);
         const res = await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: counter });
