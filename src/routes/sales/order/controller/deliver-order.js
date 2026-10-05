@@ -24,9 +24,11 @@ const deliver_order = async (request, res) => {
             if (delivered.rowCount !== 1) await refuse_change(tx, oid, "marked delivered");
             const { invoice_no, payment_status, total_amount } = delivered.rows[0];
 
-            await tx.execute_value({ text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'Delivered', edited_by = $1, edited_on = clock_timestamp() WHERE order_oid = $2`, values: [user_id, oid] });
+            // Guarded too: a Not delivered recorded a moment ago holds this row, and a failed parcel is never a sale.
+            const parcel = await tx.execute_value({ text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'Delivered', edited_by = $1, edited_on = clock_timestamp() WHERE order_oid = $2 AND delivery_status = 'WithCourier'`, values: [user_id, oid] });
+            if (parcel.rowCount !== 1) await refuse_change(tx, oid, "marked delivered");
             if (payment_status !== "paid") {
-                await tx.execute_value({ text: `UPDATE ${TABLE.ORDERS} SET payment_status = 'paid', amount_paid = $1 WHERE oid = $2`, values: [resolveAmountPaid({ payment_status: "paid", total_amount }), oid] });
+                await tx.execute_value({ text: `UPDATE ${TABLE.ORDERS} SET payment_status = 'paid', amount_paid = $1, edited_by = $3, edited_on = clock_timestamp() WHERE oid = $2`, values: [resolveAmountPaid({ payment_status: "paid", total_amount }), oid, user_id] });
                 await recordStatusHistory(tx, { order_oid: oid, kind: "Payment", from_status: payment_status, to_status: "paid", reason: "Collected by the courier", user_id });
             }
             const lines = await tx.get_data({ text: `SELECT product_oid, quantity::int AS quantity FROM ${TABLE.ORDER_ITEMS} WHERE order_oid = $1`, values: [oid] });

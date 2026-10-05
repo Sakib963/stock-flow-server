@@ -1,5 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { fail } = require("../../../../db/database");
+const { log } = require("../../../../utils/log");
+const { channels_of } = require("../../utils/channels");
 
 /**
  * Every order action changes a row only from the state it leaves, so two people pressing at once
@@ -17,4 +19,15 @@ const refuse_change = async (tx, oid, action) => {
     fail(409, `${order.invoice_no} cannot be ${action} now: it is ${state}. Reload the order to see what changed.`, { status: order.status, delivery_status: order.delivery_status });
 };
 
-module.exports = { refuse_change };
+// The actions change online orders only, so they need the online channel as well as their own
+// permission (sales REQ-02): a person who cannot see an order must not be able to move it.
+const online_sellers = async (request, res, next) => {
+    try {
+        if ((await channels_of(request)).includes("ONLINE")) return next();
+    } catch (e) {
+        log.error(`Could not read the channels for an order action: ${e?.message}`);
+    }
+    return res.status(403).json({ code: 403, message: "Only someone who sells online can change an online order.", data: null });
+};
+
+module.exports = { refuse_change, online_sellers };

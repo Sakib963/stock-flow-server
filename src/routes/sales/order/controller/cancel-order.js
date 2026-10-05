@@ -16,6 +16,8 @@ const cancel_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const { invoice_no, refund_due } = await execute_transaction(async (tx) => {
+            // Locked first, so the timeline records whether it was Pending or Confirmed when it was cancelled.
+            const [before] = await tx.get_data({ text: `SELECT status FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
             const cancelled = await tx.execute_value({
                 text: `UPDATE ${TABLE.ORDERS} SET status = 'Cancelled', cancelled_on = clock_timestamp(), cancel_reason_code = $1, cancel_reason = $2, edited_by = $3, edited_on = clock_timestamp()
                         WHERE oid = $4 AND channel = 'ONLINE' AND status IN ('Pending', 'Confirmed') AND dispatched_on IS NULL
@@ -25,11 +27,11 @@ const cancel_order = async (request, res) => {
             if (cancelled.rowCount !== 1) await refuse_change(tx, oid, "cancelled");
             const order = cancelled.rows[0];
             await releaseHolds(tx, { order_oid: oid, user_id });
-            await recordStatusHistory(tx, { order_oid: oid, from_status: null, to_status: "Cancelled", reason: note ? `${reason_code}: ${note}` : reason_code, user_id });
+            await recordStatusHistory(tx, { order_oid: oid, from_status: before.status, to_status: "Cancelled", reason: note ? `${reason_code}: ${note}` : reason_code, user_id });
 
             const refund_due = Math.max(0, effectiveAmountPaid(order) - Number(order.amount_refunded));
             if (refund_due > 0) {
-                await tx.execute_value({ text: `UPDATE ${TABLE.ORDERS} SET refund_status = 'ToRefund', refund_due = $1 WHERE oid = $2`, values: [refund_due, oid] });
+                await tx.execute_value({ text: `UPDATE ${TABLE.ORDERS} SET refund_status = 'ToRefund', refund_due = $1, edited_by = $3, edited_on = clock_timestamp() WHERE oid = $2`, values: [refund_due, oid, user_id] });
                 await recordStatusHistory(tx, { order_oid: oid, kind: "Refund", from_status: "None", to_status: "ToRefund", reason: String(refund_due), user_id });
             }
             await saveLogActivity({ reference_type: "order", reference_oid: oid, title: "Online order cancelled", description: `${order.invoice_no}, ${reason_code}${refund_due ? `, ${refund_due} to refund` : ""}` }, { tx, request });

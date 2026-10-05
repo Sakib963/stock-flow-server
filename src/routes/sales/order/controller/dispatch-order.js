@@ -25,10 +25,11 @@ const dispatch_order = async (request, res) => {
             const { invoice_no, delivery_status } = dispatched.rows[0];
             const deducted = await deductHeldStock(tx, { order_oid: oid, user_id });
             if (!deducted.ok) fail(409, `The stock held for ${invoice_no} is no longer on the shelf. Nothing was dispatched; check the batch with a stock count.`);
-            await tx.execute_value({
-                text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'WithCourier', courier = $1, consignment_no = $2, edited_by = $3, edited_on = clock_timestamp() WHERE order_oid = $4`,
+            const parcel = await tx.execute_value({
+                text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'WithCourier', courier = $1, consignment_no = $2, edited_by = $3, edited_on = clock_timestamp() WHERE order_oid = $4 AND delivery_status IN ('Preparing', 'Packed')`,
                 values: [courier, consignment_no, user_id, oid],
             });
+            if (parcel.rowCount !== 1) await refuse_change(tx, oid, "dispatched");
             await recordStatusHistory(tx, { order_oid: oid, kind: "Delivery", from_status: delivery_status, to_status: "WithCourier", reason: consignment_no ? `${courier} ${consignment_no}` : courier, user_id });
             await saveLogActivity({ reference_type: "order", reference_oid: oid, title: "Online order dispatched", description: `${invoice_no}, ${courier}${consignment_no ? ` ${consignment_no}` : ""}` }, { tx, request });
             return invoice_no;

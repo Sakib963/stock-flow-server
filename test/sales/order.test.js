@@ -202,6 +202,32 @@ describe("an online order's lifecycle", () => {
         await assert_balanced(b1);
     });
 
+    it("never counts a parcel as sold when Deliver and Not delivered are pressed at once", async () => {
+        const oid = await place(token, b1);
+        await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token });
+        await h.call(DISPATCH, { body: { oid, courier: "Pathao" }, token });
+        const [delivered, failed] = await Promise.all([h.call(DELIVER, { body: { oid }, token }), h.call(NOT_DELIVERED, { body: { oid, reason: "refused" }, token })]);
+        assert.deepEqual([delivered.status, failed.status].sort(), [200, 409]);
+        const row = await order_row(oid);
+        if (failed.status === 200) assert.deepEqual([row.delivery_status, row.sold_on, row.status], ["Failed", null, "Confirmed"]);
+        else assert.deepEqual([row.delivery_status, row.status], ["Delivered", "Delivered"]);
+    });
+
+    it("records whether an order was Pending or Confirmed when it was cancelled", async () => {
+        const oid = await place(token, b1);
+        await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token });
+        await h.call(CANCEL, { body: { oid, reason_code: "duplicate" }, token });
+        const [row] = await h.query("SELECT from_status FROM order_status_history WHERE order_oid = $1 AND to_status = 'Cancelled'", [oid]);
+        assert.equal(row.from_status, "Confirmed");
+    });
+
+    it("refuses an action to someone who does not sell online, even with its permission", async () => {
+        const oid = await place(token, b1);
+        const counter = await person(["sales.pos.view", "sales.order.view", "sales.order.cancel"]);
+        assert.equal((await h.call(CANCEL, { body: { oid, reason_code: "duplicate" }, token: counter })).status, 403);
+        assert.equal((await order_row(oid)).status, "Pending");
+    });
+
     it("refuses each action to someone without its permission, and every action without sign in", async () => {
         const oid = await place(token, b1);
         const viewer = await person(["sales.online.view", "sales.order.view"]);
