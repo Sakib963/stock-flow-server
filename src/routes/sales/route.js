@@ -8,6 +8,7 @@ const { preOrderRouter } = require("./pre-order/route");
 const { returnRouter } = require("./return/route");
 const { customerRouter } = require("./customer/route");
 const { locationRouter } = require("./location/route");
+const { salesSettingsRouter } = require("./settings/route");
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use(SUB_CONTEXTS.PRE_ORDER, preOrderRouter);
 router.use(SUB_CONTEXTS.RETURN, returnRouter);
 router.use(SUB_CONTEXTS.CUSTOMER, customerRouter);
 router.use(SUB_CONTEXTS.LOCATION, locationRouter);
+router.use(SUB_CONTEXTS.SETTINGS, salesSettingsRouter);
 
 module.exports = { salesRouter: router };

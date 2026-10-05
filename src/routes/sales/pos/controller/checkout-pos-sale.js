@@ -5,7 +5,7 @@ const { log } = require("../../../../utils/log");
 const { deductSellableStock, incrementProductStat } = require("../../utils/stock-movement");
 const { recordStatusHistory, nextInvoiceNo, resolveAmountPaid } = require("../../utils/order-utils");
 const { find_or_create_customer } = require("../../customer/utils/find-or-create");
-const { price_lines, cart_totals, insert_lines, batch_name } = require("../utils/cart");
+const { price_lines, cart_totals, insert_lines, batch_name } = require("../../utils/cart");
 
 const sellable_of = async (tx, inventory_oid) => {
     const [row] = await tx.get_data({

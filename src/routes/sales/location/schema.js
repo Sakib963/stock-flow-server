@@ -4,7 +4,8 @@ const location_search_schema = Joi.object({
     level: Joi.string().valid("District", "Thana").required(),
     search: Joi.string().trim().max(100).allow("").default(""),
     district_oid: Joi.string().trim().max(128).optional(),
-    limit: Joi.number().integer().min(1).max(50).default(20),
+    // Every district at once (64) for a picker that filters on the page.
+    limit: Joi.number().integer().min(1).max(100).default(20),
 });
 
 const location_match_schema = Joi.object({

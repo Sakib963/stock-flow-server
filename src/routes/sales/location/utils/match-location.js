@@ -1,4 +1,4 @@
-const { location_key } = require("./location-index");
+const { location_key, sound_key } = require("./location-index");
 
 const LONGEST_NAME_WORDS = 4;
 
@@ -37,11 +37,15 @@ const match_location = (index, text) => {
     const named_thanas = new Set();
     const named_areas = [];
     for (const key of runs) {
-        for (const oid of index.district_by_key.get(key) ?? []) named_districts.add(oid);
-        for (const oid of index.thana_by_key.get(key) ?? []) named_thanas.add(oid);
+        // A spelling nobody saved ("Ukhiya" for Ukhia) is tried by how it sounds, only when nothing matches exactly.
+        const sound = key.length >= 4 ? sound_key(key) : null;
+        const districts = index.district_by_key.get(key) ?? (sound && index.district_by_sound.get(sound)) ?? [];
+        const thanas = index.thana_by_key.get(key) ?? (sound && index.thana_by_sound.get(sound)) ?? [];
+        for (const oid of districts) named_districts.add(oid);
+        for (const oid of thanas) named_thanas.add(oid);
         // Words that already named a thana or district are not an area too: Magura's Mohammadpur
         // has a Mohammadpur union, which would otherwise outrank Dhaka on the thana's own name.
-        if (index.district_by_key.has(key) || index.thana_by_key.has(key)) continue;
+        if (districts.size || thanas.size) continue;
         for (const area of index.area_by_key.get(key) ?? []) named_areas.push(area);
     }
 

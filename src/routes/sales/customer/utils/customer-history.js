@@ -7,7 +7,8 @@ const { get_data } = require("../../../../db/database");
 // (unit_price - discount) per unit times the units not returned (returned_qty, raised only when a
 // return is confirmed), plus the delivery charge unless a confirmed return gave it back. Refunds of
 // the lines are already the returned units, so they are not taken off a second time. An order
-// returned in full kept nothing and is not counted as a sale, though its sold_on stays (REQ-122).
+// returned in full kept nothing, not even its delivery charge, and is not counted as a sale, though
+// its sold_on stays (REQ-122): the average purchase divides by sales, so it must not count it either.
 //
 // What the customer still owes comes from unpaid and part paid sales only: what they kept, less what
 // they paid (read by payment_status, as effectiveAmountPaid does), plus what confirmed returns handed
@@ -46,7 +47,7 @@ const STATS_SQL = `
     SELECT COUNT(*)::int AS orders,
            COUNT(*) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned')::int AS sales,
            (COALESCE((SELECT lines FROM kept), 0)
-             + COALESCE(SUM(o.delivery_charge) FILTER (WHERE o.sold_on IS NOT NULL AND o.oid NOT IN (SELECT order_oid FROM delivery_refunded)), 0))::numeric AS lifetime_value,
+             + COALESCE(SUM(o.delivery_charge) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned' AND o.oid NOT IN (SELECT order_oid FROM delivery_refunded)), 0))::numeric AS lifetime_value,
            COUNT(*) FILTER (WHERE o.channel = 'ONLINE' AND o.sold_on IS NOT NULL)::int AS delivered,
            COUNT(*) FILTER (WHERE oo.delivery_status IN ('Failed', 'BackInShop'))::int AS refused_parcels,
            COUNT(*) FILTER (WHERE o.cancel_reason_code IN ('fake_order', 'unreachable'))::int AS cancelled_fake_or_unreachable,

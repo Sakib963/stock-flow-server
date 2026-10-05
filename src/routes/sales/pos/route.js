@@ -12,7 +12,8 @@ const discard_parked_cart = require("./controller/discard-parked-cart");
 
 const router = Router();
 
-router.get(ROUTES.GET_POS_PRODUCT_LIST, [jwtMiddleware, requirePermission("sales.pos.view"), validator.get(pos_product_list_schema)], get_product_list);
+// The product picker both counters share: the online order adds products as the counter does (sales REQ-37).
+router.get(ROUTES.GET_POS_PRODUCT_LIST, [jwtMiddleware, requirePermission(["sales.pos.view", "sales.online.view"]), validator.get(pos_product_list_schema)], get_product_list);
 
 router.post(ROUTES.CHECKOUT_POS_SALE, [jwtMiddleware, requirePermission("sales.pos.create"), validator.post(pos_checkout_schema)], checkout_pos_sale);
 

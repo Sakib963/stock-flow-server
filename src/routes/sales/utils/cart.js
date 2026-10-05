@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
-const { TABLE } = require("../../../../utils/constant");
-const { fail } = require("../../../../db/database");
+const { TABLE } = require("../../../utils/constant");
+const { fail } = require("../../../db/database");
 
 const batch_name = (b) => `${b.product_name}, ${b.batch_code}`;
 

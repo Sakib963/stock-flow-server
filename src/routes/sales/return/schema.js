@@ -42,6 +42,10 @@ const return_action_schema = Joi.object({
     oid: Joi.string().required(),
 });
 
+const return_oid_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+});
+
 const cancel_return_schema = Joi.object({
     oid: Joi.string().required(),
     reason: Joi.string().trim().min(1).required(),
@@ -54,4 +58,5 @@ module.exports = {
     create_return_schema,
     return_action_schema,
     cancel_return_schema,
+    return_oid_schema,
 };

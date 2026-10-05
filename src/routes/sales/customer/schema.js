@@ -87,4 +87,4 @@ const address_oid_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
 
-module.exports = { customer_list_schema, customer_oid_schema, customer_phone_schema, customer_create_schema, customer_update_schema, customer_flag_schema, address_create_schema, address_update_schema, address_oid_schema };
+module.exports = { address_fields, customer_list_schema, customer_oid_schema, customer_phone_schema, customer_create_schema, customer_update_schema, customer_flag_schema, address_create_schema, address_update_schema, address_oid_schema };

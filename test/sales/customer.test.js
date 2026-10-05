@@ -314,6 +314,17 @@ describe("a customer's record", () => {
         assert.equal(res.body.data.addresses.length, 1);
     });
 
+    it("leaves an online order returned in full out of lifetime value, its kept delivery charge too, so the average purchase does not rise", async () => {
+        const before = (await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: await person() })).body.data.stats;
+        const oid = uuidv4();
+        await h.query("INSERT INTO orders (oid, invoice_no, total_amount, channel, status, customer_oid, sold_on, delivery_charge) VALUES ($1, $1, 0, 'ONLINE', 'Returned', $2, now(), 70)", [oid, customer_oid]);
+        await h.query("INSERT INTO order_items (oid, order_oid, inventory_oid, product_oid, product_name, quantity, unit_price, discount, total, returned_qty) VALUES ($1, $2, 'I-1', 'P-1', 'Floral Kurti', 1, 600, 0, 600, 1)", [uuidv4(), oid]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge) VALUES ($1, $2, $1, 0, 'Returned', false)", [uuidv4(), oid]);
+
+        const after = (await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: await person() })).body.data.stats;
+        assert.deepEqual([after.sales, after.lifetime_value, after.average_order], [before.sales, before.lifetime_value, before.average_order]);
+    });
+
     it("tells the counter what the customer still owes, from unpaid and part paid sales they kept", async () => {
         const sale = async (payment_status, amount_paid, { status = "Purchased", quantity = 1, unit_price, discount = 0, sold = true }) => {
             const oid = uuidv4();

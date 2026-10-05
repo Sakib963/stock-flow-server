@@ -11,6 +11,21 @@ const location_key = (text) =>
         .toLowerCase()
         .replace(/[^\p{L}\p{N}]/gu, "");
 
+// How a name sounds, for spellings nobody saved: "Ukhiya" and "Ukhia", "Mohammodpur" and "Mohammadpur". Only
+// for Latin letters, and only a fallback when no name or saved spelling matches exactly.
+const sound_key = (key) =>
+    /^[a-z]+$/.test(key)
+        ? key
+              .replace(/iy/g, "i")
+              .replace(/ee/g, "i")
+              .replace(/oo|ou/g, "u")
+              .replace(/z/g, "j")
+              .replace(/v/g, "b")
+              .replace(/ph/g, "f")
+              .replace(/(?<=.)o/g, "a")
+              .replace(/(.)\1+/g, "$1")
+        : null;
+
 // Matching and type-ahead run over memory, never a query per paste (sales REQ-85). Learned areas
 // change on another instance too, so the index is also rebuilt after this long.
 const TTL_MS = 10 * 60 * 1000;
@@ -50,6 +65,10 @@ const build = async () => {
     const thana_by_key = new Map();
     for (const d of district.values()) for (const key of d.keys) add_to(district_by_key, key, d.oid);
     for (const t of thana.values()) for (const key of t.keys) add_to(thana_by_key, key, t.oid);
+    const district_by_sound = new Map();
+    const thana_by_sound = new Map();
+    for (const d of district.values()) for (const key of d.keys) add_to(district_by_sound, sound_key(key) ?? "", d.oid);
+    for (const t of thana.values()) for (const key of t.keys) add_to(thana_by_sound, sound_key(key) ?? "", t.oid);
 
     // A union is written "Binodpur Union" but a customer writes "Binodpur".
     const area_by_key = new Map();
@@ -68,7 +87,7 @@ const build = async () => {
     const district_orders = new Map(usage.map((u) => [u.district_oid, u.orders]));
     if (!district_orders.size && settings?.home_district_oid) district_orders.set(settings.home_district_oid, 1);
 
-    return { district, thana, district_by_key, thana_by_key, area_by_key, thanas_by_postcode, district_orders };
+    return { district, thana, district_by_key, thana_by_key, district_by_sound, thana_by_sound, area_by_key, thanas_by_postcode, district_orders };
 };
 
 const load = () => {
@@ -105,4 +124,4 @@ const reload_location_index = () => {
     return load();
 };
 
-module.exports = { location_key, location_index, invalidate_location_index, reload_location_index };
+module.exports = { location_key, sound_key, location_index, invalidate_location_index, reload_location_index };

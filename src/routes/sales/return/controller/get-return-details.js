@@ -1,12 +1,15 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { channels_of } = require("../../utils/channels");
+const { sees_addresses } = require("../../customer/utils/address");
 
 // One return, everything the detail page needs: the header, the order it came
 // from, and the lines with their batch, condition and what happened to them.
 const get_return_details = async (request, res) => {
     try {
         const return_oid = request.params.oid;
+        const channels = await channels_of(request);
 
         const headers = await get_data({
             text: `SELECT pr.oid,
@@ -43,8 +46,8 @@ const get_return_details = async (request, res) => {
                      JOIN ${TABLE.ORDERS} o ON o.oid = pr.order_oid
                      LEFT JOIN ${TABLE.LOGIN} cl ON cl.email = pr.created_by
                      LEFT JOIN ${TABLE.LOGIN} el ON el.email = pr.edited_by
-                    WHERE pr.oid = $1`,
-            values: [return_oid],
+                    WHERE pr.oid = $1 AND o.channel = ANY($2)`,
+            values: [return_oid, channels],
         });
 
         if (!headers.length) {
@@ -83,7 +86,9 @@ const get_return_details = async (request, res) => {
             values: [return_oid],
         });
 
-        const header = headers[0];
+        // Only returns of orders in the person's channels, and no address for someone who sells only at the counter.
+        const { customer_address, ...rest } = headers[0];
+        const header = sees_addresses(channels) ? headers[0] : rest;
 
         // Three figures, not one. The goods are worth what the customer was
         // charged (return_value); refund_amount is the part the shop actually

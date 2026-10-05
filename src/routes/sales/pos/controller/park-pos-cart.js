@@ -3,7 +3,7 @@ const { execute_transaction, TransactionError, fail } = require("../../../../db/
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { recordStatusHistory, nextInvoiceNo } = require("../../utils/order-utils");
-const { price_lines, cart_totals, insert_lines } = require("../utils/cart");
+const { price_lines, cart_totals, insert_lines } = require("../../utils/cart");
 
 // A parked cart is a POS Draft (sales REQ-18, REQ-19): it survives a refresh and other counters see
 // it, and it holds no stock, so a customer who walks away blocks nobody. The phone and name are kept

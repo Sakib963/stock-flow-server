@@ -2,7 +2,8 @@ const { Router } = require("express");
 const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
 const { validator } = require("../../../middleware/validator");
-const { return_list_schema, returns_for_order_schema, create_return_schema, return_action_schema, cancel_return_schema } = require("./schema");
+const requirePermission = require("../../../middleware/require-permission");
+const { return_list_schema, returns_for_order_schema, create_return_schema, return_action_schema, cancel_return_schema, return_oid_schema } = require("./schema");
 
 const get_return_list = require("./controller/get-return-list");
 const get_return_list_kpis = require("./controller/get-return-list-kpis");
@@ -25,7 +26,7 @@ router.get(ROUTES.GET_RETURN_LIST_KPIS, [jwtMiddleware], get_return_list_kpis);
 router.get(ROUTES.GET_RETURNS_FOR_ORDER, [jwtMiddleware, validator.get(returns_for_order_schema)], get_returns_for_order);
 
 // --- Record ---
-router.get(ROUTES.GET_RETURN_DETAILS + "/:oid", [jwtMiddleware], get_return_details);
+router.get(ROUTES.GET_RETURN_DETAILS + "/:oid", [jwtMiddleware, requirePermission("sales.return.view"), validator.params(return_oid_schema)], get_return_details);
 router.post(ROUTES.CREATE_RETURN, [jwtMiddleware, validator.post(create_return_schema)], create_return);
 
 // --- Lifecycle ---

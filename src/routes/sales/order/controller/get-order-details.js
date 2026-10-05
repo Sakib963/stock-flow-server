@@ -1,11 +1,18 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { channels_of } = require("../../utils/channels");
+const { sees_addresses } = require("../../customer/utils/address");
 
-// Full order for the detail page: header + line items + status-history timeline.
+const ADDRESS_FIELDS = ["customer_address", "delivery_city", "delivery_zone", "delivery_area", "delivery_postcode"];
+
+// Full order for the detail page: header + line items + status-history timeline. Only in the
+// person's channels (sales REQ-02), and without the delivery address for someone who sells only at
+// the counter. An order outside their channels is not found, as if it did not exist.
 const get_order_details = async (request, res) => {
     try {
         const oid = request.query.oid || request.params.oid;
+        const channels = await channels_of(request);
         const header = await get_data({
             text: `SELECT o.oid, o.invoice_no, o.channel, o.order_type, o.status,
                           o.customer_oid, o.customer_name, o.customer_phone, o.customer_address, o.customer_email,
@@ -19,8 +26,8 @@ const get_order_details = async (request, res) => {
                           o.dispatched_on, o.delivered_on, o.cancelled_on, o.cancel_reason,
                           o.tracking_token,
                           o.notes, o.created_by, o.created_on, o.edited_by, o.edited_on
-                     FROM ${TABLE.ORDERS} o WHERE o.oid = $1`,
-            values: [oid],
+                     FROM ${TABLE.ORDERS} o WHERE o.oid = $1 AND o.channel = ANY($2)`,
+            values: [oid, channels],
         });
         if (!header.length) return res.status(404).json({ code: 404, message: "Order not found" });
 
@@ -44,7 +51,8 @@ const get_order_details = async (request, res) => {
             }),
         ]);
 
-        const data = { ...header[0], items, status_history: history };
+        const order = sees_addresses(channels) ? header[0] : Object.fromEntries(Object.entries(header[0]).filter(([key]) => !ADDRESS_FIELDS.includes(key)));
+        const data = { ...order, items, status_history: history };
         log.info(`Order details found for ${oid}`);
         return res.status(200).json({ code: 200, message: "Order details found", data });
     } catch (e) {
