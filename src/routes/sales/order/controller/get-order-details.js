@@ -21,8 +21,8 @@ const get_order_details = async (request, res) => {
                           o.dispatched_on, o.delivered_on, o.cancelled_on, o.cancel_reason_code, o.cancel_reason, o.sold_on, o.tracking_token,
                           o.notes, o.created_by, u.name AS created_by_name, o.created_on, o.edited_by, o.edited_on
                      FROM ${TABLE.ORDERS} o LEFT JOIN ${TABLE.LOGIN} u ON u.email = o.created_by
-                    WHERE o.oid = $1 AND o.channel = ANY($2) AND o.status <> 'Draft'`,
-            values: [oid, channels],
+                    WHERE o.oid = $1 AND o.channel = ANY($2) AND o.status <> 'Draft' AND ($3::text IS NULL OR o.created_by = $3)`,
+            values: [oid, channels, request.own_orders ? request.credentials.user_id : null],
         });
         if (!header) return res.status(404).json({ code: 404, message: "No order with that number in the channels you sell through." });
 

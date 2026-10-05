@@ -5,7 +5,7 @@ const { log } = require("../../../../utils/log");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { learn_area } = require("../../location/utils/learn-area");
 const { invalidate_location_index } = require("../../location/utils/location-index");
-const { refuse_change } = require("../utils/order-state");
+const { refuse_change, refuse_unless_own } = require("../utils/order-state");
 
 // Confirm (sales REQ-50): the business checked the order is real, and says how. It moves no stock:
 // the units were held when the order was placed. The confirmed area is learned under its thana, so
@@ -15,6 +15,7 @@ const confirm_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const { invoice_no, learned } = await execute_transaction(async (tx) => {
+            await refuse_unless_own(tx, oid, request);
             const confirmed = await tx.execute_value({
                 text: `UPDATE ${TABLE.ORDERS} SET status = 'Confirmed', edited_by = $1, edited_on = clock_timestamp()
                         WHERE oid = $2 AND channel = 'ONLINE' AND status = 'Pending' RETURNING invoice_no`,

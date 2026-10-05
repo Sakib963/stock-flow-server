@@ -5,7 +5,7 @@ const { log } = require("../../../../utils/log");
 const { releaseHolds } = require("../../utils/stock-movement");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { effectiveAmountPaid } = require("../../return/utils/return-utils");
-const { refuse_change } = require("../utils/order-state");
+const { refuse_change, refuse_unless_own } = require("../utils/order-state");
 
 // Cancel (sales REQ-53, REQ-123): only before dispatch, with a reason from the list. The held units
 // go back to sellable; the shelf never changed, so no movement is written. Money the business holds
@@ -16,6 +16,7 @@ const cancel_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const { invoice_no, refund_due } = await execute_transaction(async (tx) => {
+            await refuse_unless_own(tx, oid, request);
             // Locked first, so the timeline records whether it was Pending or Confirmed when it was cancelled.
             const [before] = await tx.get_data({ text: `SELECT status FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
             const cancelled = await tx.execute_value({

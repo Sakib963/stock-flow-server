@@ -19,6 +19,8 @@ const PACKED = ORDER + ROUTES.MARK_ORDER_PACKED;
 const DISPATCH = ORDER + ROUTES.DISPATCH_ORDER;
 const DELIVER = ORDER + ROUTES.DELIVER_ORDER;
 const NOT_DELIVERED = ORDER + ROUTES.MARK_ORDER_NOT_DELIVERED;
+const HISTORY = CONTEXTS.SALES + SUB_CONTEXTS.ORDER_HISTORY;
+const SALESPERSON = ["sales.online.view", "sales.online.create", "sales.order-history.view", "sales.order-history.confirm", "sales.order-history.cancel"];
 
 const MANAGER = ["sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.cancel", "sales.order.dispatch", "sales.order.deliver"];
 const USER = "owner@arithmalabs.test";
@@ -85,22 +87,31 @@ describe("the orders list and record", () => {
         b1 = await batch(10);
     });
 
-    it("lists only the person's channels, never a draft, and narrows to their own orders", async () => {
-        const mine = await place(token, b1);
-        const other = await person();
-        await place(other, b1, { quantity: 1, phone: "01711000000" });
+    it("lists only the person's channels and never a draft", async () => {
+        await place(token, b1);
+        await place(await person(), b1, { quantity: 1, phone: "01711000000" });
         await h.call(SAVE_DRAFT, { body: { oid: uuidv4(), lines: [{ inventory_oid: b1, quantity: 1 }] }, token });
-
         const all = await get(LIST, token, { include: "stats" });
         assert.equal(all.status, 200, JSON.stringify(all.body));
         assert.equal(all.body.total, 2);
         assert.equal(all.body.data.stats.pending, 2);
-        const own = await get(LIST, token, { mine: "true" });
-        assert.deepEqual(own.body.data.rows.map((row) => row.oid), [mine]);
-
         const counter = await person(["sales.pos.view", "sales.order.view"]);
         assert.equal((await get(LIST, counter)).body.total, 0);
-        assert.equal((await get(DETAILS, counter, { oid: mine })).status, 404);
+    });
+
+    it("shows a salesperson's order history as only the orders they placed, and lets them confirm and cancel only those", async () => {
+        const seller = await person(SALESPERSON);
+        const mine = await place(seller, b1);
+        const theirs = await place(token, b1, { quantity: 1, phone: "01711000000" });
+        const list = await get(HISTORY + ROUTES.GET_ORDER_LIST, seller);
+        assert.equal(list.status, 200, JSON.stringify(list.body));
+        assert.deepEqual(list.body.data.rows.map((row) => row.oid), [mine]);
+        assert.equal((await get(HISTORY + ROUTES.GET_ORDER_DETAILS, seller, { oid: theirs })).status, 404);
+        assert.equal((await h.call(HISTORY + ROUTES.CONFIRM_ORDER, { body: { oid: theirs, confirmed_via: "PhoneCall" }, token: seller })).status, 404);
+        assert.equal((await h.call(HISTORY + ROUTES.CONFIRM_ORDER, { body: { oid: mine, confirmed_via: "PhoneCall" }, token: seller })).status, 200);
+        assert.equal((await h.call(HISTORY + ROUTES.CANCEL_ORDER, { body: { oid: mine, reason_code: "changed_mind" }, token: seller })).status, 200);
+        assert.equal((await get(LIST, seller)).status, 403, "the bigger Orders page is not theirs");
+        assert.equal((await h.call(DISPATCH, { body: { oid: theirs, courier: "Pathao" }, token: seller })).status, 403);
     });
 
     it("reads an order with its lines, where it goes and its timeline", async () => {

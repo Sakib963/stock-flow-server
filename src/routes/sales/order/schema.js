@@ -22,7 +22,6 @@ const order_list_schema = Joi.object({
     delivery_status: one_or_more(DELIVERY),
     payment_status: one_or_more(["unpaid", "partially_paid", "paid", "partially_refunded", "refunded"]),
     refund_status: one_or_more(["None", "ToRefund", "Refunded"]),
-    mine: Joi.boolean().optional(),
     date_from: day,
     date_to: day,
     include: Joi.string().valid("", "stats").optional(),

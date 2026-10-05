@@ -4,15 +4,15 @@ const { business_day } = require("../../../../utils/business-time");
 const { channels_of } = require("../../utils/channels");
 const { LIST, STATS } = require("../utils/order-list");
 
-// The orders list (sales REQ-02): only the person's channels, never a draft. "Mine" is what the
-// person placed themselves, so a salesperson opens the list on their own invoices.
+// The orders list (sales REQ-02): only the person's channels, never a draft. Order history serves the
+// same list through `own_orders`, held to what the person placed themselves.
 const get_order_list = async (request, res) => {
     try {
         const { query } = request;
         const channels = await channels_of(request);
         const where = ["o.channel = ANY($1)", "o.status <> 'Draft'"];
         const values = [channels];
-        if (query.mine) {
+        if (request.own_orders) {
             values.push(request.credentials.user_id);
             where.push(`o.created_by = $${values.length}`);
         }

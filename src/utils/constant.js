@@ -98,6 +98,7 @@ module.exports = {
     POS: "/pos",
     ONLINE: "/online",
     ORDER: "/order",
+    ORDER_HISTORY: "/order-history",
     PRE_ORDER: "/pre-order",
     // Customer returns against a realized order. Mounted under SALES, not
     // INVENTORY: a return is rooted in an order (product_return.order_oid) and

@@ -30,4 +30,17 @@ const online_sellers = async (request, res, next) => {
     return res.status(403).json({ code: 403, message: "Only someone who sells online can change an online order.", data: null });
 };
 
-module.exports = { refuse_change, online_sellers };
+// Order history: the same list, record and actions as Orders, held to the orders the person placed.
+const own_orders = (request, res, next) => {
+    request.own_orders = true;
+    next();
+};
+
+/** In Order history an action reaches only the person's own order; anyone else's is as if it did not exist. */
+const refuse_unless_own = async (tx, oid, request) => {
+    if (!request.own_orders) return;
+    const [order] = await tx.get_data({ text: `SELECT created_by FROM ${TABLE.ORDERS} WHERE oid = $1`, values: [oid] });
+    if (order?.created_by !== request.credentials.user_id) fail(404, "No order of yours with that number.");
+};
+
+module.exports = { refuse_change, online_sellers, own_orders, refuse_unless_own };
