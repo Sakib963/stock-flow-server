@@ -46,8 +46,8 @@ const STATS_SQL = `
     )
     SELECT COUNT(*)::int AS orders,
            COUNT(*) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned')::int AS sales,
-           (COALESCE((SELECT lines FROM kept), 0)
-             + COALESCE(SUM(o.delivery_charge) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned' AND o.oid NOT IN (SELECT order_oid FROM delivery_refunded)), 0))::numeric AS lifetime_value,
+           COALESCE((SELECT lines FROM kept), 0)::numeric AS lifetime_goods,
+           COALESCE(SUM(o.delivery_charge) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned' AND o.oid NOT IN (SELECT order_oid FROM delivery_refunded)), 0)::numeric AS lifetime_delivery,
            COUNT(*) FILTER (WHERE o.channel = 'ONLINE' AND o.sold_on IS NOT NULL)::int AS delivered,
            COUNT(*) FILTER (WHERE oo.delivery_status IN ('Failed', 'BackInShop'))::int AS refused_parcels,
            COUNT(*) FILTER (WHERE o.cancel_reason_code IN ('fake_order', 'unreachable'))::int AS cancelled_fake_or_unreachable,
@@ -67,12 +67,17 @@ const ORDERS_SQL = `
 // Inside a transaction, pass its reader: a second pool connection per order can starve the pool.
 const customer_stats = async (customer_oid, channels, read = get_data) => {
     const [row] = await read({ text: STATS_SQL, values: [customer_oid, channels] });
-    const lifetime_value = Number(row.lifetime_value);
+    // Delivery charges pass through to the courier, so they are shown apart from what the goods brought in (the user, 2026-10-06).
+    const lifetime_goods = Number(row.lifetime_goods);
+    const lifetime_delivery = Number(row.lifetime_delivery);
+    const lifetime_value = lifetime_goods + lifetime_delivery;
     const settled_parcels = row.delivered + row.refused_parcels;
     return {
         orders: row.orders,
         sales: row.sales,
         lifetime_value,
+        lifetime_goods,
+        lifetime_delivery,
         average_order: row.sales ? Math.round(lifetime_value / row.sales) : null,
         delivered: row.delivered,
         refused_parcels: row.refused_parcels,

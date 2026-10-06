@@ -59,4 +59,11 @@ const not_delivered_schema = Joi.object({
     note: Joi.when("reason", { is: "other", then: Joi.string().trim().min(1).max(256).required(), otherwise: optional_text(256) }),
 });
 
-module.exports = { order_list_schema, order_details_schema, order_oid_schema, confirm_order_schema, cancel_order_schema, dispatch_order_schema, not_delivered_schema };
+const record_refund_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+    amount: Joi.number().integer().min(1).required(),
+    method: Joi.string().valid("cash", "bkash", "nagad", "card", "other").required(),
+    note: Joi.when("method", { is: "other", then: Joi.string().trim().min(1).max(256).required(), otherwise: optional_text(256) }),
+});
+
+module.exports = { order_list_schema, order_details_schema, order_oid_schema, confirm_order_schema, cancel_order_schema, dispatch_order_schema, not_delivered_schema, record_refund_schema };

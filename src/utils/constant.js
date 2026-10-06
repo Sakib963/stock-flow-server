@@ -242,6 +242,8 @@ module.exports = {
     GET_ONLINE_ORDER_SETUP: "/get-online-order-setup",
     READ_CHAT_MESSAGE: "/read-chat-message",
     CREATE_ONLINE_ORDER: "/create-online-order",
+    EDIT_ONLINE_ORDER: "/edit-online-order",
+    GET_ONLINE_ORDER_FOR_EDIT: "/get-online-order-for-edit",
     SAVE_ONLINE_DRAFT: "/save-online-draft",
     GET_ONLINE_DRAFTS: "/get-online-drafts",
     DISCARD_ONLINE_DRAFT: "/discard-online-draft",
@@ -252,6 +254,7 @@ module.exports = {
     DISPATCH_ORDER: "/dispatch-order",
     DELIVER_ORDER: "/deliver-order",
     MARK_ORDER_NOT_DELIVERED: "/mark-order-not-delivered",
+    RECORD_ORDER_REFUND: "/record-order-refund",
 
     // --- Returns feature (own router under /api/v1/sales/return) ---
     CREATE_RETURN: "/create-return",
@@ -336,6 +339,9 @@ module.exports = {
     SEARCH_LOCATION: "/search-location",
     MATCH_LOCATION: "/match-location",
     UPDATE_DELIVERY_CHARGES: "/update-delivery-charges",
+    GET_MESSAGE_TEMPLATES: "/get-message-templates",
+    SAVE_MESSAGE_TEMPLATE: "/save-message-template",
+    RECORD_MESSAGE_COPIED: "/record-message-copied",
     GET_SETTINGS: "/get-settings",
     UPDATE_SETTINGS: "/update-settings",
   },

@@ -304,6 +304,8 @@ describe("a customer's record", () => {
             orders: 6,
             sales: 2,
             lifetime_value: 90 + 500 + 60,
+            lifetime_goods: 90 + 500,
+            lifetime_delivery: 60,
             average_order: 325,
             delivered: 2,
             refused_parcels: 1,
