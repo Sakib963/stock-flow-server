@@ -260,9 +260,7 @@ module.exports = {
     CREATE_RETURN: "/create-return",
     CONFIRM_RETURN: "/confirm-return",
     CANCEL_RETURN: "/cancel-return",
-    MARK_RETURN_REFUNDED: "/mark-refunded",
     GET_RETURN_LIST: "/get-return-list",
-    GET_RETURN_LIST_KPIS: "/get-return-list-kpis",
     GET_RETURN_DETAILS: "/get-return-details",
     GET_RETURNS_FOR_ORDER: "/get-returns-for-order",
 

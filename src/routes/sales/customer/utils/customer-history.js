@@ -10,22 +10,21 @@ const { get_data } = require("../../../../db/database");
 // returned in full kept nothing, not even its delivery charge, and is not counted as a sale, though
 // its sold_on stays (REQ-122): the average purchase divides by sales, so it must not count it either.
 //
-// What the customer still owes comes from unpaid and part paid sales only: what they kept, less what
-// they paid (read by payment_status, as effectiveAmountPaid does), plus what confirmed returns handed
-// back out of that payment. A return worth more than was paid only lowers what is owed, never below 0.
+// What the customer still owes, on sales not settled as paid: what they kept, less the money the
+// business keeps of what they paid (received less refunds sent and still owed back). A return worth
+// more than was paid only lowers what is owed, never below 0.
 //
-// Parcels that came back count as refused until returns record the sub-reason (step 5 of the sales
-// build), when this narrows to Refused.
+// Refused parcels are those whose Not delivered return says Refused (sales REQ-56).
 const STATS_SQL = `
     WITH o AS (
-        SELECT oid, channel, status, sold_on, created_on, delivery_charge, cancel_reason_code, payment_status, amount_paid
+        SELECT oid, channel, status, sold_on, created_on, delivery_charge, cancel_reason_code, payment_status, amount_paid, amount_refunded, refund_due
           FROM ${TABLE.ORDERS}
          WHERE customer_oid = $1 AND channel = ANY($2) AND status <> 'Draft'
     ),
     delivery_refunded AS (
         SELECT DISTINCT pr.order_oid
           FROM ${TABLE.PRODUCT_RETURN} pr
-         WHERE pr.status IN ('Returned', 'Completed') AND pr.refund_delivery_charge AND pr.order_oid IN (SELECT oid FROM o)
+         WHERE pr.status = 'Returned' AND pr.refund_delivery_charge AND pr.order_oid IN (SELECT oid FROM o)
     ),
     kept AS (
         SELECT SUM((oi.unit_price - COALESCE(oi.discount, 0)) * (oi.quantity - oi.returned_qty)) AS lines
@@ -35,26 +34,22 @@ const STATS_SQL = `
     owed AS (
         SELECT SUM(GREATEST(0, COALESCE(k.kept, 0)
                    + CASE WHEN o.oid IN (SELECT order_oid FROM delivery_refunded) THEN 0 ELSE COALESCE(o.delivery_charge, 0) END
-                   - CASE WHEN o.payment_status = 'partially_paid' THEN COALESCE(o.amount_paid, 0) ELSE 0 END
-                   + COALESCE(r.refunded, 0))) AS amount
+                   - (CASE WHEN o.payment_status = 'unpaid' THEN 0 ELSE COALESCE(o.amount_paid, 0) END - o.amount_refunded - o.refund_due))) AS amount
           FROM o
           LEFT JOIN (SELECT order_oid, SUM((unit_price - COALESCE(discount, 0)) * (quantity - returned_qty)) AS kept
                        FROM ${TABLE.ORDER_ITEMS} WHERE order_oid IN (SELECT oid FROM o) GROUP BY order_oid) k ON k.order_oid = o.oid
-          LEFT JOIN (SELECT order_oid, SUM(refund_amount) AS refunded
-                       FROM ${TABLE.PRODUCT_RETURN} WHERE status IN ('Returned', 'Completed') AND order_oid IN (SELECT oid FROM o) GROUP BY order_oid) r ON r.order_oid = o.oid
-         WHERE o.sold_on IS NOT NULL AND o.status <> 'Cancelled' AND o.payment_status IN ('unpaid', 'partially_paid')
+         WHERE o.sold_on IS NOT NULL AND o.status <> 'Cancelled' AND o.payment_status <> 'paid'
     )
     SELECT COUNT(*)::int AS orders,
            COUNT(*) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned')::int AS sales,
            COALESCE((SELECT lines FROM kept), 0)::numeric AS lifetime_goods,
            COALESCE(SUM(o.delivery_charge) FILTER (WHERE o.sold_on IS NOT NULL AND o.status <> 'Returned' AND o.oid NOT IN (SELECT order_oid FROM delivery_refunded)), 0)::numeric AS lifetime_delivery,
            COUNT(*) FILTER (WHERE o.channel = 'ONLINE' AND o.sold_on IS NOT NULL)::int AS delivered,
-           COUNT(*) FILTER (WHERE oo.delivery_status IN ('Failed', 'BackInShop'))::int AS refused_parcels,
+           COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM ${TABLE.PRODUCT_RETURN} pr WHERE pr.order_oid = o.oid AND pr.not_delivered_reason = 'refused' AND pr.status <> 'Cancelled'))::int AS refused_parcels,
            COUNT(*) FILTER (WHERE o.cancel_reason_code IN ('fake_order', 'unreachable'))::int AS cancelled_fake_or_unreachable,
            MAX(o.created_on) AS last_order_on,
            COALESCE((SELECT amount FROM owed), 0)::numeric AS owed
-      FROM o
-      LEFT JOIN ${TABLE.ONLINE_ORDER} oo ON oo.order_oid = o.oid`;
+      FROM o`;
 
 const ORDERS_SQL = `
     SELECT o.oid, o.invoice_no, o.channel, o.status, o.payment_status, o.total_amount, o.created_on, o.sold_on, oo.delivery_status

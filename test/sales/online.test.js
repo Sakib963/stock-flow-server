@@ -431,7 +431,7 @@ describe("reading an order or a return", () => {
 
     it("needs the returns permission for a return, and shows it only in the person's channels without an address for the counter", async () => {
         const return_oid = uuidv4();
-        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status) VALUES ($1, $2, 'R-1', 0, 'Pending')", [return_oid, online_oid]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, return_reason) VALUES ($1, $2, 'R-1', 0, 'Pending', 'changed_mind')", [return_oid, online_oid]);
         const read = (token) => h.call(`${RETURN_DETAILS}/${return_oid}`, { method: "GET", token });
         assert.equal((await read(await person(["sales.order.view", "sales.online.view"]))).status, 403);
         assert.equal((await read(await person(["sales.return.view", "sales.pos.view"]))).status, 404);

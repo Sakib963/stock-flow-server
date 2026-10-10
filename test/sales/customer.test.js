@@ -271,7 +271,7 @@ const seed_history = async (customer_oid) => {
     // As confirm-return leaves it: the return row, and returned_qty raised on the line.
     const returned = async (order, quantity, { status = "Returned", refund_delivery_charge = false } = {}) => {
         const return_oid = uuidv4();
-        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge) VALUES ($1, $2, $1, 0, $3, $4)", [return_oid, order.oid, status, refund_delivery_charge]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge, return_reason) VALUES ($1, $2, $1, 0, $3, $4, 'changed_mind')", [return_oid, order.oid, status, refund_delivery_charge]);
         await h.query("INSERT INTO return_details (oid, return_oid, product_oid, inventory_oid, return_quantity, order_item_oid, condition) VALUES ($1, $2, 'P-1', 'I-1', $3, $4, 'Good')", [uuidv4(), return_oid, quantity, order.items[0]]);
         if (status === "Returned") await h.query("UPDATE order_items SET returned_qty = returned_qty + $1 WHERE oid = $2", [quantity, order.items[0]]);
     };
@@ -279,7 +279,8 @@ const seed_history = async (customer_oid) => {
     await returned(await order({ channel: "POS", status: "PartiallyReturned", sold: true, lines: [{ quantity: 2, unit_price: 100, discount: 10 }] }), 1);
     await returned(await order({ channel: "ONLINE", status: "Delivered", sold: true, delivery_charge: 60, delivery_status: "Delivered", lines: [{ quantity: 1, unit_price: 500, discount: 0 }] }), 1, { status: "Pending", refund_delivery_charge: true });
     await order({ channel: "ONLINE", status: "Pending", sold: false, delivery_charge: 60, lines: [{ quantity: 3, unit_price: 500, discount: 0 }] });
-    await order({ channel: "ONLINE", status: "Confirmed", sold: false, delivery_charge: 120, delivery_status: "Failed", lines: [{ quantity: 1, unit_price: 700, discount: 0 }] });
+    const refused = await order({ channel: "ONLINE", status: "Confirmed", sold: false, delivery_charge: 120, delivery_status: "Failed", lines: [{ quantity: 1, unit_price: 700, discount: 0 }] });
+    await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, return_reason, not_delivered_reason) VALUES ($1, $2, $1, 0, 'Pending', 'not_delivered', 'refused')", [uuidv4(), refused.oid]);
     await returned(await order({ channel: "ONLINE", status: "Returned", sold: true, delivery_charge: 80, delivery_status: "Delivered", lines: [{ quantity: 2, unit_price: 400, discount: 0 }] }), 2, { refund_delivery_charge: true });
     const fake = await order({ channel: "ONLINE", status: "Cancelled", sold: false, lines: [{ quantity: 1, unit_price: 300, discount: 0 }] });
     await h.query("UPDATE orders SET cancel_reason_code = 'fake_order' WHERE oid = $1", [fake.oid]);
@@ -321,7 +322,7 @@ describe("a customer's record", () => {
         const oid = uuidv4();
         await h.query("INSERT INTO orders (oid, invoice_no, total_amount, channel, status, customer_oid, sold_on, delivery_charge) VALUES ($1, $1, 0, 'ONLINE', 'Returned', $2, now(), 70)", [oid, customer_oid]);
         await h.query("INSERT INTO order_items (oid, order_oid, inventory_oid, product_oid, product_name, quantity, unit_price, discount, total, returned_qty) VALUES ($1, $2, 'I-1', 'P-1', 'Floral Kurti', 1, 600, 0, 600, 1)", [uuidv4(), oid]);
-        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge) VALUES ($1, $2, $1, 0, 'Returned', false)", [uuidv4(), oid]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge, return_reason) VALUES ($1, $2, $1, 0, 'Returned', false, 'changed_mind')", [uuidv4(), oid]);
 
         const after = (await h.call(`${DETAILS}/${customer_oid}`, { method: "GET", token: await person() })).body.data.stats;
         assert.deepEqual([after.sales, after.lifetime_value, after.average_order], [before.sales, before.lifetime_value, before.average_order]);
@@ -337,16 +338,16 @@ describe("a customer's record", () => {
         };
         await sale("unpaid", 0, { quantity: 2, unit_price: 100, discount: 10 });
         await sale("partially_paid", 200, { unit_price: 500 });
-        // Paid 500 of 800, then one unit (400) came back and all of it was refunded out of the 500.
+        // Paid 500 of 800, then one unit (400) came back and all of it was handed back out of the 500.
         const returned = await sale("partially_paid", 500, { status: "PartiallyReturned", quantity: 2, unit_price: 400 });
-        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status) VALUES ($1, $2, $1, 400, 'Returned')", [uuidv4(), returned.oid]);
+        await h.query("UPDATE orders SET payment_status = 'partially_refunded', amount_refunded = 400 WHERE oid = $1", [returned.oid]);
         await h.query("UPDATE order_items SET returned_qty = 1 WHERE oid = $1", [returned.item]);
         await sale("paid", 0, { unit_price: 900 });
         await sale("unpaid", 0, { status: "Cancelled", unit_price: 700, sold: false });
         // Returned in full, but the return kept the delivery charge: the courier's 60 is still owed.
         const full = await sale("unpaid", 0, { status: "Returned", unit_price: 1000 });
         await h.query("UPDATE orders SET delivery_charge = 60 WHERE oid = $1", [full.oid]);
-        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge) VALUES ($1, $2, $1, 0, 'Returned', false)", [uuidv4(), full.oid]);
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, status, refund_delivery_charge, return_reason) VALUES ($1, $2, $1, 0, 'Returned', false, 'changed_mind')", [uuidv4(), full.oid]);
         await h.query("UPDATE order_items SET returned_qty = 1 WHERE oid = $1", [full.item]);
 
         const counter = await person(["sales.pos.view", "sales.pos.create"]);

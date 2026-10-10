@@ -18,6 +18,7 @@ const get_return_details = async (request, res) => {
                           CAST(pr.refund_amount AS INTEGER) AS refund_amount,
                           pr.refund_delivery_charge,
                           pr.return_reason,
+                          pr.not_delivered_reason,
                           pr.notes,
                           pr.status,
                           pr.created_on,
@@ -30,20 +31,18 @@ const get_return_details = async (request, res) => {
                           o.created_on AS order_date,
                           CAST(o.total_amount AS INTEGER) AS order_total,
                           CAST(o.delivery_charge AS INTEGER) AS delivery_charge,
-                          -- Derived the same way as create-return: payment_status is
-                          -- authoritative because amount_paid is not written by every
-                          -- intake path.
-                          CASE
-                                WHEN o.payment_status = 'paid' THEN CAST(o.total_amount AS INTEGER)
-                                WHEN o.payment_status = 'partially_paid' THEN CAST(COALESCE(o.amount_paid, 0) AS INTEGER)
-                                ELSE 0
-                          END AS order_amount_paid,
+                          o.amount_paid::int AS order_amount_paid,
+                          o.amount_refunded::int AS order_amount_refunded,
+                          o.refund_due::int AS order_refund_due,
+                          o.refund_status AS order_refund_status,
+                          oo.delivery_status,
                           o.payment_status,
                           o.customer_name,
                           o.customer_phone,
                           o.customer_address
                      FROM ${TABLE.PRODUCT_RETURN} pr
                      JOIN ${TABLE.ORDERS} o ON o.oid = pr.order_oid
+                     LEFT JOIN ${TABLE.ONLINE_ORDER} oo ON oo.order_oid = o.oid
                      LEFT JOIN ${TABLE.LOGIN} cl ON cl.email = pr.created_by
                      LEFT JOIN ${TABLE.LOGIN} el ON el.email = pr.edited_by
                     WHERE pr.oid = $1 AND o.channel = ANY($2)`,
@@ -52,16 +51,9 @@ const get_return_details = async (request, res) => {
 
         if (!headers.length) {
             log.info(`No return found for oid: ${return_oid}`);
-            return res.status(404).json({ code: 404, message: "Return not found" });
+            return res.status(404).json({ code: 404, message: "No return with that number." });
         }
 
-        // Line refund mirrors what the customer actually paid for the unit:
-        // unit_price minus the per-unit discount that was applied at sale time.
-        //
-        // order_items is LEFT joined on purpose: returns written by the old
-        // salesman controller have no order_item_oid, and an inner join would
-        // render those historical returns as empty. They lose the price columns,
-        // not the products.
         const items = await get_data({
             text: `SELECT rd.oid,
                           rd.order_item_oid,
@@ -78,7 +70,7 @@ const get_return_details = async (request, res) => {
                           CAST(COALESCE(oi.discount, 0) AS INTEGER) AS discount,
                           (rd.return_quantity * GREATEST(COALESCE(oi.unit_price, 0) - COALESCE(oi.discount, 0), 0))::int AS line_refund
                      FROM ${TABLE.RETURN_DETAILS} rd
-                     LEFT JOIN ${TABLE.ORDER_ITEMS} oi ON oi.oid = rd.order_item_oid
+                     JOIN ${TABLE.ORDER_ITEMS} oi ON oi.oid = rd.order_item_oid
                      LEFT JOIN ${TABLE.PRODUCT} p ON p.oid = rd.product_oid
                      LEFT JOIN ${TABLE.INVENTORY} inv ON inv.oid = rd.inventory_oid
                     WHERE rd.return_oid = $1
@@ -90,10 +82,7 @@ const get_return_details = async (request, res) => {
         const { customer_address, ...rest } = headers[0];
         const header = sees_addresses(channels) ? headers[0] : rest;
 
-        // Three figures, not one. The goods are worth what the customer was
-        // charged (return_value); refund_amount is the part the shop actually
-        // received and therefore owes back; the difference simply cancels part of
-        // what the customer still owes. On a fully paid order the first two match.
+        // What the goods were worth; the refund is the part of it that was paid, the rest only lowers what is owed.
         const return_value = items.reduce((s, i) => s + Number(i.line_refund || 0), 0) + (header.refund_delivery_charge ? Number(header.delivery_charge || 0) : 0);
 
         const data = {
@@ -104,8 +93,6 @@ const get_return_details = async (request, res) => {
             total_units: items.reduce((s, i) => s + Number(i.return_quantity), 0),
             restocked_units: items.filter((i) => i.action === "Restocked").reduce((s, i) => s + Number(i.return_quantity), 0),
             disposed_units: items.filter((i) => i.action === "Disposed").reduce((s, i) => s + Number(i.return_quantity), 0),
-            // One disposal document is created per return, so any damaged line
-            // points at the same one.
             dispose_oid: items.find((i) => i.dispose_oid)?.dispose_oid || null,
         };
 
@@ -113,7 +100,7 @@ const get_return_details = async (request, res) => {
         return res.status(200).json({ code: 200, message: "Return details found", data });
     } catch (e) {
         log.error(`An exception occurred while getting return details: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
+        return res.status(500).json({ code: 500, message: "Could not load this return. Try again in a moment." });
     }
 };
 
