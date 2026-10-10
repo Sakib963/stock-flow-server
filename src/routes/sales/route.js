@@ -6,6 +6,7 @@ const { orderRouter } = require("./order/route");
 const { orderHistoryRouter } = require("./order-history/route");
 const { preOrderRouter } = require("./pre-order/route");
 const { returnRouter } = require("./return/route");
+const { giveawayRouter } = require("./giveaway/route");
 const { customerRouter } = require("./customer/route");
 const { locationRouter } = require("./location/route");
 const { salesSettingsRouter } = require("./settings/route");
@@ -23,6 +24,7 @@ router.use(SUB_CONTEXTS.PRE_ORDER, preOrderRouter);
 // Returns: raised from an order, recorded Pending, and only moved into stock on
 // an explicit confirm.
 router.use(SUB_CONTEXTS.RETURN, returnRouter);
+router.use(SUB_CONTEXTS.GIVEAWAY, giveawayRouter);
 router.use(SUB_CONTEXTS.CUSTOMER, customerRouter);
 router.use(SUB_CONTEXTS.LOCATION, locationRouter);
 router.use(SUB_CONTEXTS.SETTINGS, salesSettingsRouter);

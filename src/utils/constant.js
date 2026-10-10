@@ -104,6 +104,7 @@ module.exports = {
     // INVENTORY: a return is rooted in an order (product_return.order_oid) and
     // the refund is sales money.
     RETURN: "/return",
+    GIVEAWAY: "/giveaway",
     CUSTOMER: "/customer",
     LOCATION: "/location",
     PRODUCT_DISPOSE: "/product-dispose",
@@ -263,6 +264,13 @@ module.exports = {
     GET_RETURN_LIST: "/get-return-list",
     GET_RETURN_DETAILS: "/get-return-details",
     GET_RETURNS_FOR_ORDER: "/get-returns-for-order",
+
+    // --- Giveaways (own tables; never an order) ---
+    GET_GIVEAWAY_LIST: "/get-giveaway-list",
+    GET_GIVEAWAY_DETAILS: "/get-giveaway-details",
+    CREATE_GIVEAWAY: "/create-giveaway",
+    GIVE_GIVEAWAY: "/give-giveaway",
+    CANCEL_GIVEAWAY: "/cancel-giveaway",
 
     // --- Pre-Order feature (own tables; never the `orders` spine) ---
     GET_PRE_ORDER_LIST: "/get-pre-order-list",
