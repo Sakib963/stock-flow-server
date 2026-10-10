@@ -282,6 +282,14 @@ describe("an online order saved as a draft", () => {
         assert.equal((await h.call(DRAFTS, { method: "GET", token: await person(["sales.online.view"]) })).status, 403);
     });
 
+    it("discards a draft saved as prepaid, which took no payment", async () => {
+        const oid = uuidv4();
+        assert.equal((await h.call(SAVE_DRAFT, { body: { oid, payment_type: "PREPAID", lines: [{ inventory_oid: b1, quantity: 1 }] }, token })).status, 200);
+        assert.equal((await h.call(DISCARD_DRAFT, { body: { oid }, token })).status, 200);
+        const [o] = await h.query("SELECT status, payment_status FROM orders WHERE oid = $1", [oid]);
+        assert.deepEqual([o.status, o.payment_status], ["Cancelled", "unpaid"]);
+    });
+
     it("shows and discards only the person's own drafts", async () => {
         const oid = uuidv4();
         await h.call(SAVE_DRAFT, { body: { oid, lines: [{ inventory_oid: b1, quantity: 1 }] }, token });

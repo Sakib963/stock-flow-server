@@ -5,14 +5,15 @@ const { log } = require("../../../../utils/log");
 const { recordStatusHistory } = require("../../utils/order-utils");
 
 // A discarded draft is Cancelled, never deleted, so its invoice number is accounted for. It held no
-// stock, so nothing goes back.
+// stock, so nothing goes back. A draft saved as prepaid or advance took no payment, so its payment
+// type is cleared: the payment terms check allows unpaid prepaid only while the order is a Draft.
 const discard_online_draft = async (request, res) => {
     const { oid } = request.body;
     const user_id = request.credentials.user_id;
     try {
         await execute_transaction(async (tx) => {
             const discarded = await tx.execute_value({
-                text: `UPDATE ${TABLE.ORDERS} SET status = 'Cancelled', cancelled_on = clock_timestamp(), edited_by = $1, edited_on = clock_timestamp()
+                text: `UPDATE ${TABLE.ORDERS} SET status = 'Cancelled', payment_type = NULL, cancelled_on = clock_timestamp(), edited_by = $1, edited_on = clock_timestamp()
                         WHERE oid = $2 AND channel = 'ONLINE' AND status = 'Draft' AND created_by = $1
                     RETURNING invoice_no, draft_label`,
                 values: [user_id, oid],
