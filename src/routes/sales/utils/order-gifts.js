@@ -1,6 +1,6 @@
 const { TABLE } = require("../../../utils/constant");
 const { saveLogActivity } = require("../../../utils/activity-logger");
-const { restockStock } = require("./stock-movement");
+const { restockStock, incrementProductStat } = require("./stock-movement");
 
 // A gift added to an online order travels with the parcel (giveaway REQ-03): its holds are released,
 // deducted and restocked by the order's own steps, and these move the giveaway's status alongside.
@@ -25,6 +25,7 @@ const sendOrderGifts = async (tx, { order_oid, invoice_no, user_id, request }) =
             RETURNING g.oid, g.giveaway_no`,
         values: [user_id, order_oid],
     });
+    for (const line of rows.length ? await linesOf(tx, rows) : []) await incrementProductStat(tx, { product_oid: line.product_oid, column: "total_given_away", quantity: line.quantity, user_id });
     await logEach(rows, "Giveaway given", `left with ${invoice_no}`, { tx, request });
 };
 
@@ -48,6 +49,7 @@ const returnOrderGifts = async (tx, { order_oid, invoice_no, user_id, request })
     if (!rows.length) return;
     for (const line of await linesOf(tx, rows)) {
         await restockStock(tx, { inventory_oid: line.inventory_oid, quantity: line.quantity, reason: "returned", source_oid: line.giveaway_oid, user_id });
+        await incrementProductStat(tx, { product_oid: line.product_oid, column: "total_given_away", quantity: -line.quantity, user_id });
     }
     await logEach(rows, "Giveaway returned", `back in stock with ${invoice_no}`, { tx, request });
 };

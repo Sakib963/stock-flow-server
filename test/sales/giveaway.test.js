@@ -32,6 +32,7 @@ const batch = async (quantity) => {
 };
 const on_hand = async (oid) => (await h.query("SELECT quantity_available::int AS q FROM inventory WHERE oid = $1", [oid]))[0].q;
 const movements = (oid) => h.query("SELECT reason, quantity, balance_after, source_oid FROM stock_movement WHERE inventory_oid = $1 ORDER BY created_on, oid", [oid]);
+const given_away = async () => (await h.query("SELECT COALESCE(SUM(total_given_away), 0)::int AS given, COALESCE(SUM(total_sold), 0)::int AS sold FROM product_stats WHERE product_oid = $1", [product]))[0];
 const assert_balanced = async (oid) => {
     const rows = await movements(oid);
     assert.equal(rows.reduce((sum, row) => sum + row.quantity, 0), await on_hand(oid));
@@ -63,9 +64,11 @@ describe("giveaways on their own", () => {
         assert.equal((await h.call(GIVE, { body: { oid }, token })).status, 200);
         assert.equal(await on_hand(b1), 8);
         assert.deepEqual((await movements(b1)).at(-1), { reason: "given_away", quantity: -2, balance_after: 8, source_oid: oid });
+        assert.deepEqual(await given_away(), { given: 2, sold: 0 }, "counted as given away, never as sold");
         await assert_balanced(b1);
         assert.equal((await h.call(GIVE, { body: { oid }, token })).status, 409, "given once only");
         assert.equal(await on_hand(b1), 8);
+        assert.equal((await given_away()).given, 2);
     });
 
     it("never gives units held for an online order, and takes nothing when one line is short", async () => {

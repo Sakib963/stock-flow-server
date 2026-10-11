@@ -1,6 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
-const { deductFreeStock } = require("../../utils/stock-movement");
+const { deductFreeStock, incrementProductStat } = require("../../utils/stock-movement");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 
@@ -23,7 +23,7 @@ const give_giveaway = async (request, res) => {
             }
             const { giveaway_no, recipient_name } = given.rows[0];
             const lines = await tx.get_data({
-                text: `SELECT gl.inventory_oid, gl.quantity, p.name, i.batch_code
+                text: `SELECT gl.inventory_oid, gl.product_oid, gl.quantity, p.name, i.batch_code
                          FROM ${TABLE.GIVEAWAY_LINE} gl JOIN ${TABLE.INVENTORY} i ON i.oid = gl.inventory_oid JOIN ${TABLE.PRODUCT} p ON p.oid = gl.product_oid
                         WHERE gl.giveaway_oid = $1 ORDER BY gl.inventory_oid`,
                 values: [oid],
@@ -31,6 +31,7 @@ const give_giveaway = async (request, res) => {
             for (const line of lines) {
                 const ok = await deductFreeStock(tx, { inventory_oid: line.inventory_oid, quantity: line.quantity, reason: "given_away", source_oid: oid, user_id });
                 if (!ok) fail(409, `Not enough free ${line.name} in batch ${line.batch_code} to give ${line.quantity}. Units held for online orders cannot be given.`, { inventory_oid: line.inventory_oid });
+                await incrementProductStat(tx, { product_oid: line.product_oid, column: "total_given_away", quantity: line.quantity, user_id });
             }
             await saveLogActivity({ reference_type: "giveaway", reference_oid: oid, title: "Giveaway given", description: `${giveaway_no} given to ${recipient_name}` }, { tx, request });
             return giveaway_no;

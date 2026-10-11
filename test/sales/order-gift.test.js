@@ -35,6 +35,7 @@ const batch = async (quantity) => {
 };
 const on_hand = async (oid) => (await h.query("SELECT quantity_available::int AS q FROM inventory WHERE oid = $1", [oid]))[0].q;
 const movements = (oid) => h.query("SELECT reason, quantity, balance_after, source_oid FROM stock_movement WHERE inventory_oid = $1 ORDER BY created_on, oid", [oid]);
+const given_away = async () => (await h.query("SELECT COALESCE(SUM(total_given_away), 0)::int AS given FROM product_stats WHERE product_oid = $1", [product]))[0].given;
 const assert_balanced = async (oid) => {
     const rows = await movements(oid);
     assert.equal(rows.reduce((sum, row) => sum + row.quantity, 0), await on_hand(oid));
@@ -94,6 +95,7 @@ describe("a gift with an online order", () => {
         assert.equal(await gift_status(gift), "Given");
         assert.deepEqual((await movements(scarf)).at(-1), { reason: "given_away", quantity: -2, balance_after: 1, source_oid: gift });
         assert.deepEqual((await movements(sold)).at(-1), { reason: "dispatched", quantity: -1, balance_after: 4, source_oid: order });
+        assert.equal(await given_away(), 2);
         await assert_balanced(scarf);
         await assert_balanced(sold);
         assert.equal((await add_gift(token, order, scarf, 1)).res.status, 409, "the parcel has left");
@@ -109,6 +111,7 @@ describe("a gift with an online order", () => {
         assert.equal(await gift_status(gift), "Cancelled");
         assert.deepEqual(await gift_holds(gift), [{ status: "Released", quantity: 1 }]);
         assert.equal(await on_hand(b1), 5);
+        assert.equal(await given_away(), 0);
         await assert_balanced(b1);
     });
 
@@ -147,6 +150,7 @@ describe("a gift with an online order", () => {
         const order = await place(token, sold);
         const { oid: gift } = await add_gift(token, order, scarf, 1);
         await dispatch(token, order);
+        assert.equal(await given_away(), 1);
         const refused = await h.call(ORDER + ROUTES.MARK_ORDER_NOT_DELIVERED, { body: { oid: order, reason: "refused" }, token });
         assert.equal(refused.status, 200, JSON.stringify(refused.body));
         const back = await h.call(CONFIRM_RETURN, { body: { oid: refused.body.data.return_oid }, token });
@@ -154,6 +158,7 @@ describe("a gift with an online order", () => {
         assert.equal(await gift_status(gift), "Returned");
         assert.equal(await on_hand(scarf), 3);
         assert.deepEqual((await movements(scarf)).at(-1), { reason: "returned", quantity: 1, balance_after: 3, source_oid: gift });
+        assert.equal(await given_away(), 0, "a gift that came back was never given");
         await assert_balanced(scarf);
         await assert_balanced(sold);
     });

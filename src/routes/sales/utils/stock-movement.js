@@ -174,7 +174,7 @@ const restockStock = async (tx, { inventory_oid, quantity, reason, source_oid, u
 
 // Increment a product_stats counter, creating the row if the product has none yet.
 const incrementProductStat = async (tx, { product_oid, column, quantity, user_id }) => {
-    const allowed = new Set(["total_sold", "total_returned", "total_damaged", "total_wasted"]);
+    const allowed = new Set(["total_sold", "total_returned", "total_damaged", "total_wasted", "total_given_away"]);
     if (!allowed.has(column)) throw new Error(`Invalid product_stats column: ${column}`);
     const updated = await tx.execute_value({
         text: `UPDATE ${TABLE.PRODUCT_STATS}

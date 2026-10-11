@@ -325,6 +325,16 @@ describe("the product list and record", () => {
         assert.equal(new Date(lifetime.last_sold_on).getDate(), 1);
     });
 
+    it("gives the record its units given away apart from its units sold", async () => {
+        const author = await sign_in_with(WRITER);
+        const oid = await seed_product("Saree");
+        await h.query("INSERT INTO product_stats (oid, product_oid, total_sold, total_given_away) VALUES ($1, $2, 7, 2)", [uuidv4(), oid]);
+
+        const { lifetime } = (await get(`${DETAILS}/${oid}`, author)).body.data;
+
+        assert.deepEqual({ sold: lifetime.sold, given_away: lifetime.given_away }, { sold: 7, given_away: 2 });
+    });
+
     it("answers 404 for a deleted product", async () => {
         const author = await sign_in_with(WRITER);
         const oid = await seed_product("Saree", { deleted: true });

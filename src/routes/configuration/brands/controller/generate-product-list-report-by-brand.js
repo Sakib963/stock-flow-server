@@ -89,6 +89,7 @@ const generate_products_sql = (brandOid) => {
                   COALESCE(SUM(CAST(i.quantity_available AS INTEGER)), 0) AS total_available_quantity,
                   COALESCE(ps.total_sold, 0) AS total_quantity_sold,
                   COALESCE(ps.total_returned, 0) AS total_quantity_returned,
+                  COALESCE(ps.total_given_away, 0) AS total_quantity_given_away,
                   ROUND(COALESCE(MIN(CAST(i.selling_price AS NUMERIC)), 0), 2) AS min_price,
                   ROUND(COALESCE(MAX(CAST(i.selling_price AS NUMERIC)), 0), 2) AS max_price,
                   ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) AS avg_price,
@@ -102,7 +103,7 @@ const generate_products_sql = (brandOid) => {
             LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
             LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
             WHERE p.brand_oid = $1
-            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, b.description, b.status, ps.total_sold, ps.total_returned
+            GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, b.description, b.status, ps.total_sold, ps.total_returned, ps.total_given_away
             ORDER BY p.name ASC
       `;
   return { text: query, values: [brandOid] };
@@ -123,6 +124,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
     "Available Qty",
     "Qty Sold",
     "Qty Returned",
+    "Qty Given Away",
     "Restock Threshold",
     "Min Price",
     "Max Price",
@@ -146,6 +148,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
   let totalInventoryValue = 0;
   let totalQuantitySold = 0;
   let totalQuantityReturned = 0;
+  let totalQuantityGivenAway = 0;
   let productsWithPendingPricing = 0;
   let productsWithForSale = 0;
 
@@ -155,6 +158,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
     totalInventoryValue += parseFloat(r.total_inventory_value || 0);
     totalQuantitySold += parseInt(r.total_quantity_sold || 0);
     totalQuantityReturned += parseInt(r.total_quantity_returned || 0);
+    totalQuantityGivenAway += parseInt(r.total_quantity_given_away || 0);
     if (r.has_pending_pricing) productsWithPendingPricing++;
     if (r.has_for_sale_batch) productsWithForSale++;
 
@@ -169,6 +173,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
       r.total_available_quantity,
       r.total_quantity_sold || 0,
       r.total_quantity_returned || 0,
+      r.total_quantity_given_away || 0,
       r.restock_threshold,
       r.min_price,
       r.max_price,
@@ -214,6 +219,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
   sheet.addRow(["Total Available Quantity:", totalAvailableQty]);
   sheet.addRow(["Total Quantity Sold:", totalQuantitySold]);
   sheet.addRow(["Total Quantity Returned:", totalQuantityReturned]);
+  sheet.addRow(["Total Quantity Given Away:", totalQuantityGivenAway]);
   sheet.addRow(["Total Inventory Value:", totalInventoryValue.toFixed(2)]);
   sheet.addRow(["Products with Pending Pricing:", productsWithPendingPricing]);
   sheet.addRow(["Products Ready for Sale:", productsWithForSale]);
@@ -227,6 +233,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
   sheet.getRow(summaryRowIndex + 6).font = { bold: true };
   sheet.getRow(summaryRowIndex + 7).font = { bold: true };
   sheet.getRow(summaryRowIndex + 8).font = { bold: true };
+  sheet.getRow(summaryRowIndex + 9).font = { bold: true };
 
   // Auto-size columns
   sheet.columns.forEach((col) => {

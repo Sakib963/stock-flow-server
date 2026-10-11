@@ -36,6 +36,7 @@ const LIFETIME_SQL = `
       SELECT (SELECT COALESCE(SUM(total_sold), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS sold,
              (SELECT COALESCE(SUM(total_returned), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS returned,
              (SELECT COALESCE(SUM(total_damaged), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS damaged,
+             (SELECT COALESCE(SUM(total_given_away), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS given_away,
              (SELECT MAX(o.sold_on)
                 FROM ${TABLE.ORDER_ITEMS} oi JOIN ${TABLE.ORDERS} o ON o.oid = oi.order_oid
                WHERE oi.product_oid = $1 AND o.status IN ('Purchased', 'Delivered', 'PartiallyReturned')) AS last_sold_on`;
