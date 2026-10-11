@@ -52,6 +52,8 @@ module.exports = {
     PRE_ORDERS: "pre_orders",
     PRE_ORDER_ITEMS: "pre_order_items",
     PRE_ORDER_STATUS_HISTORY: "pre_order_status_history",
+    DELIVERY_BATCH: "delivery_batch",
+    DELIVERY_BATCH_ORDER: "delivery_batch_order",
     PRODUCT_RETURN: "product_return",
     RETURN_DETAILS: "return_details",
     PRODUCT_DISPOSE: "product_dispose",
@@ -100,6 +102,7 @@ module.exports = {
     ORDER: "/order",
     ORDER_HISTORY: "/order-history",
     PRE_ORDER: "/pre-order",
+    DELIVERY_BATCH: "/delivery-batch",
     // Customer returns against a realized order. Mounted under SALES, not
     // INVENTORY: a return is rooted in an order (product_return.order_oid) and
     // the refund is sales money.
@@ -286,6 +289,15 @@ module.exports = {
     GET_PRODUCT_LIST_FOR_PRE_ORDER: "/get-product-list-for-pre-order",
     FIND_OPEN_BOOKINGS: "/find-open-bookings",
     GET_PRE_ORDER_FOR_CONVERSION: "/get-pre-order-for-conversion",
+    GET_DELIVERY_BATCH_LIST: "/get-delivery-batch-list",
+    GET_DELIVERY_BATCH_DETAILS: "/get-delivery-batch-details",
+    GET_ORDERS_READY_TO_SEND: "/get-orders-ready-to-send",
+    CREATE_DELIVERY_BATCH: "/create-delivery-batch",
+    UPDATE_DELIVERY_BATCH_ORDERS: "/update-delivery-batch-orders",
+    GET_DELIVERY_BATCH_UPLOAD_FILE: "/get-delivery-batch-upload-file",
+    HAND_OVER_DELIVERY_BATCH: "/hand-over-delivery-batch",
+    DELIVER_DELIVERY_BATCH: "/deliver-delivery-batch",
+    CANCEL_DELIVERY_BATCH: "/cancel-delivery-batch",
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",

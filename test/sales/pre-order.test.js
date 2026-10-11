@@ -47,7 +47,7 @@ const shelf = async () => (await h.query("SELECT (SELECT COUNT(*) FROM stock_mov
 
 describe("pre-orders, bookings", () => {
     beforeEach(async () => {
-        await h.query("TRUNCATE pre_order_status_history, pre_order_items, pre_orders, stock_movement, stock_hold, activity_log, order_items, orders, customers, inventory, product, sub_categories, categories CASCADE");
+        await h.query("TRUNCATE pre_order_status_history, pre_order_items, pre_orders, stock_movement, stock_hold, activity_log, request_throttle, order_items, orders, customers, inventory, product, sub_categories, categories CASCADE");
         const category = uuidv4();
         const sub_category = uuidv4();
         kurti = uuidv4();

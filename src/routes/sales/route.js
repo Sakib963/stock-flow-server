@@ -6,6 +6,7 @@ const { orderRouter } = require("./order/route");
 const { orderHistoryRouter } = require("./order-history/route");
 const { preOrderRouter } = require("./pre-order/route");
 const { returnRouter } = require("./return/route");
+const { deliveryBatchRouter } = require("./delivery-batch/route");
 const { giveawayRouter } = require("./giveaway/route");
 const { customerRouter } = require("./customer/route");
 const { locationRouter } = require("./location/route");
@@ -24,6 +25,8 @@ router.use(SUB_CONTEXTS.PRE_ORDER, preOrderRouter);
 // Returns: raised from an order, recorded Pending, and only moved into stock on
 // an explicit confirm.
 router.use(SUB_CONTEXTS.RETURN, returnRouter);
+// Delivery batches: one courier pickup, dispatching its orders at handover.
+router.use(SUB_CONTEXTS.DELIVERY_BATCH, deliveryBatchRouter);
 router.use(SUB_CONTEXTS.GIVEAWAY, giveawayRouter);
 router.use(SUB_CONTEXTS.CUSTOMER, customerRouter);
 router.use(SUB_CONTEXTS.LOCATION, locationRouter);
