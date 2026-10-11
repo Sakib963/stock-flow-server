@@ -1,6 +1,14 @@
 const { v4: uuidv4 } = require("uuid");
 const { TABLE } = require("../../../../utils/constant");
 const { fail } = require("../../../../db/database");
+const { business_today } = require("../../../../utils/business-time");
+
+// The day the stock is expected cannot already be behind us, on the business's own calendar.
+const refusePastDate = async (tx, expected_date) => {
+    if (!expected_date) return;
+    const [day] = await tx.get_data({ text: `SELECT $1::date < ${business_today} AS past`, values: [expected_date] });
+    if (day.past) fail(400, "The expected date has already passed. Pick today or a later day.", { field: "expected_date" });
+};
 
 const recordPreOrderStatusHistory = async (tx, { pre_order_oid, from_status, to_status, reason = null, user_id }) => {
     await tx.execute_value({
@@ -57,4 +65,4 @@ const priceHints = (product) => ({
             SELECT i.cost_price::int AS last_cost FROM ${TABLE.INVENTORY} i WHERE i.product_oid = ${product} AND i.cost_price IS NOT NULL ORDER BY i.created_on DESC LIMIT 1) pc ON true`,
 });
 
-module.exports = { recordPreOrderStatusHistory, SELLABLE_BY_PRODUCT_CTE, writeLines, OPEN_STATUSES, priceHints };
+module.exports = { refusePastDate, recordPreOrderStatusHistory, SELLABLE_BY_PRODUCT_CTE, writeLines, OPEN_STATUSES, priceHints };

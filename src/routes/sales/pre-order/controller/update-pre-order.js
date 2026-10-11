@@ -3,7 +3,7 @@ const { execute_transaction, TransactionError, fail } = require("../../../../db/
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { find_or_create_customer } = require("../../customer/utils/find-or-create");
-const { writeLines, OPEN_STATUSES } = require("../utils/pre-order-utils");
+const { refusePastDate, writeLines, OPEN_STATUSES } = require("../utils/pre-order-utils");
 
 // Pending is fully editable; a Confirmed booking keeps its products and units, and only its prices,
 // advance, customer, date and note change (REQ-05).
@@ -19,6 +19,9 @@ const update_pre_order = async (request, res) => {
             });
             if (!current) fail(404, "No pre-order with that number.");
             if (!OPEN_STATUSES.includes(current.status)) fail(409, `${current.preorder_no} is already ${current.status === "Converted" ? "an order" : "cancelled"}, so it can no longer be edited. Reload it to see what changed.`, { status: current.status });
+
+            // A date already on the booking stays as it is: an overdue booking can still have its price or note changed.
+            if (expected_date !== current.expected_date) await refusePastDate(tx, expected_date);
 
             const before = await tx.get_data({ text: `SELECT product_oid, quantity::int AS quantity, unit_price::int AS unit_price FROM ${TABLE.PRE_ORDER_ITEMS} WHERE pre_order_oid = $1 ORDER BY product_oid`, values: [oid] });
             const after = [...lines].sort((a, b) => a.product_oid.localeCompare(b.product_oid));

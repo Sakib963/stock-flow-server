@@ -4,7 +4,7 @@ const { business_number } = require("../../../../utils/business-time");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { find_or_create_customer } = require("../../customer/utils/find-or-create");
-const { recordPreOrderStatusHistory, writeLines } = require("../utils/pre-order-utils");
+const { refusePastDate, recordPreOrderStatusHistory, writeLines } = require("../utils/pre-order-utils");
 
 // A booking touches no stock (REQ-02, REQ-12). The oid is made by the client, so a request repeated
 // after a lost answer finds the booking it already saved.
@@ -13,6 +13,7 @@ const create_pre_order = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const outcome = await execute_transaction(async (tx) => {
+            await refusePastDate(tx, expected_date);
             const found = await find_or_create_customer(tx, customer, request);
             const saved = await tx.execute_value({
                 text: `INSERT INTO ${TABLE.PRE_ORDERS} (oid, preorder_no, customer_oid, total_amount, advance_paid, advance_method, advance_reference, expected_date, notes, status, created_by)

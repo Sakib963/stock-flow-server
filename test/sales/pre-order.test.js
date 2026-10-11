@@ -95,6 +95,21 @@ describe("pre-orders, bookings", () => {
         assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM pre_orders"))[0].n, 0);
     });
 
+    it("refuses an expected date already past, yet lets an overdue booking keep its date while other things change", async () => {
+        const token = await person();
+        const past = await h.call(CREATE, { body: booking([{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2026-01-01" }), token });
+        assert.equal(past.status, 400);
+        assert.equal(past.body.data.field, "expected_date");
+        assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM pre_orders"))[0].n, 0);
+
+        const saved = await book(token, [{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2099-01-01" });
+        await h.query("UPDATE pre_orders SET expected_date = '2026-01-01' WHERE oid = $1", [saved.oid]);
+        const kept = await h.call(UPDATE, { body: { ...saved, expected_date: "2026-01-01", notes: "Asked again on Friday" }, token });
+        assert.equal(kept.status, 200, JSON.stringify(kept.body));
+        const moved_back = await h.call(UPDATE, { body: { ...saved, expected_date: "2026-01-02" }, token });
+        assert.equal(moved_back.status, 400, "a changed date may not be in the past");
+    });
+
     it("edits every line while Pending, and once Confirmed only prices and money, never the units", async () => {
         const token = await person();
         const saved = await book(token, [{ product_oid: kurti, quantity: 2, unit_price: 1500 }]);
@@ -139,7 +154,8 @@ describe("pre-orders, bookings", () => {
         const kurti_batch = await stock(kurti, 3);
         await stock(scarf, 5);
         const ready = await book(token, [{ product_oid: kurti, quantity: 2, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }]);
-        const late = await book(token, [{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2026-01-01" });
+        const late = await book(token, [{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2099-01-01" });
+        await h.query("UPDATE pre_orders SET expected_date = '2026-01-01' WHERE oid = $1", [late.oid]);
         await book(token, [{ product_oid: kurti, quantity: 9, unit_price: 1500 }]);
 
         let list = (await get(LIST, token, { include: "stats", ready: "true" })).body;
