@@ -3,10 +3,12 @@ const { TABLE } = require("../../../utils/constant");
 // Each product with its batches, newest first, so a line can pick the batch it moves and see how much
 // of it is free of holds: a decrease may take only that.
 const PRODUCTS_SQL = `
-      SELECT p.oid, p.name, p.sku, p.has_expiry, p.unit_type,
+      SELECT p.oid, p.name, p.sku, c.name AS category_name, sc.name AS sub_category_name, p.has_expiry, p.unit_type,
              replace(p.photo, '/image/upload/', '/image/upload/c_fill,w_48,h_48,f_auto,q_auto/') AS photo_thumb,
              COALESCE(b.batches, '[]'::json) AS batches
         FROM ${TABLE.PRODUCT} p
+        LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
+        LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid
         LEFT JOIN LATERAL (
             SELECT json_agg(json_build_object(
                        'oid', i.oid, 'batch_code', i.batch_code, 'intended_use', i.intended_use,
@@ -21,7 +23,7 @@ const PRODUCTS_SQL = `
         ) b ON TRUE
        WHERE p.is_deleted = FALSE AND p.status = 'Active'
          AND ($1::text IS NULL OR p.name ILIKE $1 OR p.sku ILIKE $1)
-       ORDER BY p.name, p.oid
+       ORDER BY c.name, sc.name, p.name, p.oid
        LIMIT $2`;
 
 // Cost and budget go only to someone who may see money.

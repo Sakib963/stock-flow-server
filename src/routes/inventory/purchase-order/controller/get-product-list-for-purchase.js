@@ -7,11 +7,13 @@ const { log } = require("../../../../utils/log");
 // final price on the most recent verified line, from whichever supplier. Sold counts orders by
 // sold_on, the moment either channel's order became a sale, less what came back.
 const PRODUCTS_SQL = `
-      SELECT p.oid, p.name, p.sku, p.restock_threshold::int AS restock_threshold,
+      SELECT p.oid, p.name, p.sku, c.name AS category_name, sc.name AS sub_category_name, p.restock_threshold::int AS restock_threshold,
              replace(p.photo, '/image/upload/', '/image/upload/c_fill,w_48,h_48,f_auto,q_auto/') AS photo_thumb,
              st.sellable, sold.sold_30_days,
              last.unit_price AS last_unit_price, last.supplier_name AS last_supplier_name, last.verified_on AS last_bought_on
         FROM ${TABLE.PRODUCT} p
+        LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
+        LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid
         LEFT JOIN LATERAL (
             SELECT COALESCE(SUM(GREATEST(i.quantity_available - COALESCE((SELECT SUM(h.quantity) FROM ${TABLE.STOCK_HOLD} h WHERE h.inventory_oid = i.oid AND h.status = 'Active'), 0), 0)), 0)::int AS sellable
               FROM ${TABLE.INVENTORY} i
@@ -34,7 +36,7 @@ const PRODUCTS_SQL = `
         ) last ON TRUE
        WHERE p.is_deleted = FALSE AND p.status = 'Active'
          AND ($1::text IS NULL OR p.name ILIKE $1 OR p.sku ILIKE $1)
-       ORDER BY p.name, p.oid
+       ORDER BY c.name, sc.name, p.name, p.oid
        LIMIT $2`;
 
 const get_product_list_for_purchase = async (request, res) => {

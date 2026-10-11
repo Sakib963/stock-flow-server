@@ -19,13 +19,15 @@ const get_product_list_for_pre_order = async (request, res) => {
             where = `AND (p.name ILIKE $1 OR p.sku ILIKE $1)`;
         }
         const rows = await get_data({
-            text: `SELECT p.oid AS product_oid, p.name AS product_name, p.sku, COALESCE(s.sellable, 0) AS sellable, COALESCE(pr.price, 0)::int AS price, ${HINTS.select}
+            text: `SELECT p.oid AS product_oid, p.name AS product_name, p.sku, c.name AS category_name, sc.name AS sub_category_name, COALESCE(s.sellable, 0) AS sellable, COALESCE(pr.price, 0)::int AS price, ${HINTS.select}
                      FROM ${TABLE.PRODUCT} p
+                     LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
+                     LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid
                      LEFT JOIN (${SELLABLE_BY_PRODUCT_CTE}) s ON s.product_oid = p.oid
                      LEFT JOIN (SELECT product_oid, MAX(selling_price) AS price FROM ${TABLE.INVENTORY} WHERE intended_use = 'for_sale' GROUP BY product_oid) pr ON pr.product_oid = p.oid
                      ${HINTS.joins}
                     WHERE COALESCE(p.is_deleted, false) = false AND p.status = 'Active' ${where}
-                    ORDER BY p.name LIMIT 30`,
+                    ORDER BY c.name, sc.name, p.name LIMIT 30`,
             values,
         });
         if (!(await sees_money(request))) for (const row of rows) delete row.last_cost;
