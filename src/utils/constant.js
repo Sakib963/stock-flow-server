@@ -277,6 +277,7 @@ module.exports = {
     // --- Pre-Order feature (own tables; never the `orders` spine) ---
     GET_PRE_ORDER_LIST: "/get-pre-order-list",
     GET_PRE_ORDER_DETAILS: "/get-pre-order-details",
+    GET_PRE_ORDERS_BY_PRODUCT: "/get-pre-orders-by-product",
     CREATE_PRE_ORDER: "/create-pre-order",
     UPDATE_PRE_ORDER: "/update-pre-order",
     CONFIRM_PRE_ORDER: "/confirm-pre-order",

@@ -20,6 +20,15 @@ const pre_order_list_schema = Joi.object({
     include: Joi.string().valid("", "stats").optional(),
 });
 
+const by_product_schema = Joi.object({
+    offset: Joi.number().integer().min(0).default(0),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    search: Joi.string().trim().max(100).allow(null, "").optional(),
+    sort: Joi.string().valid("units", "to_get", "oldest", "product_name").optional(),
+    order: Joi.string().valid("asc", "desc").optional(),
+    include: Joi.string().valid("", "stats").optional(),
+});
+
 const pre_order_oid_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
@@ -57,4 +66,4 @@ const product_list_schema = Joi.object({
     search: Joi.string().trim().max(100).allow(null, "").optional(),
 });
 
-module.exports = { pre_order_list_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema };
+module.exports = { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema };

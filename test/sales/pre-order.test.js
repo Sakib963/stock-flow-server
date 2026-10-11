@@ -15,6 +15,7 @@ const REFUND = PRE + ROUTES.RECORD_PRE_ORDER_REFUND;
 const LIST = PRE + ROUTES.GET_PRE_ORDER_LIST;
 const DETAILS = PRE + ROUTES.GET_PRE_ORDER_DETAILS;
 const PRODUCTS = PRE + ROUTES.GET_PRODUCT_LIST_FOR_PRE_ORDER;
+const BY_PRODUCT = PRE + ROUTES.GET_PRE_ORDERS_BY_PRODUCT;
 
 const ALL = ["sales.pre-order.view", "sales.pre-order.create", "sales.pre-order.edit", "sales.pre-order.confirm", "sales.pre-order.cancel"];
 const USER = "owner@arithmalabs.test";
@@ -159,6 +160,23 @@ describe("pre-orders, bookings", () => {
         const saved = await book(token, [{ product_oid: kurti, quantity: 5, unit_price: 1500 }]);
         assert.deepEqual((await get(LIST, token, { ready: "true" })).body.data.rows, []);
         assert.equal((await get(`${DETAILS}/${saved.oid}`, token)).body.data.lines[0].sellable, 0);
+    });
+
+    it("adds up open bookings per product against what can be sold now, which is what the owner buys from", async () => {
+        const token = await person();
+        await stock(scarf, 2);
+        await book(token, [{ product_oid: kurti, quantity: 3, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }]);
+        await book(token, [{ product_oid: kurti, quantity: 2, unit_price: 1500 }, { product_oid: scarf, quantity: 4, unit_price: 900 }]);
+        const gone = await book(token, [{ product_oid: kurti, quantity: 7, unit_price: 1500 }]);
+        await h.call(CANCEL, { body: { oid: gone.oid, reason: "changed_mind", refund_due: 0 }, token });
+
+        const list = (await get(BY_PRODUCT, token, { include: "stats", sort: "to_get", order: "desc" })).body;
+        assert.deepEqual(list.data.rows.map((row) => [row.product_name, row.units, row.bookings, row.sellable, row.to_get]), [["Block print kurti", 5, 2, 0, 5], ["Silk scarf", 5, 2, 2, 3]]);
+        assert.deepEqual(list.data.stats, { products: 2, units: 10, to_get: 8 }, "a cancelled booking is not wanted any more");
+
+        const product = (await get(`${CONTEXTS.CONFIGURATION}${SUB_CONTEXTS.PRODUCT}${ROUTES.GET_PRODUCT_DETAILS}/${kurti}`, await person(["configuration.product.view"]))).body.data;
+        assert.equal(product.stock.booked, 5, "the product page shows units booked on open bookings");
+        assert.equal((await get(BY_PRODUCT, await person(["sales.order.view"]))).status, 403);
     });
 
     it("offers the whole catalogue to book from, with what can be sold now", async () => {

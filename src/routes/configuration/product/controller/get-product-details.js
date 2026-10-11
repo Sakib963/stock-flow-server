@@ -41,6 +41,12 @@ const LIFETIME_SQL = `
                 FROM ${TABLE.ORDER_ITEMS} oi JOIN ${TABLE.ORDERS} o ON o.oid = oi.order_oid
                WHERE oi.product_oid = $1 AND o.status IN ('Purchased', 'Delivered', 'PartiallyReturned')) AS last_sold_on`;
 
+// Units on open bookings: wanted, but no order yet, so they hold nothing (pre-order REQ-14).
+const BOOKED_SQL = `
+      SELECT COALESCE(SUM(poi.quantity), 0)::int AS booked
+      FROM ${TABLE.PRE_ORDER_ITEMS} poi JOIN ${TABLE.PRE_ORDERS} po ON po.oid = poi.pre_order_oid
+      WHERE poi.product_oid = $1 AND po.status IN ('Pending', 'Confirmed')`;
+
 const get_product_details = async (request, res) => {
       try {
             const productOid = request.params.oid;
@@ -51,7 +57,7 @@ const get_product_details = async (request, res) => {
                   return res.status(404).json({ code: 404, message: "Product not found", data: null });
             }
 
-            const [batches, [lifetime], activity_set] = await Promise.all([get_data({ text: BATCHES_SQL, values: [productOid] }), get_data({ text: LIFETIME_SQL, values: [productOid] }), getLogActivities("product", productOid, 5)]);
+            const [batches, [lifetime], [{ booked }], activity_set] = await Promise.all([get_data({ text: BATCHES_SQL, values: [productOid] }), get_data({ text: LIFETIME_SQL, values: [productOid] }), get_data({ text: BOOKED_SQL, values: [productOid] }), getLogActivities("product", productOid, 5)]);
 
             const stock = batches.reduce((sum, batch) => ({ on_hand: sum.on_hand + batch.on_hand, held: sum.held + batch.held, sellable: sum.sellable + batch.sellable }), { on_hand: 0, held: 0, sellable: 0 });
 
@@ -60,7 +66,7 @@ const get_product_details = async (request, res) => {
                   message: "Product details found successfully",
                   data: {
                         details,
-                        stock: { ...stock, batches },
+                        stock: { ...stock, booked, batches },
                         lifetime,
                         activity: activity_set.map((a) => ({
                               oid: a.oid,

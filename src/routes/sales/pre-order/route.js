@@ -3,8 +3,9 @@ const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
 const { validator } = require("../../../middleware/validator");
 const requirePermission = require("../../../middleware/require-permission");
-const { pre_order_list_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema } = require("./schema");
+const { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema } = require("./schema");
 const get_pre_order_list = require("./controller/get-pre-order-list");
+const get_pre_orders_by_product = require("./controller/get-pre-orders-by-product");
 const get_pre_order_details = require("./controller/get-pre-order-details");
 const create_pre_order = require("./controller/create-pre-order");
 const update_pre_order = require("./controller/update-pre-order");
@@ -16,6 +17,7 @@ const get_product_list_for_pre_order = require("./controller/get-product-list-fo
 const router = Router();
 
 router.get(ROUTES.GET_PRE_ORDER_LIST, [jwtMiddleware, requirePermission("sales.pre-order.view"), validator.get(pre_order_list_schema)], get_pre_order_list);
+router.get(ROUTES.GET_PRE_ORDERS_BY_PRODUCT, [jwtMiddleware, requirePermission("sales.pre-order.view"), validator.get(by_product_schema)], get_pre_orders_by_product);
 router.get(ROUTES.GET_PRE_ORDER_DETAILS + "/:oid", [jwtMiddleware, requirePermission("sales.pre-order.view"), validator.params(pre_order_oid_schema)], get_pre_order_details);
 router.post(ROUTES.CREATE_PRE_ORDER, [jwtMiddleware, requirePermission("sales.pre-order.create"), validator.post(pre_order_schema)], create_pre_order);
 router.post(ROUTES.UPDATE_PRE_ORDER, [jwtMiddleware, requirePermission("sales.pre-order.edit"), validator.post(pre_order_schema)], update_pre_order);
