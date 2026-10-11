@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { execute_transaction } = require("../../src/db/database");
-const { deductSellableStock, holdStock, deductHeldStock, restockStock, deductStock, releaseHolds } = require("../../src/routes/sales/utils/stock-movement");
+const { deductSellableStock, deductFreeStock, holdStock, deductHeldStock, restockStock, deductStock, releaseHolds } = require("../../src/routes/sales/utils/stock-movement");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 
 const PO = CONTEXTS.INVENTORY + SUB_CONTEXTS.PURCHASE_ORDER;
@@ -185,6 +185,33 @@ describe("the stock movement list", () => {
         assert.equal((await get(LIST, token, { search: batch_code })).body.total, 2);
         assert.equal((await get(LIST, token, { reason: "sold" })).body.data.rows[0].quantity, -3);
         assert.equal((await get(LIST, token, { product_oid: ids.kurti })).body.total, 2);
+    });
+
+    it("shows a giveaway, and a gift that came back in a refused parcel, against the giveaway number", async () => {
+        await h.reset();
+        const ids = await seed();
+        await h.query("TRUNCATE giveaway, giveaway_line CASCADE");
+        const token = await sign_in_with([...PO_RIGHTS, "inventory.stock-movement.view"]);
+        const received = await receive(ids, token);
+        const giveaway = uuidv4();
+        await h.query("INSERT INTO giveaway (oid, giveaway_no, recipient_name, status) VALUES ($1, 'GA-0001', 'A reviewer', 'Given')", [giveaway]);
+        await execute_transaction((tx) => deductFreeStock(tx, { inventory_oid: received.batch, quantity: 2, reason: "given_away", source_oid: giveaway, user_id: USER }));
+        await execute_transaction((tx) => restockStock(tx, { inventory_oid: received.batch, quantity: 2, reason: "returned", source_oid: giveaway, user_id: USER }));
+
+        const given = (await get(LIST, token, { reason: "given_away" })).body;
+        assert.equal(given.total, 1);
+        assert.deepEqual({ quantity: given.data.rows[0].quantity, reference: given.data.rows[0].reference }, { quantity: -2, reference: "GA-0001" });
+        assert.equal((await get(LIST, token, { reason: "returned" })).body.data.rows[0].reference, "GA-0001");
+        await assert_balanced(received.batch);
+    });
+
+    it("can filter by every movement the ledger allows", async () => {
+        await h.reset();
+        const token = await sign_in_with(["inventory.stock-movement.view"]);
+        const [{ definition }] = await h.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'stock_movement_reason_check'");
+        const reasons = [...definition.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+        assert.ok(reasons.includes("given_away"));
+        assert.equal((await get(LIST, token, { reason: reasons.join(",") })).status, 200);
     });
 
     it("refuses the list to someone without the permission, and without a sign in", async () => {

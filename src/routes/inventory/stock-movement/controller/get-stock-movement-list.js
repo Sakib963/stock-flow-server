@@ -3,12 +3,14 @@ const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 
 // The document behind a movement, by its reason: a received batch names its purchase order, a sale
-// or dispatch its invoice, a return the invoice it came back from, a disposal or an adjustment its number.
+// or dispatch its invoice, a return the invoice it came back from, a disposal, an adjustment or a giveaway its
+// number. A gift that came back in a refused parcel is returned against its giveaway, not a return.
 const REFERENCE = `CASE WHEN m.reason = 'received' THEN pu.po_number
                         WHEN m.reason IN ('sold', 'dispatched') THEN o.invoice_no
-                        WHEN m.reason = 'returned' THEN pr.invoice_no
+                        WHEN m.reason = 'returned' THEN COALESCE(pr.invoice_no, g.giveaway_no)
                         WHEN m.reason IN ('disposed', 'dispose_reversed') THEN pd.dispose_no
-                        WHEN m.reason IN ('adjusted', 'opening_stock') THEN sa.adjustment_number END`;
+                        WHEN m.reason IN ('adjusted', 'opening_stock') THEN sa.adjustment_number
+                        WHEN m.reason = 'given_away' THEN g.giveaway_no END`;
 
 const SELECT = `m.oid, m.created_on, m.reason, m.quantity, m.balance_after,
                 m.product_oid, p.name AS product_name, p.sku, i.batch_code,
@@ -26,6 +28,7 @@ const FROM = `${TABLE.STOCK_MOVEMENT} m
               LEFT JOIN ${TABLE.PRODUCT_RETURN} pr ON m.reason = 'returned' AND pr.oid = m.source_oid
               LEFT JOIN ${TABLE.PRODUCT_DISPOSE} pd ON m.reason IN ('disposed', 'dispose_reversed') AND pd.oid = m.source_oid
               LEFT JOIN ${TABLE.STOCK_ADJUSTMENT} sa ON m.reason IN ('adjusted', 'opening_stock') AND sa.oid = m.source_oid
+              LEFT JOIN ${TABLE.GIVEAWAY} g ON m.reason IN ('given_away', 'returned') AND g.oid = m.source_oid
               LEFT JOIN ${TABLE.LOGIN} u ON u.email = m.created_by`;
 
 const STATS = {
