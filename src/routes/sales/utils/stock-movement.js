@@ -66,7 +66,7 @@ const getActiveHolds = async (tx, inventory_oids) => {
 // so two concurrent orders can't both hold the last unit, then checks sellable
 // (on-hand minus existing Active holds). Physical quantity_available is unchanged.
 // Returns { ok, sellable } -- ok=false means not enough sellable stock.
-const holdStock = async (tx, { order_oid, order_item_oid = null, product_oid, inventory_oid, quantity, user_id }) => {
+const holdStock = async (tx, { order_oid, order_item_oid = null, giveaway_line_oid = null, product_oid, inventory_oid, quantity, user_id }) => {
     const inv = await tx.get_data({
         text: `SELECT quantity_available::int AS qa FROM ${TABLE.INVENTORY} WHERE oid = $1 FOR UPDATE`,
         values: [inventory_oid],
@@ -80,9 +80,9 @@ const holdStock = async (tx, { order_oid, order_item_oid = null, product_oid, in
     if (sellable < quantity) return { ok: false, sellable };
     await tx.execute_value({
         text: `INSERT INTO ${TABLE.STOCK_HOLD}
-                   (oid, order_oid, order_item_oid, product_oid, inventory_oid, quantity, status, created_by)
-               VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7)`,
-        values: [uuidv4(), order_oid, order_item_oid, product_oid, inventory_oid, quantity, user_id],
+                   (oid, order_oid, order_item_oid, giveaway_line_oid, product_oid, inventory_oid, quantity, status, created_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active', $8)`,
+        values: [uuidv4(), order_oid, order_item_oid, giveaway_line_oid, product_oid, inventory_oid, quantity, user_id],
     });
     return { ok: true, sellable };
 };
@@ -114,27 +114,31 @@ const deductSellableStock = (tx, { inventory_oid, quantity, order_oid, user_id }
 
 // Release all Active holds of an order (cancellation before dispatch). Physical
 // quantity_available never changed while held, so nothing to add back -- the units
-// simply become sellable again. Returns count released.
-const releaseHolds = async (tx, { order_oid, user_id }) => {
+// simply become sellable again. Returns count released. An edit passes gifts: false, so a gift added
+// to the order keeps its hold while the order's own lines are held again.
+const releaseHolds = async (tx, { order_oid, user_id, gifts = true }) => {
     const r = await tx.execute_value({
         text: `UPDATE ${TABLE.STOCK_HOLD}
                   SET status = 'Released', edited_by = $1, edited_on = clock_timestamp()
-                WHERE order_oid = $2 AND status = 'Active'`,
-        values: [user_id, order_oid],
+                WHERE order_oid = $2 AND status = 'Active' AND ($3 OR giveaway_line_oid IS NULL)`,
+        values: [user_id, order_oid, gifts],
     });
     return r.rowCount;
 };
 
 // Dispatch: convert this order's Active holds into a physical deduction. Deducts
 // quantity_available for each held batch and marks the holds Deducted. Guarded on
-// physical on-hand. Returns { ok }.
+// physical on-hand. A gift's units leave as given away, against its giveaway, never as part of the sale. Returns { ok }.
 const deductHeldStock = async (tx, { order_oid, user_id }) => {
     const holds = await tx.get_data({
-        text: `SELECT oid, inventory_oid, quantity FROM ${TABLE.STOCK_HOLD} WHERE order_oid = $1 AND status = 'Active'`,
+        text: `SELECT h.oid, h.inventory_oid, h.quantity, gl.giveaway_oid
+                 FROM ${TABLE.STOCK_HOLD} h LEFT JOIN ${TABLE.GIVEAWAY_LINE} gl ON gl.oid = h.giveaway_line_oid
+                WHERE h.order_oid = $1 AND h.status = 'Active'`,
         values: [order_oid],
     });
     for (const h of holds) {
-        const deducted = await deductStock(tx, { inventory_oid: h.inventory_oid, quantity: h.quantity, reason: "dispatched", source_oid: order_oid, user_id });
+        const movement = h.giveaway_oid ? { reason: "given_away", source_oid: h.giveaway_oid } : { reason: "dispatched", source_oid: order_oid };
+        const deducted = await deductStock(tx, { inventory_oid: h.inventory_oid, quantity: h.quantity, ...movement, user_id });
         if (!deducted) return { ok: false };
         await tx.execute_value({
             text: `UPDATE ${TABLE.STOCK_HOLD} SET status = 'Deducted', edited_by = $1, edited_on = clock_timestamp() WHERE oid = $2`,

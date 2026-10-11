@@ -3,6 +3,7 @@ const { execute_transaction, TransactionError } = require("../../../../db/databa
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { releaseHolds } = require("../../utils/stock-movement");
+const { dropOrderGifts } = require("../../utils/order-gifts");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { effectiveAmountPaid } = require("../../return/utils/return-utils");
 const { refuse_change, refuse_unless_own } = require("../utils/order-state");
@@ -28,6 +29,7 @@ const cancel_order = async (request, res) => {
             if (cancelled.rowCount !== 1) await refuse_change(tx, oid, "cancelled");
             const order = cancelled.rows[0];
             await releaseHolds(tx, { order_oid: oid, user_id });
+            await dropOrderGifts(tx, { order_oid: oid, invoice_no: order.invoice_no, user_id, request });
             await recordStatusHistory(tx, { order_oid: oid, from_status: before.status, to_status: "Cancelled", reason: note ? `${reason_code}: ${note}` : reason_code, user_id });
 
             const refund_due = Math.max(0, effectiveAmountPaid(order) - Number(order.amount_refunded));

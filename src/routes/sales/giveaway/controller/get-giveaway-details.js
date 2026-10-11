@@ -8,9 +8,10 @@ const get_giveaway_details = async (request, res) => {
     try {
         const oid = request.params.oid;
         const [details] = await get_data({
-            text: `SELECT g.oid, g.giveaway_no, g.customer_oid, g.recipient_name, g.recipient_phone, g.address_line, g.note, g.status, g.cancel_reason,
+            text: `SELECT g.oid, g.giveaway_no, g.customer_oid, g.order_oid, o.invoice_no, g.recipient_name, g.recipient_phone, g.address_line, g.note, g.status, g.cancel_reason,
                           g.given_on, COALESCE(gl.name, g.given_by) AS given_by, g.created_on, COALESCE(cl.name, g.created_by) AS created_by
                      FROM ${TABLE.GIVEAWAY} g
+                     LEFT JOIN ${TABLE.ORDERS} o ON o.oid = g.order_oid
                      LEFT JOIN ${TABLE.LOGIN} cl ON cl.email = g.created_by
                      LEFT JOIN ${TABLE.LOGIN} gl ON gl.email = g.given_by
                     WHERE g.oid = $1`,

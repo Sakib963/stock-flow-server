@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { restockStock, incrementProductStat } = require("../../utils/stock-movement");
+const { returnOrderGifts } = require("../../utils/order-gifts");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { channels_of } = require("../../utils/channels");
 const { RETURNABLE_ORDER_STATUS, refundableNow } = require("../utils/return-utils");
@@ -98,6 +99,7 @@ const confirm_return = async (request, res) => {
             if (parcel) {
                 await tx.execute_value({ text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'BackInShop', edited_by = $1, edited_on = clock_timestamp() WHERE order_oid = $2`, values: [user_id, order.oid] });
                 await recordStatusHistory(tx, { order_oid: order.oid, kind: "Delivery", from_status: "Failed", to_status: "BackInShop", reason: ret.return_no, user_id });
+                await returnOrderGifts(tx, { order_oid: order.oid, invoice_no: order.invoice_no, user_id, request });
             }
 
             // Another return or refund may have taken money since this one was raised; it never gives back more than is held.

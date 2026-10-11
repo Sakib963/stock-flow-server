@@ -13,7 +13,7 @@ const read_orders_for_form = (get_data, where, values) =>
                                   'inventory_oid', oi.inventory_oid, 'product_oid', oi.product_oid, 'product_name', p.name, 'image_url', p.photo, 'batch_code', i.batch_code,
                                   'quantity', oi.quantity::int, 'discount', COALESCE(oi.discount, 0)::int,
                                   'selling_price', i.selling_price::int, 'maximum_discount', COALESCE(i.maximum_discount, 0)::int, 'expiry_date', i.expiry_date,
-                                  'sellable', (i.quantity_available - COALESCE((SELECT SUM(h.quantity) FROM ${TABLE.STOCK_HOLD} h WHERE h.inventory_oid = i.oid AND h.status = 'Active' AND h.order_oid <> o.oid), 0))::int
+                                  'sellable', (i.quantity_available - COALESCE((SELECT SUM(h.quantity) FROM ${TABLE.STOCK_HOLD} h WHERE h.inventory_oid = i.oid AND h.status = 'Active' AND (h.order_oid <> o.oid OR h.giveaway_line_oid IS NOT NULL)), 0))::int
                               ) ORDER BY p.name, i.batch_code)
                          FROM ${TABLE.ORDER_ITEMS} oi
                          JOIN ${TABLE.INVENTORY} i ON i.oid = oi.inventory_oid

@@ -3,6 +3,7 @@ const { execute_transaction, TransactionError, fail } = require("../../../../db/
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { deductHeldStock } = require("../../utils/stock-movement");
+const { sendOrderGifts } = require("../../utils/order-gifts");
 const { recordStatusHistory } = require("../../utils/order-utils");
 const { refuse_change } = require("../utils/order-state");
 
@@ -25,6 +26,7 @@ const dispatch_order = async (request, res) => {
             const { invoice_no, delivery_status } = dispatched.rows[0];
             const deducted = await deductHeldStock(tx, { order_oid: oid, user_id });
             if (!deducted.ok) fail(409, `The stock held for ${invoice_no} is no longer on the shelf. Nothing was dispatched; check the batch with a stock count.`);
+            await sendOrderGifts(tx, { order_oid: oid, invoice_no, user_id, request });
             const parcel = await tx.execute_value({
                 text: `UPDATE ${TABLE.ONLINE_ORDER} SET delivery_status = 'WithCourier', courier = $1, consignment_no = $2, edited_by = $3, edited_on = clock_timestamp() WHERE order_oid = $4 AND delivery_status IN ('Preparing', 'Packed')`,
                 values: [courier, consignment_no, user_id, oid],

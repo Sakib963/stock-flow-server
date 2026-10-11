@@ -271,6 +271,8 @@ module.exports = {
     CREATE_GIVEAWAY: "/create-giveaway",
     GIVE_GIVEAWAY: "/give-giveaway",
     CANCEL_GIVEAWAY: "/cancel-giveaway",
+    ADD_ORDER_GIFT: "/add-order-gift",
+    REMOVE_ORDER_GIFT: "/remove-order-gift",
 
     // --- Pre-Order feature (own tables; never the `orders` spine) ---
     GET_PRE_ORDER_LIST: "/get-pre-order-list",

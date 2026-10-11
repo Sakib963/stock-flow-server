@@ -52,7 +52,7 @@ const write_online_order = (editing) => async (request, res) => {
                 [kept] = await tx.get_data({ text: `SELECT invoice_no, tracking_token FROM ${TABLE.ORDERS} WHERE oid = $1 AND channel = 'ONLINE' AND status = 'Pending' FOR UPDATE`, values: [payload.oid] });
                 if (!kept) await refuse_change(tx, payload.oid, "edited");
                 // Released first, so the order's own units count as sellable when its lines are held again.
-                await releaseHolds(tx, { order_oid: payload.oid, user_id });
+                await releaseHolds(tx, { order_oid: payload.oid, user_id, gifts: false });
                 // The released holds stay on the order as its record, but let go of the lines that are about to be replaced.
                 await tx.execute_value({ text: `UPDATE ${TABLE.STOCK_HOLD} SET order_item_oid = NULL WHERE order_oid = $1 AND status = 'Released'`, values: [payload.oid] });
             }

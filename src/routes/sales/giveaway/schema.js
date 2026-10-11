@@ -11,7 +11,8 @@ const giveaway_list_schema = Joi.object({
     search: Joi.string().trim().max(100).allow(null, "").optional(),
     sort: Joi.string().valid("created_on", "giveaway_no").optional(),
     order: Joi.string().valid("asc", "desc").optional(),
-    status: one_or_more(["Draft", "Given", "Cancelled"]),
+    status: one_or_more(["Draft", "Held", "Given", "Returned", "Cancelled"]),
+    order_oid: Joi.string().uuid().allow(null, "").empty("").optional(),
     date_from: day,
     date_to: day,
     include: Joi.string().valid("", "stats").optional(),
@@ -35,9 +36,21 @@ const create_giveaway_schema = Joi.object({
         .required(),
 });
 
+const add_order_gift_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+    order_oid: Joi.string().uuid().required(),
+    note: Joi.string().trim().min(1).max(256).required(),
+    lines: Joi.array()
+        .items(Joi.object({ inventory_oid: Joi.string().uuid().required(), quantity: Joi.number().integer().min(1).max(9999).required() }))
+        .min(1)
+        .max(20)
+        .unique("inventory_oid")
+        .required(),
+});
+
 const cancel_giveaway_schema = Joi.object({
     oid: Joi.string().uuid().required(),
     reason: Joi.string().trim().min(1).max(256).required(),
 });
 
-module.exports = { giveaway_list_schema, giveaway_oid_schema, create_giveaway_schema, cancel_giveaway_schema };
+module.exports = { giveaway_list_schema, giveaway_oid_schema, create_giveaway_schema, cancel_giveaway_schema, add_order_gift_schema };
