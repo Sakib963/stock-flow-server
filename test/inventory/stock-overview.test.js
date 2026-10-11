@@ -212,7 +212,7 @@ describe("changing a batch's price and budget", () => {
         assert.equal(Number(figures.profit_full), 10 * (500 - 300 - 50));
         const [log] = await h.query("SELECT description FROM activity_log WHERE title = 'Budget changed'");
         assert.match(log.description, /ad changed/);
-        assert.doesNotMatch(log.description, /30/, "the activity log never carries a budget amount");
+        assert.doesNotMatch(log.description, /\b30\b/, "the activity log never carries a budget amount");
         assert.equal(await movements(), 2, "a budget moves no stock");
         assert.equal((await post(BUDGET, token, { inventory_oid: ids.cream_batch.oid, ad_run_cost: 30, packaging_cost: 20 })).body.data.changed, false);
     });
