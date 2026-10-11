@@ -25,7 +25,7 @@ router.get(ROUTES.GET_CUSTOMER_DETAILS + "/:oid", [jwtMiddleware, requirePermiss
 // Phone first on the POS and online order pages as well as the customers screens, so selling at
 // either counter opens it. A POST so the phone stays out of URLs; the request log keeps it, as it
 // keeps every customer write.
-router.post(ROUTES.FIND_CUSTOMER_BY_PHONE, [jwtMiddleware, requirePermission(["sales.customer.view", "sales.pos.create", "sales.online.create"]), validator.post(customer_phone_schema)], find_customer_by_phone);
+router.post(ROUTES.FIND_CUSTOMER_BY_PHONE, [jwtMiddleware, requirePermission(["sales.customer.view", "sales.pos.create", "sales.online.create", "sales.pre-order.create", "sales.pre-order.edit"]), validator.post(customer_phone_schema)], find_customer_by_phone);
 
 router.post(ROUTES.CREATE_CUSTOMER, [jwtMiddleware, requirePermission("sales.customer.create"), validator.post(customer_create_schema)], create_customer);
 

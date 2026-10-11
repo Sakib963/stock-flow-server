@@ -1,92 +1,60 @@
 const Joi = require("joi");
+const { joi_phone } = require("../utils/phone");
+
+const optional_text = (max) => Joi.string().trim().max(max).allow(null, "").empty("").default(null);
+const one_or_more = (values) => Joi.string().pattern(new RegExp(`^(${values.join("|")})(,(${values.join("|")}))*$`)).allow(null, "").optional();
+
+const STATUSES = ["Pending", "Confirmed", "Converted", "Cancelled"];
+const CANCEL_REASONS = ["changed_mind", "unreachable", "stock_not_coming", "other"];
+const ADVANCE_METHODS = ["cash", "bkash", "nagad", "card", "other"];
 
 const pre_order_list_schema = Joi.object({
-    offset: Joi.number().required(),
-    limit: Joi.number().required(),
-    search_text: Joi.string().trim().allow(null, "").optional(),
-    status: Joi.string().trim().allow(null, "").optional(),
-    date_from: Joi.string().trim().allow(null, "").optional(),
-    date_to: Joi.string().trim().allow(null, "").optional(),
+    offset: Joi.number().integer().min(0).default(0),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    search: Joi.string().trim().max(100).allow(null, "").optional(),
+    sort: Joi.string().valid("created_on", "preorder_no", "expected_date").optional(),
+    order: Joi.string().valid("asc", "desc").optional(),
+    status: one_or_more(STATUSES),
+    ready: Joi.string().valid("", "true").optional(),
+    overdue: Joi.string().valid("", "true").optional(),
+    include: Joi.string().valid("", "stats").optional(),
 });
 
-// A pre-order line references a PRODUCT, never a batch. There is deliberately no
-// inventory_oid here -- accepting one would defeat the whole separation.
-const pre_order_line_item = Joi.object({
-    oid: Joi.string().allow(null, "").optional(),
-    product_oid: Joi.string().required(),
-    product_name: Joi.string().required(),
-    quantity: Joi.number().integer().min(1).required(),
-    unit_price: Joi.number().min(0).required(),
-    discount: Joi.number().min(0).allow(null).optional(),
-    total: Joi.number().min(0).required(),
+const pre_order_oid_schema = Joi.object({
+    oid: Joi.string().uuid().required(),
+});
+
+// A line names a product, never a batch (REQ-02). Its price is what the customer was told, roughly:
+// the real price is set from the batch at conversion.
+const pre_order_line = Joi.object({
+    product_oid: Joi.string().trim().max(128).required(),
+    quantity: Joi.number().integer().min(1).max(9999).required(),
+    unit_price: Joi.number().integer().min(0).max(10000000).required(),
 });
 
 const pre_order_schema = Joi.object({
-    oid: Joi.string().allow(null, "").optional(),
-    preorder_no: Joi.string().allow(null, "").optional(),
-    customer_name: Joi.string().required(),
-    customer_phone: Joi.string().required(),
-    customer_email: Joi.string().allow(null, "").optional(),
-    // Optional at booking, required at conversion (FR-5).
-    customer_address: Joi.string().allow(null, "").optional(),
-    delivery_city: Joi.string().allow(null, "").optional(),
-    delivery_zone: Joi.string().allow(null, "").optional(),
-    delivery_area: Joi.string().allow(null, "").optional(),
-    delivery_postcode: Joi.string().allow(null, "").optional(),
-    discount_total: Joi.number().min(0).allow(null).optional(),
-    delivery_charge: Joi.number().min(0).allow(null).optional(),
-    advance_paid: Joi.number().min(0).allow(null).optional(),
-    advance_method: Joi.string().valid("cash", "bkash", "nagad", "card", "other").allow(null, "").optional(),
-    advance_reference: Joi.string().allow(null, "").optional(),
-    expected_date: Joi.string().allow(null, "").optional(),
-    notes: Joi.string().allow(null, "").optional(),
-    products: Joi.array().items(pre_order_line_item).min(1).required(),
-});
-
-const pre_order_details_schema = Joi.object({
-    oid: Joi.string().required(),
-});
-
-const confirm_pre_order_schema = Joi.object({
-    oid: Joi.string().required(),
-    reason: Joi.string().allow(null, "").optional(),
+    oid: Joi.string().uuid().required(),
+    customer: Joi.object({
+        phone: Joi.string().trim().max(32).custom(joi_phone).required(),
+        name: optional_text(255),
+    }).required(),
+    lines: Joi.array().items(pre_order_line).min(1).max(50).unique("product_oid").required().messages({ "array.unique": "A product is on the booking twice. Change the quantity on one line instead." }),
+    advance_paid: Joi.number().integer().min(0).default(0),
+    advance_method: Joi.when("advance_paid", { is: Joi.number().greater(0), then: Joi.string().valid(...ADVANCE_METHODS).required(), otherwise: Joi.valid(null, "").empty("").default(null) }),
+    advance_reference: optional_text(64),
+    expected_date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow(null, "").empty("").default(null),
+    notes: optional_text(256),
 });
 
 const cancel_pre_order_schema = Joi.object({
-    oid: Joi.string().required(),
-    reason: Joi.string().trim().required(),
-    // Refund is money movement on a cancelled pre-order, never a status (FR-14).
-    advance_refunded: Joi.number().min(0).allow(null).optional(),
-});
-
-const record_advance_schema = Joi.object({
-    oid: Joi.string().required(),
-    advance_paid: Joi.number().min(0).required(),
-    advance_method: Joi.string().valid("cash", "bkash", "nagad", "card", "other").allow(null, "").optional(),
-    advance_reference: Joi.string().allow(null, "").optional(),
-});
-
-const mark_converted_schema = Joi.object({
-    oid: Joi.string().required(),
-    order_oid: Joi.string().required(),
+    oid: Joi.string().uuid().required(),
+    reason: Joi.string().valid(...CANCEL_REASONS).required(),
+    note: Joi.when("reason", { is: "other", then: Joi.string().trim().min(1).max(256).required(), otherwise: optional_text(256) }),
+    refund_due: Joi.number().integer().min(0).required(),
 });
 
 const product_list_schema = Joi.object({
-    search_text: Joi.string().trim().allow(null, "").optional(),
+    search: Joi.string().trim().max(100).allow(null, "").optional(),
 });
 
-const batches_for_product_schema = Joi.object({
-    product_oid: Joi.string().required(),
-});
-
-module.exports = {
-    pre_order_list_schema,
-    pre_order_schema,
-    pre_order_details_schema,
-    confirm_pre_order_schema,
-    cancel_pre_order_schema,
-    record_advance_schema,
-    mark_converted_schema,
-    product_list_schema,
-    batches_for_product_schema,
-};
+module.exports = { pre_order_list_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema };

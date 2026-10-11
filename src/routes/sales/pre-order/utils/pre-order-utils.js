@@ -1,59 +1,40 @@
-// Shared helpers for the Pre-Order feature.
-// A pre-order is a booking for stock not yet held. It is neither a sale nor an
-// order, so it keeps its own numbering and its own status history.
-const { TABLE } = require("../../../../utils/constant");
 const { v4: uuidv4 } = require("uuid");
-const { business_day, business_today } = require("../../../../utils/business-time");
+const { TABLE } = require("../../../../utils/constant");
+const { fail } = require("../../../../db/database");
 
-// Append an audit row to pre_order_status_history. Takes the `tx` handle from
-// `execute_transaction` so it lands inside the caller's transaction.
 const recordPreOrderStatusHistory = async (tx, { pre_order_oid, from_status, to_status, reason = null, user_id }) => {
     await tx.execute_value({
-        text: `INSERT INTO ${TABLE.PRE_ORDER_STATUS_HISTORY}
-                   (oid, pre_order_oid, from_status, to_status, reason, performed_by)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
+        text: `INSERT INTO ${TABLE.PRE_ORDER_STATUS_HISTORY} (oid, pre_order_oid, from_status, to_status, reason, performed_by) VALUES ($1, $2, $3, $4, $5, $6)`,
         values: [uuidv4(), pre_order_oid, from_status, to_status, reason, user_id],
     });
 };
 
-// Pre-order number: PRE-YYMMDD-NNNN, counted over `pre_orders` only. It must never
-// draw from the order invoice sequence -- a booking is not a sale and must not
-// consume a daily sale number.
-// `read` is the pool-level `get_data`, or `tx.get_data` to count inside the
-// caller's transaction so two concurrent bookings cannot mint the same number.
-const nextPreOrderNo = async (read) => {
-    const rows = await read({
-        text: `SELECT COUNT(*)::int AS today_count FROM ${TABLE.PRE_ORDERS} WHERE ${business_day("created_on")} = ${business_today}`,
-        values: [],
+// Per product, what can be sold now: on hand less Active holds, over the batches an order can take (cart.js).
+const SELLABLE_BY_PRODUCT_CTE = `
+    SELECT i.product_oid, SUM(i.quantity_available - COALESCE(h.held, 0))::int AS sellable
+      FROM ${TABLE.INVENTORY} i
+      LEFT JOIN (SELECT inventory_oid, SUM(quantity)::int AS held FROM ${TABLE.STOCK_HOLD} WHERE status = 'Active' GROUP BY inventory_oid) h ON h.inventory_oid = i.oid
+     WHERE i.intended_use = 'for_sale' AND i.status = 'ready_for_sale' AND i.selling_price IS NOT NULL
+     GROUP BY i.product_oid`;
+
+// Replaces a booking's lines. The product's name comes from the catalogue, and the total from the line
+// formula with no discount: the price is approximate until the batch is chosen at conversion.
+const writeLines = async (tx, pre_order_oid, lines) => {
+    const products = await tx.get_data({
+        text: `SELECT oid, name FROM ${TABLE.PRODUCT} WHERE oid = ANY($1) AND COALESCE(is_deleted, false) = false`,
+        values: [lines.map((line) => line.product_oid)],
     });
-    const count = rows?.[0]?.today_count ?? 0;
-    const now = new Date();
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const seq = String(count + 1).padStart(4, "0");
-    return `PRE-${yy}${mm}${dd}-${seq}`;
+    if (products.length !== lines.length) fail(409, "A product on this booking was deleted from the catalogue. Remove it and pick again.");
+    const name_of = new Map(products.map((product) => [product.oid, product.name]));
+    await tx.execute_value({ text: `DELETE FROM ${TABLE.PRE_ORDER_ITEMS} WHERE pre_order_oid = $1`, values: [pre_order_oid] });
+    await tx.execute_value({
+        text: `INSERT INTO ${TABLE.PRE_ORDER_ITEMS} (oid, pre_order_oid, product_oid, product_name, quantity, unit_price, discount, total)
+               SELECT *, 0, q * p FROM UNNEST($1::varchar[], $2::varchar[], $3::varchar[], $4::varchar[], $5::int[], $6::int[]) AS l(oid, po, product, name, q, p)`,
+        values: [lines.map(() => uuidv4()), lines.map(() => pre_order_oid), lines.map((line) => line.product_oid), lines.map((line) => name_of.get(line.product_oid)), lines.map((line) => line.quantity), lines.map((line) => line.unit_price)],
+    });
+    return lines.reduce((sum, line) => sum + line.quantity * line.unit_price, 0);
 };
 
-// Per-product SELLABLE stock (on-hand minus active holds) for `for_sale` batches
-// that are `ready_for_sale`. Used by stock readiness and the ready-to-convert
-// queue. Returned as a CTE body so callers can compose it.
-const SELLABLE_BY_PRODUCT_CTE = `
-    SELECT i.product_oid,
-           SUM(i.quantity_available - COALESCE(h.held, 0))::int AS sellable_quantity
-      FROM ${TABLE.INVENTORY} i
-      LEFT JOIN (
-            SELECT inventory_oid, SUM(quantity)::int AS held
-              FROM ${TABLE.STOCK_HOLD}
-             WHERE status = 'Active'
-             GROUP BY inventory_oid
-      ) h ON h.inventory_oid = i.oid
-     WHERE i.intended_use = 'for_sale'
-       AND i.status = 'ready_for_sale'
-     GROUP BY i.product_oid
-`;
-
-// A pre-order is "open" while it can still become an order.
 const OPEN_STATUSES = ["Pending", "Confirmed"];
 
-module.exports = { recordPreOrderStatusHistory, nextPreOrderNo, SELLABLE_BY_PRODUCT_CTE, OPEN_STATUSES };
+module.exports = { recordPreOrderStatusHistory, SELLABLE_BY_PRODUCT_CTE, writeLines, OPEN_STATUSES };

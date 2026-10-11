@@ -1,87 +1,39 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { recordPreOrderStatusHistory } = require("../utils/pre-order-utils");
 const { log } = require("../../../../utils/log");
+const { recordPreOrderStatusHistory, OPEN_STATUSES } = require("../utils/pre-order-utils");
 
-// Cancel a Pending or Confirmed pre-order (FR-12). Reason required.
-//
-// "Refunded" is NOT a status (FR-14): the refund is money movement recorded on
-// the cancelled booking. A cancelled pre-order can be fully refunded, partly
-// refunded (a non-refundable booking fee retained), or not refunded at all, and
-// the status never has to lie about which.
-//
-// No stock is released because a pre-order never held any.
+const REASON_WORDS = { changed_mind: "the customer changed their mind", unreachable: "could not reach the customer", stock_not_coming: "the stock will not come", other: "other" };
+
+// Cancelling releases nothing, since a booking never held stock. It records how much of the advance is
+// owed back (REQ-06): all of it, part when a booking fee is kept, or none. That stays owed until
+// Record refund says it was given back.
 const cancel_pre_order = async (request, res) => {
+    const { oid, reason, note, refund_due } = request.body;
     const user_id = request.credentials.user_id;
-    const pre_order_oid = request.body.oid;
-    const reason = (request.body.reason || "").trim();
-    const refundRequested = request.body.advance_refunded !== null && request.body.advance_refunded !== undefined;
-    const advance_refunded = Number(request.body.advance_refunded || 0);
-
-    if (!reason) {
-        return res.status(400).json({ code: 400, message: "A cancellation reason is required" });
-    }
-
     try {
-        const current = await execute_transaction(async (tx) => {
-            const currentRows = await tx.get_data({
-                text: `SELECT preorder_no, status, CAST(advance_paid AS INTEGER) AS advance_paid
-                         FROM ${TABLE.PRE_ORDERS} WHERE oid = $1 FOR UPDATE`,
-                values: [pre_order_oid],
-            });
-
-            if (!currentRows.length) fail(404, "Pre-order not found");
-            const current = currentRows[0];
-
-            if (current.status !== "Pending" && current.status !== "Confirmed") {
-                fail(409, `This pre-order cannot be cancelled (status ${current.status})`);
-            }
-            if (advance_refunded > Number(current.advance_paid)) {
-                fail(400, `Refund cannot exceed the advance paid (${current.advance_paid})`);
-            }
+        const outcome = await execute_transaction(async (tx) => {
+            const [current] = await tx.get_data({ text: `SELECT preorder_no, status, advance_paid::int AS advance_paid FROM ${TABLE.PRE_ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
+            if (!current) fail(404, "No booking with that number.");
+            if (!OPEN_STATUSES.includes(current.status)) fail(409, `${current.preorder_no} is already ${current.status === "Converted" ? "an order, so cancel the order instead" : "cancelled"}. Reload it to see what changed.`, { status: current.status });
+            if (refund_due > current.advance_paid) fail(400, `The refund is more than the advance of ${current.advance_paid}. Lower it.`, { field: "refund_due" });
 
             await tx.execute_value({
-                // $2 is cast explicitly: without it Postgres tries to deduce one type
-                // from both the numeric assignment and the CASE comparison, and fails
-                // with "inconsistent types deduced for parameter $2".
-                text: `UPDATE ${TABLE.PRE_ORDERS}
-                          SET status = 'Cancelled', cancelled_on = clock_timestamp(), cancel_reason = $1,
-                              advance_refunded = $2::numeric,
-                              refunded_on = CASE WHEN $2::numeric > 0 THEN clock_timestamp() ELSE NULL END,
-                              edited_by = $3, edited_on = clock_timestamp()
-                        WHERE oid = $4`,
-                values: [reason, advance_refunded, user_id, pre_order_oid],
+                text: `UPDATE ${TABLE.PRE_ORDERS} SET status = 'Cancelled', cancelled_on = clock_timestamp(), cancel_reason = $1, advance_refund_due = $2, edited_by = $3, edited_on = clock_timestamp() WHERE oid = $4`,
+                values: [reason, refund_due, user_id, oid],
             });
-
-            await recordPreOrderStatusHistory(tx, {
-                pre_order_oid,
-                from_status: current.status,
-                to_status: "Cancelled",
-                reason,
-                user_id,
-            });
-
+            await recordPreOrderStatusHistory(tx, { pre_order_oid: oid, from_status: current.status, to_status: "Cancelled", reason: note ?? reason, user_id });
+            const owed = refund_due ? `, ${refund_due} of the advance to refund` : current.advance_paid ? ", the advance kept" : "";
+            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Booking cancelled", description: `${current.preorder_no} cancelled, ${REASON_WORDS[reason]}${note ? `: ${note}` : ""}${owed}` }, { tx, request });
             return current;
         });
-
-        const retained = Number(current.advance_paid) - advance_refunded;
-        const moneyNote = !refundRequested || advance_refunded === 0 ? `no refund recorded (advance held ${current.advance_paid})` : `refunded ${advance_refunded} of ${current.advance_paid}${retained > 0 ? `, ${retained} retained` : ""}`;
-
-        saveLogActivity({
-            reference_type: "pre_order",
-            reference_oid: pre_order_oid,
-            title: "Cancelled pre-order",
-            performed_by: user_id,
-            description: `Pre-order ${current.preorder_no} cancelled: ${reason}. Refund: ${moneyNote}`,
-        });
-
-        log.info(`Pre-order ${pre_order_oid} cancelled by ${user_id}; ${moneyNote}`);
-        return res.status(200).json({ code: 200, message: "Pre-order cancelled" });
+        log.info(`Booking ${outcome.preorder_no} cancelled by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Booking cancelled", data: { oid, preorder_no: outcome.preorder_no } });
     } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
-        log.error(`An exception occurred while cancelling pre-order: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
+        log.error(`An exception occurred while cancelling a booking: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "The booking was not cancelled. Try again in a moment." });
     }
 };
 
