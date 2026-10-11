@@ -1,7 +1,10 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
-const { SELLABLE_BY_PRODUCT_CTE } = require("../utils/pre-order-utils");
+const { sees_money } = require("../../../inventory/utils/sees-money");
+const { SELLABLE_BY_PRODUCT_CTE, priceHints } = require("../utils/pre-order-utils");
+
+const HINTS = priceHints("poi.product_oid");
 
 // Never cached: each line's sellable now is live stock.
 const get_pre_order_details = async (request, res) => {
@@ -23,10 +26,11 @@ const get_pre_order_details = async (request, res) => {
 
         const [lines, cancelled, activity] = await Promise.all([
             get_data({
-                text: `SELECT poi.oid, poi.product_oid, p.name AS product_name, p.sku, poi.quantity::int AS quantity, poi.unit_price::int AS unit_price, poi.total::int AS total, COALESCE(s.sellable, 0) AS sellable
+                text: `SELECT poi.oid, poi.product_oid, p.name AS product_name, p.sku, poi.quantity::int AS quantity, poi.unit_price::int AS unit_price, poi.total::int AS total, COALESCE(s.sellable, 0) AS sellable, ${HINTS.select}
                          FROM ${TABLE.PRE_ORDER_ITEMS} poi
                          JOIN ${TABLE.PRODUCT} p ON p.oid = poi.product_oid
                          LEFT JOIN (${SELLABLE_BY_PRODUCT_CTE}) s ON s.product_oid = poi.product_oid
+                         ${HINTS.joins}
                         WHERE poi.pre_order_oid = $1 ORDER BY p.name`,
                 values: [oid],
             }),
@@ -38,6 +42,7 @@ const get_pre_order_details = async (request, res) => {
                 values: [oid],
             }),
         ]);
+        if (!(await sees_money(request))) for (const line of lines) delete line.last_cost;
         const cancel_note = cancelled[0] && cancelled[0].reason !== details.cancel_reason ? cancelled[0].reason : null;
         return res.status(200).json({ code: 200, message: "Booking", data: { ...details, cancel_note, lines, activity } });
     } catch (e) {

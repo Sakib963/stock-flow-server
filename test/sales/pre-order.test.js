@@ -16,6 +16,7 @@ const LIST = PRE + ROUTES.GET_PRE_ORDER_LIST;
 const DETAILS = PRE + ROUTES.GET_PRE_ORDER_DETAILS;
 const PRODUCTS = PRE + ROUTES.GET_PRODUCT_LIST_FOR_PRE_ORDER;
 const BY_PRODUCT = PRE + ROUTES.GET_PRE_ORDERS_BY_PRODUCT;
+const OPEN_BOOKINGS = PRE + ROUTES.FIND_OPEN_BOOKINGS;
 
 const ALL = ["sales.pre-order.view", "sales.pre-order.create", "sales.pre-order.edit", "sales.pre-order.confirm", "sales.pre-order.cancel"];
 const USER = "owner@arithmalabs.test";
@@ -177,6 +178,46 @@ describe("pre-orders, bookings", () => {
         const product = (await get(`${CONTEXTS.CONFIGURATION}${SUB_CONTEXTS.PRODUCT}${ROUTES.GET_PRODUCT_DETAILS}/${kurti}`, await person(["configuration.product.view"]))).body.data;
         assert.equal(product.stock.booked, 5, "the product page shows units booked on open bookings");
         assert.equal((await get(BY_PRODUCT, await person(["sales.order.view"]))).status, 403);
+    });
+
+    it("guides the approximate price with what the product really sold at, and its cost only to someone who may see money", async () => {
+        await stock(scarf, 5);
+        const sale = async (status, unit_price, discount) => {
+            const order = uuidv4();
+            await h.query("INSERT INTO orders (oid, invoice_no, total_amount, status, channel, sold_on) VALUES ($1, $1, 0, $2, 'POS', NOW())", [order, status]);
+            await h.query("INSERT INTO order_items (oid, order_oid, product_oid, product_name, quantity, unit_price, discount, total) VALUES ($1, $2, $3, 'Silk scarf', 1, $4, $5, $6)", [uuidv4(), order, scarf, unit_price, discount, unit_price - discount]);
+        };
+        await sale("Purchased", 1450, 50);
+        await sale("Delivered", 1450, 150);
+        await sale("Purchased", 1450, 0);
+        await sale("Pending", 900, 0);
+
+        const row = async (permissions) => (await get(PRODUCTS, await person(permissions), { search: "scarf" })).body.data[0];
+        const plain = await row(ALL);
+        assert.deepEqual({ usual: plain.usual_price, sales: plain.sales, from: plain.price_from, to: plain.price_to }, { usual: 1400, sales: 3, from: 1450, to: 1450 }, "the median of what customers paid after discount, never an order still pending");
+        assert.equal(plain.last_cost, undefined, "cost is money");
+        assert.equal((await row([...ALL, "inventory.stock-value.view"])).last_cost, 700);
+        const never = (await get(PRODUCTS, await person(), { search: "kurti" })).body.data[0];
+        assert.deepEqual({ usual: never.usual_price, sales: never.sales }, { usual: null, sales: 0 });
+    });
+
+    it("finds a customer's open bookings line by line, so the same product is not booked twice for them", async () => {
+        const token = await person();
+        const first = await book(token, [{ product_oid: kurti, quantity: 2, unit_price: 1500 }]);
+        const gone = await book(token, [{ product_oid: scarf, quantity: 1, unit_price: 900 }]);
+        await h.call(CANCEL, { body: { oid: gone.oid, reason: "changed_mind", refund_due: 0 }, token });
+        await h.call(CREATE, { body: { ...booking([{ product_oid: scarf, quantity: 1, unit_price: 900 }]), customer: { phone: "01811999888", name: "Someone else" } }, token });
+
+        const open = (await h.call(OPEN_BOOKINGS, { body: { phone: "+8801711000111" }, token })).body.data;
+        assert.deepEqual(open.map((row) => [row.preorder_no, row.product_oid, row.quantity]), [[first.preorder_no, kurti, 2]], "only this customer's, only open ones");
+        assert.equal((await h.call(OPEN_BOOKINGS, { body: { phone: "01711000111" }, token: await person(["sales.pre-order.view"]) })).status, 403);
+    });
+
+    it("reads a pasted chat message for someone who only takes bookings", async () => {
+        const token = await person(["sales.pre-order.create"]);
+        const read = await h.call(CONTEXTS.SALES + SUB_CONTEXTS.ONLINE + ROUTES.READ_CHAT_MESSAGE, { body: { text: "Name: Nusrat Jahan\nPhone: 01711000111\nI want the block print kurti" }, token });
+        assert.equal(read.status, 200, JSON.stringify(read.body));
+        assert.equal(read.body.data.phone, "01711000111");
     });
 
     it("offers the whole catalogue to book from, with what can be sold now", async () => {

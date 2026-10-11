@@ -284,6 +284,7 @@ module.exports = {
     CANCEL_PRE_ORDER: "/cancel-pre-order",
     RECORD_PRE_ORDER_REFUND: "/record-pre-order-refund",
     GET_PRODUCT_LIST_FOR_PRE_ORDER: "/get-product-list-for-pre-order",
+    FIND_OPEN_BOOKINGS: "/find-open-bookings",
 
     GET_PRODUCT_DISPOSE_LIST: "/get-product-dispose-list",
     CREATE_PRODUCT_DISPOSE: "/create-product-dispose",

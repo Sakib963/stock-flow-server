@@ -3,7 +3,7 @@ const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
 const { validator } = require("../../../middleware/validator");
 const requirePermission = require("../../../middleware/require-permission");
-const { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema } = require("./schema");
+const { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema, customer_phone_schema } = require("./schema");
 const get_pre_order_list = require("./controller/get-pre-order-list");
 const get_pre_orders_by_product = require("./controller/get-pre-orders-by-product");
 const get_pre_order_details = require("./controller/get-pre-order-details");
@@ -13,6 +13,7 @@ const confirm_pre_order = require("./controller/confirm-pre-order");
 const cancel_pre_order = require("./controller/cancel-pre-order");
 const record_pre_order_refund = require("./controller/record-pre-order-refund");
 const get_product_list_for_pre_order = require("./controller/get-product-list-for-pre-order");
+const find_open_bookings = require("./controller/find-open-bookings");
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.post(ROUTES.CONFIRM_PRE_ORDER, [jwtMiddleware, requirePermission("sales.p
 router.post(ROUTES.CANCEL_PRE_ORDER, [jwtMiddleware, requirePermission("sales.pre-order.cancel"), validator.post(cancel_pre_order_schema)], cancel_pre_order);
 router.post(ROUTES.RECORD_PRE_ORDER_REFUND, [jwtMiddleware, requirePermission("sales.pre-order.cancel"), validator.post(pre_order_oid_schema)], record_pre_order_refund);
 router.get(ROUTES.GET_PRODUCT_LIST_FOR_PRE_ORDER, [jwtMiddleware, requirePermission(["sales.pre-order.create", "sales.pre-order.edit"]), validator.get(product_list_schema)], get_product_list_for_pre_order);
+router.post(ROUTES.FIND_OPEN_BOOKINGS, [jwtMiddleware, requirePermission(["sales.pre-order.create", "sales.pre-order.edit"]), validator.post(customer_phone_schema)], find_open_bookings);
 
 module.exports = { preOrderRouter: router };

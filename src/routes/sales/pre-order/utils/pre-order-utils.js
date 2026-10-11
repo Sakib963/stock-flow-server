@@ -37,4 +37,24 @@ const writeLines = async (tx, pre_order_oid, lines) => {
 
 const OPEN_STATUSES = ["Pending", "Confirmed"];
 
-module.exports = { recordPreOrderStatusHistory, SELLABLE_BY_PRODUCT_CTE, writeLines, OPEN_STATUSES };
+// What a product really goes for, to guide the approximate price: the median of what customers paid
+// per unit (after the per-unit discount) on sales in the last 180 days, the last such price, what
+// batches with stock are priced at now, and the last buying cost. Cost is money: the caller drops it
+// for someone without inventory.stock-value.view. `product` is the alias of the product column.
+const priceHints = (product) => ({
+    select: `ph.usual_price, ph.sales, ph.last_price, pn.price_from, pn.price_to, pc.last_cost`,
+    joins: `
+        LEFT JOIN LATERAL (
+            SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY oi.unit_price - COALESCE(oi.discount, 0))::int AS usual_price, COUNT(*)::int AS sales,
+                   (array_agg((oi.unit_price - COALESCE(oi.discount, 0))::int ORDER BY o.sold_on DESC))[1] AS last_price
+              FROM ${TABLE.ORDER_ITEMS} oi JOIN ${TABLE.ORDERS} o ON o.oid = oi.order_oid
+             WHERE oi.product_oid = ${product} AND o.status IN ('Purchased', 'Delivered', 'PartiallyReturned') AND o.sold_on >= NOW() - INTERVAL '180 days') ph ON true
+        LEFT JOIN LATERAL (
+            SELECT MIN(i.selling_price)::int AS price_from, MAX(i.selling_price)::int AS price_to
+              FROM ${TABLE.INVENTORY} i
+             WHERE i.product_oid = ${product} AND i.intended_use = 'for_sale' AND i.status = 'ready_for_sale' AND i.selling_price IS NOT NULL AND i.quantity_available > 0) pn ON true
+        LEFT JOIN LATERAL (
+            SELECT i.cost_price::int AS last_cost FROM ${TABLE.INVENTORY} i WHERE i.product_oid = ${product} AND i.cost_price IS NOT NULL ORDER BY i.created_on DESC LIMIT 1) pc ON true`,
+});
+
+module.exports = { recordPreOrderStatusHistory, SELLABLE_BY_PRODUCT_CTE, writeLines, OPEN_STATUSES, priceHints };

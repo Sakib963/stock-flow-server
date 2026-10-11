@@ -62,8 +62,12 @@ const cancel_pre_order_schema = Joi.object({
     refund_due: Joi.number().integer().min(0).required(),
 });
 
+const customer_phone_schema = Joi.object({
+    phone: Joi.string().trim().max(32).custom(joi_phone).required(),
+});
+
 const product_list_schema = Joi.object({
     search: Joi.string().trim().max(100).allow(null, "").optional(),
 });
 
-module.exports = { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema };
+module.exports = { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema, customer_phone_schema };
