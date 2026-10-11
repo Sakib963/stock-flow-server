@@ -42,6 +42,8 @@ const create_online_order_schema = Joi.object({
     blocked_acknowledged: Joi.boolean().default(false),
     notes: optional_text(256),
     lines: Joi.array().items(order_line).min(1).unique("inventory_oid").required().messages({ "array.unique": "A batch is on the order twice. Change the quantity on one line instead." }),
+    // The booking this order is made from (pre-order REQ-09): converted in the same transaction.
+    pre_order_oid: Joi.string().uuid().allow(null, "").empty("").default(null),
 });
 
 // A half-made order (REQ-42): everything optional but its lines, so a chat that pauses keeps its cart.

@@ -22,7 +22,7 @@ const get_pre_order_details = async (request, res) => {
                     WHERE po.oid = $1`,
             values: [oid],
         });
-        if (!details) return res.status(404).json({ code: 404, message: "No booking with that number." });
+        if (!details) return res.status(404).json({ code: 404, message: "No pre-order with that number." });
 
         const [lines, cancelled, activity] = await Promise.all([
             get_data({
@@ -44,10 +44,10 @@ const get_pre_order_details = async (request, res) => {
         ]);
         if (!(await sees_money(request))) for (const line of lines) delete line.last_cost;
         const cancel_note = cancelled[0] && cancelled[0].reason !== details.cancel_reason ? cancelled[0].reason : null;
-        return res.status(200).json({ code: 200, message: "Booking", data: { ...details, cancel_note, lines, activity } });
+        return res.status(200).json({ code: 200, message: "Pre-order", data: { ...details, cancel_note, lines, activity } });
     } catch (e) {
-        log.error(`An exception occurred while reading a booking: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Could not load the booking. Try again in a moment." });
+        log.error(`An exception occurred while reading a pre-order: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not load the pre-order. Try again in a moment." });
     }
 };
 

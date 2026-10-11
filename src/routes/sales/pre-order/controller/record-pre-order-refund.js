@@ -17,18 +17,18 @@ const record_pre_order_refund = async (request, res) => {
             });
             if (refunded.rowCount !== 1) {
                 const [row] = await tx.get_data({ text: `SELECT preorder_no FROM ${TABLE.PRE_ORDERS} WHERE oid = $1`, values: [oid] });
-                if (!row) fail(404, "No booking with that number.");
+                if (!row) fail(404, "No pre-order with that number.");
                 fail(409, `${row.preorder_no} has no refund owed. Reload it to see what changed.`);
             }
             const { preorder_no, amount } = refunded.rows[0];
             await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Refund given", description: `${amount} of the advance on ${preorder_no} given back` }, { tx, request });
             return { preorder_no, amount };
         });
-        log.info(`Refund on booking ${outcome.preorder_no} recorded by ${user_id}`);
+        log.info(`Refund on pre-order ${outcome.preorder_no} recorded by ${user_id}`);
         return res.status(200).json({ code: 200, message: "Refund recorded", data: { oid, ...outcome } });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
-        log.error(`An exception occurred while recording a booking's refund: ${e?.message}`);
+        log.error(`An exception occurred while recording a pre-order's refund: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "The refund was not recorded. Try again in a moment." });
     }
 };

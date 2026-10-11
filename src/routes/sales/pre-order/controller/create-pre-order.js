@@ -22,23 +22,23 @@ const create_pre_order = async (request, res) => {
             });
             if (saved.rowCount !== 1) {
                 const [already] = await tx.get_data({ text: `SELECT preorder_no, created_by FROM ${TABLE.PRE_ORDERS} WHERE oid = $1`, values: [oid] });
-                if (already?.created_by !== user_id) fail(409, "That booking number is already taken. Reload the page and try again.");
+                if (already?.created_by !== user_id) fail(409, "That pre-order number is already taken. Reload the page and try again.");
                 return { preorder_no: already.preorder_no, repeated: true };
             }
             const total = await writeLines(tx, oid, lines);
-            if (advance_paid > total) fail(400, "The advance is more than the booking's total. Lower the advance or check the prices.", { field: "advance_paid" });
+            if (advance_paid > total) fail(400, "The advance is more than the pre-order's total. Lower the advance or check the prices.", { field: "advance_paid" });
             await tx.execute_value({ text: `UPDATE ${TABLE.PRE_ORDERS} SET subtotal = $1, total_amount = $1 WHERE oid = $2`, values: [total, oid] });
             const { preorder_no } = saved.rows[0];
             await recordPreOrderStatusHistory(tx, { pre_order_oid: oid, from_status: null, to_status: "Pending", user_id });
-            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Booking saved", description: `${preorder_no} for ${found.name}, ${lines.length} line(s)` }, { tx, request });
+            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Pre-order saved", description: `${preorder_no} for ${found.name}, ${lines.length} line(s)` }, { tx, request });
             return { preorder_no, repeated: false };
         });
-        if (!outcome.repeated) log.info(`Booking ${outcome.preorder_no} saved by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Booking saved", data: { oid, preorder_no: outcome.preorder_no } });
+        if (!outcome.repeated) log.info(`Pre-order ${outcome.preorder_no} saved by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Pre-order saved", data: { oid, preorder_no: outcome.preorder_no } });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
-        log.error(`An exception occurred while saving a booking: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "The booking was not saved. Try again in a moment." });
+        log.error(`An exception occurred while saving a pre-order: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "The pre-order was not saved. Try again in a moment." });
     }
 };
 

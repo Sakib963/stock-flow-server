@@ -15,7 +15,7 @@ const cancel_pre_order = async (request, res) => {
     try {
         const outcome = await execute_transaction(async (tx) => {
             const [current] = await tx.get_data({ text: `SELECT preorder_no, status, advance_paid::int AS advance_paid FROM ${TABLE.PRE_ORDERS} WHERE oid = $1 FOR UPDATE`, values: [oid] });
-            if (!current) fail(404, "No booking with that number.");
+            if (!current) fail(404, "No pre-order with that number.");
             if (!OPEN_STATUSES.includes(current.status)) fail(409, `${current.preorder_no} is already ${current.status === "Converted" ? "an order, so cancel the order instead" : "cancelled"}. Reload it to see what changed.`, { status: current.status });
             if (refund_due > current.advance_paid) fail(400, `The refund is more than the advance of ${current.advance_paid}. Lower it.`, { field: "refund_due" });
 
@@ -25,15 +25,15 @@ const cancel_pre_order = async (request, res) => {
             });
             await recordPreOrderStatusHistory(tx, { pre_order_oid: oid, from_status: current.status, to_status: "Cancelled", reason: note ?? reason, user_id });
             const owed = refund_due ? `, ${refund_due} of the advance to refund` : current.advance_paid ? ", the advance kept" : "";
-            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Booking cancelled", description: `${current.preorder_no} cancelled, ${REASON_WORDS[reason]}${note ? `: ${note}` : ""}${owed}` }, { tx, request });
+            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Pre-order cancelled", description: `${current.preorder_no} cancelled, ${REASON_WORDS[reason]}${note ? `: ${note}` : ""}${owed}` }, { tx, request });
             return current;
         });
-        log.info(`Booking ${outcome.preorder_no} cancelled by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Booking cancelled", data: { oid, preorder_no: outcome.preorder_no } });
+        log.info(`Pre-order ${outcome.preorder_no} cancelled by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Pre-order cancelled", data: { oid, preorder_no: outcome.preorder_no } });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
-        log.error(`An exception occurred while cancelling a booking: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "The booking was not cancelled. Try again in a moment." });
+        log.error(`An exception occurred while cancelling a pre-order: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "The pre-order was not cancelled. Try again in a moment." });
     }
 };
 

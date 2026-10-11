@@ -17,18 +17,18 @@ const update_pre_order = async (request, res) => {
                          FROM ${TABLE.PRE_ORDERS} WHERE oid = $1 FOR UPDATE`,
                 values: [oid],
             });
-            if (!current) fail(404, "No booking with that number.");
+            if (!current) fail(404, "No pre-order with that number.");
             if (!OPEN_STATUSES.includes(current.status)) fail(409, `${current.preorder_no} is already ${current.status === "Converted" ? "an order" : "cancelled"}, so it can no longer be edited. Reload it to see what changed.`, { status: current.status });
 
             const before = await tx.get_data({ text: `SELECT product_oid, quantity::int AS quantity, unit_price::int AS unit_price FROM ${TABLE.PRE_ORDER_ITEMS} WHERE pre_order_oid = $1 ORDER BY product_oid`, values: [oid] });
             const after = [...lines].sort((a, b) => a.product_oid.localeCompare(b.product_oid));
             const units_changed = before.length !== after.length || before.some((line, i) => line.product_oid !== after[i].product_oid || line.quantity !== after[i].quantity);
-            if (units_changed && current.status === "Confirmed") fail(409, `${current.preorder_no} is confirmed, so its products and units stay as booked. Cancel it and book again to change them.`, { field: "lines" });
+            if (units_changed && current.status === "Confirmed") fail(409, `${current.preorder_no} is confirmed, so its products and units stay as they are. Cancel it and take a new pre-order to change them.`, { field: "lines" });
             const prices_changed = before.some((line, i) => line.unit_price !== after[i]?.unit_price);
 
             const found = await find_or_create_customer(tx, customer, request);
             const total = units_changed || prices_changed ? await writeLines(tx, oid, lines) : current.total_amount;
-            if (advance_paid > total) fail(400, "The advance is more than the booking's total. Lower the advance or check the prices.", { field: "advance_paid" });
+            if (advance_paid > total) fail(400, "The advance is more than the pre-order's total. Lower the advance or check the prices.", { field: "advance_paid" });
 
             const changed = [
                 units_changed && "products",
@@ -46,15 +46,15 @@ const update_pre_order = async (request, res) => {
                         WHERE oid = $9`,
                 values: [found.oid, total, advance_paid, advance_method, advance_reference, expected_date, notes, user_id, oid],
             });
-            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Booking edited", description: `${current.preorder_no}: ${changed.join(", ")} changed` }, { tx, request });
+            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Pre-order edited", description: `${current.preorder_no}: ${changed.join(", ")} changed` }, { tx, request });
             return { preorder_no: current.preorder_no, changed: true };
         });
-        if (outcome.changed) log.info(`Booking ${outcome.preorder_no} edited by ${user_id}`);
-        return res.status(200).json({ code: 200, message: outcome.changed ? "Booking saved" : "Nothing changed", data: { oid, preorder_no: outcome.preorder_no, changed: outcome.changed } });
+        if (outcome.changed) log.info(`Pre-order ${outcome.preorder_no} edited by ${user_id}`);
+        return res.status(200).json({ code: 200, message: outcome.changed ? "Pre-order saved" : "Nothing changed", data: { oid, preorder_no: outcome.preorder_no, changed: outcome.changed } });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
-        log.error(`An exception occurred while editing a booking: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "The booking was not saved. Try again in a moment." });
+        log.error(`An exception occurred while editing a pre-order: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "The pre-order was not saved. Try again in a moment." });
     }
 };
 

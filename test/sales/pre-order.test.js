@@ -68,7 +68,7 @@ describe("pre-orders, bookings", () => {
         const details = (await get(`${DETAILS}/${saved.oid}`, token)).body.data;
         assert.deepEqual({ status: details.status, total: details.total_amount, advance: details.advance_paid, customer: details.customer_name }, { status: "Pending", total: 3900, advance: 500, customer: "Nusrat" });
         assert.deepEqual(details.lines.map((line) => [line.product_name, line.quantity, line.total, line.sellable]), [["Block print kurti", 2, 3000, 0], ["Silk scarf", 1, 900, 4]]);
-        assert.equal(details.activity[0].title, "Booking saved");
+        assert.equal(details.activity[0].title, "Pre-order saved");
         assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM customers WHERE phone_normalized = '01711000111'"))[0].n, 1, "the new phone joined the customer book");
     });
 

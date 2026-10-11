@@ -47,7 +47,7 @@ const pre_order_schema = Joi.object({
         phone: Joi.string().trim().max(32).custom(joi_phone).required(),
         name: optional_text(255),
     }).required(),
-    lines: Joi.array().items(pre_order_line).min(1).max(50).unique("product_oid").required().messages({ "array.unique": "A product is on the booking twice. Change the quantity on one line instead." }),
+    lines: Joi.array().items(pre_order_line).min(1).max(50).unique("product_oid").required().messages({ "array.unique": "A product is on the pre-order twice. Change the quantity on one line instead." }),
     advance_paid: Joi.number().integer().min(0).default(0),
     advance_method: Joi.when("advance_paid", { is: Joi.number().greater(0), then: Joi.string().valid(...ADVANCE_METHODS).required(), otherwise: Joi.valid(null, "").empty("").default(null) }),
     advance_reference: optional_text(64),

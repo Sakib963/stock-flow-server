@@ -24,7 +24,7 @@ const writeLines = async (tx, pre_order_oid, lines) => {
         text: `SELECT oid, name FROM ${TABLE.PRODUCT} WHERE oid = ANY($1) AND COALESCE(is_deleted, false) = false`,
         values: [lines.map((line) => line.product_oid)],
     });
-    if (products.length !== lines.length) fail(409, "A product on this booking was deleted from the catalogue. Remove it and pick again.");
+    if (products.length !== lines.length) fail(409, "A product on this pre-order was deleted from the catalogue. Remove it and pick again.");
     const name_of = new Map(products.map((product) => [product.oid, product.name]));
     await tx.execute_value({ text: `DELETE FROM ${TABLE.PRE_ORDER_ITEMS} WHERE pre_order_oid = $1`, values: [pre_order_oid] });
     await tx.execute_value({

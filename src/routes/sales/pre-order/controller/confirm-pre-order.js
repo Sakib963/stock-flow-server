@@ -17,20 +17,20 @@ const confirm_pre_order = async (request, res) => {
             });
             if (confirmed.rowCount !== 1) {
                 const [row] = await tx.get_data({ text: `SELECT preorder_no, status FROM ${TABLE.PRE_ORDERS} WHERE oid = $1`, values: [oid] });
-                if (!row) fail(404, "No booking with that number.");
+                if (!row) fail(404, "No pre-order with that number.");
                 fail(409, `${row.preorder_no} is already ${row.status.toLowerCase()}. Reload it to see what changed.`, { status: row.status });
             }
             const { preorder_no } = confirmed.rows[0];
             await recordPreOrderStatusHistory(tx, { pre_order_oid: oid, from_status: "Pending", to_status: "Confirmed", user_id });
-            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Booking confirmed", description: `${preorder_no} confirmed` }, { tx, request });
+            await saveLogActivity({ reference_type: "pre_order", reference_oid: oid, title: "Pre-order confirmed", description: `${preorder_no} confirmed` }, { tx, request });
             return preorder_no;
         });
-        log.info(`Booking ${preorder_no} confirmed by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Booking confirmed", data: { oid, preorder_no } });
+        log.info(`Pre-order ${preorder_no} confirmed by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Pre-order confirmed", data: { oid, preorder_no } });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
-        log.error(`An exception occurred while confirming a booking: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "The booking was not confirmed. Try again in a moment." });
+        log.error(`An exception occurred while confirming a pre-order: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "The pre-order was not confirmed. Try again in a moment." });
     }
 };
 

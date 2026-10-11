@@ -15,10 +15,10 @@ const find_open_bookings = async (request, res) => {
                     ORDER BY po.created_on`,
             values: [request.body.phone],
         });
-        return res.status(200).json({ code: 200, message: "Open bookings", data: rows });
+        return res.status(200).json({ code: 200, message: "Open pre-orders", data: rows });
     } catch (e) {
-        log.error(`An exception occurred while finding a customer's open bookings: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Could not check this customer's bookings. Try again in a moment." });
+        log.error(`An exception occurred while finding a customer's open pre-orders: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not check this customer's pre-orders. Try again in a moment." });
     }
 };
 

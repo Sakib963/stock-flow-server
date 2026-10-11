@@ -31,7 +31,7 @@ const get_product_list_for_pre_order = async (request, res) => {
         if (!(await sees_money(request))) for (const row of rows) delete row.last_cost;
         return res.status(200).json({ code: 200, message: "Products", data: rows });
     } catch (e) {
-        log.error(`An exception occurred while searching products for a booking: ${e?.message}`);
+        log.error(`An exception occurred while searching products for a pre-order: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not search the products. Try again in a moment." });
     }
 };

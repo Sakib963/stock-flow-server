@@ -10,6 +10,8 @@ const { price_lines, cart_totals, insert_lines, batch_name } = require("../../ut
 const { find_or_create_customer } = require("../../customer/utils/find-or-create");
 const { insert_address, describe_address } = require("../../customer/utils/address");
 const { customer_stats } = require("../../customer/utils/customer-history");
+const { permissions_for } = require("../../../../middleware/require-permission");
+const { bookingOf, lockBooking, checkConversion, convertBooking, linkLines } = require("../../pre-order/utils/convert-booking");
 
 const PAYMENT_STATUS = { COD: "unpaid", ADVANCE: "partially_paid", PREPAID: "paid" };
 
@@ -48,9 +50,17 @@ const write_online_order = (editing) => async (request, res) => {
     try {
         const order = await execute_transaction(async (tx) => {
             let kept = null;
+            let booking = null;
+            if (payload.pre_order_oid) {
+                if (editing) fail(400, "An order that already exists cannot be made from a pre-order.", { field: "pre_order_oid" });
+                if (!(await permissions_for(user_id)).has("sales.pre-order.convert")) fail(403, "You may not turn a pre-order into an order. Ask your admin if you should.");
+                booking = await lockBooking(tx, payload.pre_order_oid);
+            }
             if (editing) {
-                [kept] = await tx.get_data({ text: `SELECT invoice_no, tracking_token FROM ${TABLE.ORDERS} WHERE oid = $1 AND channel = 'ONLINE' AND status = 'Pending' FOR UPDATE`, values: [payload.oid] });
+                [kept] = await tx.get_data({ text: `SELECT invoice_no, tracking_token, pre_order_oid FROM ${TABLE.ORDERS} WHERE oid = $1 AND channel = 'ONLINE' AND status = 'Pending' FOR UPDATE`, values: [payload.oid] });
                 if (!kept) await refuse_change(tx, payload.oid, "edited");
+                // An order made from a booking keeps the booking's rules through every edit: its units and its advance.
+                if (kept.pre_order_oid) booking = await bookingOf(tx, kept.pre_order_oid);
                 // Released first, so the order's own units count as sellable when its lines are held again.
                 await releaseHolds(tx, { order_oid: payload.oid, user_id, gifts: false });
                 // The released holds stay on the order as its record, but let go of the lines that are about to be replaced.
@@ -86,6 +96,8 @@ const write_online_order = (editing) => async (request, res) => {
                         WHERE oid = $1 AND (gender IS NULL AND $2::text IS NOT NULL OR age_band IS NULL AND $3::text IS NOT NULL OR first_source_oid IS NULL)`,
                 values: [customer.oid, payload.customer.gender, payload.customer.age_band, source.oid, user_id],
             });
+
+            if (booking) checkConversion(booking, { customer_oid: customer.oid, lines, amount_paid, total_amount });
 
             const address = await address_for(tx, customer.oid, payload.address, user_id);
             const [district] = await tx.get_data({ text: `SELECT division_oid FROM ${TABLE.DISTRICT} WHERE oid = $1`, values: [address.district_oid] });
@@ -140,6 +152,9 @@ const write_online_order = (editing) => async (request, res) => {
                 const hold = await holdStock(tx, { order_oid, order_item_oid: line.oid, product_oid: line.product_oid, inventory_oid: line.inventory_oid, quantity: line.quantity, user_id });
                 if (!hold.ok) fail(409, `Only ${Math.max(hold.sellable, 0)} left of ${batch_name(line)}. Reduce or remove the line.`, { inventory_oid: line.inventory_oid, sellable: Math.max(hold.sellable, 0) });
             }
+
+            if (booking && editing) await linkLines(tx, booking.oid, order_oid);
+            else if (booking) await convertBooking(tx, booking, { order_oid, invoice_no, user_id, request });
 
             const placed = editing ? "Online order edited" : placed_from_draft ? "Online draft placed" : "Online order placed";
             await recordStatusHistory(tx, { order_oid, from_status: editing ? "Pending" : placed_from_draft ? "Draft" : null, to_status: "Pending", reason: placed, user_id });
