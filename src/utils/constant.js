@@ -254,9 +254,6 @@ module.exports = {
     // Orders list and record page
     CONFIRM_ORDER: "/confirm-order",
     CANCEL_ORDER: "/cancel-order",
-    MARK_ORDER_PACKED: "/mark-order-packed",
-    DISPATCH_ORDER: "/dispatch-order",
-    DELIVER_ORDER: "/deliver-order",
     MARK_ORDER_NOT_DELIVERED: "/mark-order-not-delivered",
     RECORD_ORDER_REFUND: "/record-order-refund",
 

@@ -2,6 +2,7 @@ const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
+const { DELIVERY, dispatch, deliver } = require("../support/delivery");
 const { execute_transaction } = require("../../src/db/database");
 const { openBatch } = require("../../src/routes/sales/utils/stock-movement");
 const { reload_location_index } = require("../../src/routes/sales/location/utils/location-index");
@@ -20,7 +21,7 @@ const FOR_ORDER = RETURN + ROUTES.GET_RETURNS_FOR_ORDER;
 const DETAILS = RETURN + ROUTES.GET_RETURN_DETAILS;
 
 const RETURNS = ["sales.return.view", "sales.return.create", "sales.return.confirm", "sales.return.cancel"];
-const MANAGER = ["sales.pos.view", "sales.pos.create", "sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.dispatch", "sales.order.deliver", ...RETURNS];
+const MANAGER = ["sales.pos.view", "sales.pos.create", "sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.dispatch", "sales.order.deliver", ...DELIVERY, ...RETURNS];
 const USER = "owner@arithmalabs.test";
 const SOURCE = uuidv4();
 const MOHAMMADPUR = "T-Dhaka-Mohammadpur";
@@ -75,12 +76,12 @@ const online = async (token, inventory_oid, { quantity = 2, payment_type = "COD"
     const placed = await h.call(PLACE, { body, token });
     assert.equal(placed.status, 200, JSON.stringify(placed.body));
     await h.call(ORDER + ROUTES.CONFIRM_ORDER, { body: { oid, confirmed_via: "PhoneCall" }, token });
-    await h.call(ORDER + ROUTES.DISPATCH_ORDER, { body: { oid, courier: "Pathao" }, token });
+    await dispatch(token, oid);
     return oid;
 };
 const delivered = async (token, inventory_oid, options) => {
     const oid = await online(token, inventory_oid, options);
-    assert.equal((await h.call(ORDER + ROUTES.DELIVER_ORDER, { body: { oid }, token })).status, 200);
+    assert.equal((await deliver(token, oid)).status, 200);
     return oid;
 };
 const counter_sale = async (token, inventory_oid, { quantity = 2, payment_status = "paid", amount_paid } = {}) => {
@@ -296,7 +297,7 @@ describe("a parcel that came back", () => {
         const { return_oid } = (await not_delivered(order, "wrong_address")).body.data;
         assert.equal((await h.call(CANCEL, { body: { oid: return_oid, reason: "The courier pressed the wrong button" }, token })).status, 200);
         assert.equal((await order_row(order)).delivery_status, "WithCourier");
-        assert.equal((await h.call(ORDER + ROUTES.DELIVER_ORDER, { body: { oid: order }, token })).status, 200);
+        assert.equal((await deliver(token, order)).status, 200);
         await assert_balanced(b1);
     });
 });

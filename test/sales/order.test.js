@@ -2,6 +2,7 @@ const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
+const { DELIVERY, dispatch, deliver } = require("../support/delivery");
 const { execute_transaction } = require("../../src/db/database");
 const { openBatch } = require("../../src/routes/sales/utils/stock-movement");
 const { reload_location_index } = require("../../src/routes/sales/location/utils/location-index");
@@ -15,9 +16,6 @@ const LIST = ORDER + ROUTES.GET_ORDER_LIST;
 const DETAILS = ORDER + ROUTES.GET_ORDER_DETAILS;
 const CONFIRM = ORDER + ROUTES.CONFIRM_ORDER;
 const CANCEL = ORDER + ROUTES.CANCEL_ORDER;
-const PACKED = ORDER + ROUTES.MARK_ORDER_PACKED;
-const DISPATCH = ORDER + ROUTES.DISPATCH_ORDER;
-const DELIVER = ORDER + ROUTES.DELIVER_ORDER;
 const NOT_DELIVERED = ORDER + ROUTES.MARK_ORDER_NOT_DELIVERED;
 const REFUND = ORDER + ROUTES.RECORD_ORDER_REFUND;
 const EDIT = CONTEXTS.SALES + SUB_CONTEXTS.ONLINE + ROUTES.EDIT_ONLINE_ORDER;
@@ -25,7 +23,7 @@ const FOR_EDIT = CONTEXTS.SALES + SUB_CONTEXTS.ONLINE + ROUTES.GET_ONLINE_ORDER_
 const HISTORY = CONTEXTS.SALES + SUB_CONTEXTS.ORDER_HISTORY;
 const SALESPERSON = ["sales.online.view", "sales.online.create", "sales.order-history.view", "sales.order-history.confirm", "sales.order-history.cancel"];
 
-const MANAGER = ["sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.cancel", "sales.order.dispatch", "sales.order.deliver", "sales.order.refund", "sales.order.edit"];
+const MANAGER = ["sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.cancel", "sales.order.dispatch", "sales.order.deliver", "sales.order.refund", "sales.order.edit", ...DELIVERY];
 const USER = "owner@arithmalabs.test";
 const SOURCE = uuidv4();
 const MOHAMMADPUR = "T-Dhaka-Mohammadpur";
@@ -116,7 +114,6 @@ describe("the orders list and record", () => {
         assert.equal((await h.call(HISTORY + ROUTES.CONFIRM_ORDER, { body: { oid: mine, confirmed_via: "PhoneCall" }, token: seller })).status, 200);
         assert.equal((await h.call(HISTORY + ROUTES.CANCEL_ORDER, { body: { oid: mine, reason_code: "changed_mind" }, token: seller })).status, 200);
         assert.equal((await get(LIST, seller)).status, 403, "the bigger Orders page is not theirs");
-        assert.equal((await h.call(DISPATCH, { body: { oid: theirs, courier: "Pathao" }, token: seller })).status, 403);
     });
 
     it("reads an order with its lines, where it goes and its timeline", async () => {
@@ -243,48 +240,22 @@ describe("an online order's lifecycle", () => {
         assert.deepEqual((await holds(oid)).filter((x) => x.status === "Active"), [{ quantity: 2, status: "Active" }]);
     });
 
-    it("dispatches once: the held units leave the shelf with a dispatched movement, and it can no longer be cancelled", async () => {
+    it("can no longer pack, dispatch or deliver an order on its own: a parcel leaves in a delivery batch", async () => {
         const oid = await place(token, b1);
-        await h.call(CONFIRM, { body: { oid, confirmed_via: "Message" }, token });
-        assert.equal((await h.call(PACKED, { body: { oid }, token })).status, 200);
-        const results = await Promise.all([1, 2].map(() => h.call(DISPATCH, { body: { oid, courier: "Pathao", consignment_no: "PX-1" }, token })));
-        assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
-
-        assert.equal(await on_hand(b1), 8);
-        const moved = await movements(b1);
-        assert.deepEqual(moved.slice(1).map((m) => [m.reason, m.quantity, m.balance_after, m.source_oid]), [["dispatched", -2, 8, oid]]);
-        assert.deepEqual(await holds(oid), [{ quantity: 2, status: "Deducted" }]);
-        assert.equal((await order_row(oid)).delivery_status, "WithCourier");
-        assert.equal((await h.call(CANCEL, { body: { oid, reason_code: "changed_mind" }, token })).status, 409);
-        await assert_balanced(b1);
-    });
-
-    it("delivers a dispatched order as a sale: sold_on set once, the courier's collection paid, units counted sold", async () => {
-        const oid = await place(token, b1, { payment_type: "ADVANCE", amount_paid: 200 });
-        assert.equal((await h.call(DELIVER, { body: { oid }, token })).status, 409, "not before dispatch");
-        await h.call(CONFIRM, { body: { oid, confirmed_via: "AdvanceReceived" }, token });
-        await h.call(DISPATCH, { body: { oid, courier: "Steadfast" }, token });
-        const res = await h.call(DELIVER, { body: { oid }, token });
-        assert.equal(res.status, 200, JSON.stringify(res.body));
-        const row = await order_row(oid);
-        assert.deepEqual([row.status, row.payment_status, row.amount_paid, row.delivery_status], ["Delivered", "paid", 2960, "Delivered"]);
-        assert.ok(row.sold_on);
-        const [stats] = await h.query("SELECT total_sold::int FROM product_stats WHERE product_oid = $1", [product]);
-        assert.equal(stats.total_sold, 2);
-        assert.equal((await h.call(DELIVER, { body: { oid }, token })).status, 409);
-        assert.equal((await movements(b1)).length, 2, "delivering moves nothing more");
-        await assert_balanced(b1);
+        await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token });
+        for (const route of ["/mark-order-packed", "/dispatch-order", "/deliver-order"]) assert.equal((await h.call(ORDER + route, { body: { oid, courier: "Pathao" }, token })).status, 404, route);
+        assert.deepEqual([(await order_row(oid)).delivery_status, await on_hand(b1)], ["Preparing", 10]);
     });
 
     it("records a parcel not delivered as Failed, never a sale, with nothing moved back yet", async () => {
         const oid = await place(token, b1);
         await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token });
-        await h.call(DISPATCH, { body: { oid, courier: "RedX" }, token });
+        await dispatch(token, oid, "RedX");
         const res = await h.call(NOT_DELIVERED, { body: { oid, reason: "refused" }, token });
         assert.equal(res.status, 200, JSON.stringify(res.body));
         const row = await order_row(oid);
         assert.deepEqual([row.status, row.delivery_status, row.sold_on], ["Confirmed", "Failed", null]);
-        assert.equal((await h.call(DELIVER, { body: { oid }, token })).status, 409);
+        assert.equal((await deliver(token, oid)).status, 409);
         assert.equal(await on_hand(b1), 8);
         await assert_balanced(b1);
     });
@@ -292,8 +263,8 @@ describe("an online order's lifecycle", () => {
     it("never counts a parcel as sold when Deliver and Not delivered are pressed at once", async () => {
         const oid = await place(token, b1);
         await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token });
-        await h.call(DISPATCH, { body: { oid, courier: "Pathao" }, token });
-        const [delivered, failed] = await Promise.all([h.call(DELIVER, { body: { oid }, token }), h.call(NOT_DELIVERED, { body: { oid, reason: "refused" }, token })]);
+        await dispatch(token, oid);
+        const [delivered, failed] = await Promise.all([deliver(token, oid), h.call(NOT_DELIVERED, { body: { oid, reason: "refused" }, token })]);
         assert.deepEqual([delivered.status, failed.status].sort(), [200, 409]);
         const row = await order_row(oid);
         if (failed.status === 200) assert.deepEqual([row.delivery_status, row.sold_on, row.status], ["Failed", null, "Confirmed"]);
@@ -318,7 +289,7 @@ describe("an online order's lifecycle", () => {
     it("refuses each action to someone without its permission, and every action without sign in", async () => {
         const oid = await place(token, b1);
         const viewer = await person(["sales.online.view", "sales.order.view"]);
-        for (const [route, body] of [[CONFIRM, { oid, confirmed_via: "PhoneCall" }], [CANCEL, { oid, reason_code: "duplicate" }], [PACKED, { oid }], [DISPATCH, { oid, courier: "Pathao" }], [DELIVER, { oid }], [NOT_DELIVERED, { oid, reason: "refused" }], [REFUND, { oid, amount: 1, method: "cash" }]]) {
+        for (const [route, body] of [[CONFIRM, { oid, confirmed_via: "PhoneCall" }], [CANCEL, { oid, reason_code: "duplicate" }], [NOT_DELIVERED, { oid, reason: "refused" }], [REFUND, { oid, amount: 1, method: "cash" }]]) {
             assert.equal((await h.call(route, { body, token: viewer })).status, 403, route);
             assert.equal((await h.call(route, { body })).status, 401, route);
         }

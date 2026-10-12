@@ -8,7 +8,6 @@ const STATUSES = ["Pending", "Confirmed", "Purchased", "Delivered", "PartiallyRe
 const DELIVERY = ["Preparing", "Packed", "WithCourier", "Delivered", "Failed", "BackInShop"];
 const CONFIRMED_VIA = ["PhoneCall", "Message", "AdvanceReceived", "NotNeeded"];
 const CANCEL_REASONS = ["changed_mind", "unreachable", "fake_order", "price", "ordered_elsewhere", "out_of_stock", "duplicate", "cannot_deliver", "other"];
-const COURIERS = ["Pathao", "Steadfast", "RedX", "Paperfly", "Sundarban", "OwnRider", "Other"];
 const NOT_DELIVERED = ["refused", "unreachable", "wrong_address", "other"];
 
 const order_list_schema = Joi.object({
@@ -31,10 +30,6 @@ const order_details_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
 
-const order_oid_schema = Joi.object({
-    oid: Joi.string().uuid().required(),
-});
-
 const confirm_order_schema = Joi.object({
     oid: Joi.string().uuid().required(),
     confirmed_via: Joi.string().valid(...CONFIRMED_VIA).required(),
@@ -45,12 +40,6 @@ const cancel_order_schema = Joi.object({
     oid: Joi.string().uuid().required(),
     reason_code: Joi.string().valid(...CANCEL_REASONS).required(),
     note: Joi.when("reason_code", { is: "other", then: Joi.string().trim().min(1).max(256).required(), otherwise: optional_text(256) }),
-});
-
-const dispatch_order_schema = Joi.object({
-    oid: Joi.string().uuid().required(),
-    courier: Joi.string().valid(...COURIERS).required(),
-    consignment_no: optional_text(128),
 });
 
 const not_delivered_schema = Joi.object({
@@ -66,4 +55,4 @@ const record_refund_schema = Joi.object({
     note: Joi.when("method", { is: "other", then: Joi.string().trim().min(1).max(256).required(), otherwise: optional_text(256) }),
 });
 
-module.exports = { order_list_schema, order_details_schema, order_oid_schema, confirm_order_schema, cancel_order_schema, dispatch_order_schema, not_delivered_schema, record_refund_schema };
+module.exports = { order_list_schema, order_details_schema, confirm_order_schema, cancel_order_schema, not_delivered_schema, record_refund_schema };

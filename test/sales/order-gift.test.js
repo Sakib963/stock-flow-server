@@ -2,6 +2,7 @@ const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
+const delivery = require("../support/delivery");
 const { execute_transaction } = require("../../src/db/database");
 const { openBatch } = require("../../src/routes/sales/utils/stock-movement");
 const { reload_location_index } = require("../../src/routes/sales/location/utils/location-index");
@@ -15,7 +16,7 @@ const ADD = GIVEAWAY + ROUTES.ADD_ORDER_GIFT;
 const REMOVE = GIVEAWAY + ROUTES.REMOVE_ORDER_GIFT;
 const CONFIRM_RETURN = CONTEXTS.SALES + SUB_CONTEXTS.RETURN + ROUTES.CONFIRM_RETURN;
 
-const MANAGER = ["sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.cancel", "sales.order.dispatch", "sales.order.deliver", "sales.order.edit", "sales.return.view", "sales.return.confirm", "sales.giveaway.view", "sales.giveaway.create", "sales.giveaway.cancel"];
+const MANAGER = ["sales.online.view", "sales.online.create", "sales.order.view", "sales.order.confirm", "sales.order.cancel", "sales.order.dispatch", "sales.order.deliver", "sales.order.edit", "sales.return.view", "sales.return.confirm", "sales.giveaway.view", "sales.giveaway.create", "sales.giveaway.cancel", ...delivery.DELIVERY];
 const USER = "owner@arithmalabs.test";
 const SOURCE = uuidv4();
 const MOHAMMADPUR = "T-Dhaka-Mohammadpur";
@@ -58,8 +59,7 @@ const add_gift = async (token, order_oid, inventory_oid, quantity = 1) => {
 };
 const dispatch = async (token, oid) => {
     await h.call(ORDER + ROUTES.CONFIRM_ORDER, { body: { oid, confirmed_via: "PhoneCall" }, token });
-    const res = await h.call(ORDER + ROUTES.DISPATCH_ORDER, { body: { oid, courier: "Pathao" }, token });
-    assert.equal(res.status, 200, JSON.stringify(res.body));
+    await delivery.dispatch(token, oid);
 };
 
 describe("a gift with an online order", () => {

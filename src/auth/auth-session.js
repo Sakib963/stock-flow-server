@@ -25,7 +25,8 @@ const duration_seconds = (value, fallback) => {
 const auth_config = () => ({
     access_seconds: duration_seconds(process.env.ACCESS_TOKEN_SECRET_EXPIRE, 15 * 60),
     refresh_idle_seconds: duration_seconds(process.env.REFRESH_TOKEN_SECRET_EXPIRE, 7 * 86400),
-    session_max_seconds: duration_seconds(process.env.SESSION_MAX_AGE, 30 * 86400),
+    // Three days from sign-in, then sign in again, however often the session renews (the user, 2026-10-12).
+    session_max_seconds: duration_seconds(process.env.SESSION_MAX_AGE, 3 * 86400),
     reuse_grace_seconds: duration_seconds(process.env.REFRESH_REUSE_GRACE_SECONDS, 30),
     // The cookie needs the web app and the API on the same site. Hosting that cannot offer that
     // (two *.vercel.app addresses, a github.io page) uses 'body', which hands the token to the web

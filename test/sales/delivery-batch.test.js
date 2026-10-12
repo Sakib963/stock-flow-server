@@ -15,7 +15,6 @@ const CONFIRM = ORDER + ROUTES.CONFIRM_ORDER;
 const CANCEL_ORDER = ORDER + ROUTES.CANCEL_ORDER;
 const READY = BATCH + ROUTES.GET_ORDERS_READY_TO_SEND;
 const LIST = BATCH + ROUTES.GET_DELIVERY_BATCH_LIST;
-const DISPATCH = ORDER + ROUTES.DISPATCH_ORDER;
 const CREATE = BATCH + ROUTES.CREATE_DELIVERY_BATCH;
 const UPDATE = BATCH + ROUTES.UPDATE_DELIVERY_BATCH_ORDERS;
 const FILE = BATCH + ROUTES.GET_DELIVERY_BATCH_UPLOAD_FILE;
@@ -68,9 +67,9 @@ const assert_balanced = async () => {
 const order_row = async (oid) => (await h.query("SELECT o.status, o.dispatched_on, oo.delivery_status, oo.courier FROM orders o JOIN online_order oo ON oo.order_oid = o.oid WHERE o.oid = $1", [oid]))[0];
 
 // An online order of `quantity` serums, confirmed unless asked not to: ready to send.
-const order = async (token, { quantity = 2, confirm = true, phone = "01987654321" } = {}) => {
+const order = async (token, { quantity = 2, confirm = true, phone = "01987654321", advance = 0 } = {}) => {
     const oid = uuidv4();
-    const body = { oid, customer: { phone, name: "Person A" }, address: { recipient_name: "Person A", address_line: "5/5, Gaznabi Road", district_oid: "BD-Dhaka", thana_oid: MOHAMMADPUR, area_text: "Gaznabi Road" }, source_oid: SOURCE, payment_type: "COD", delivery_charge: 60, total_amount: 1450 * quantity + 60, lines: [{ inventory_oid: shelf, quantity, discount: 0 }] };
+    const body = { oid, customer: { phone, name: "Person A" }, address: { recipient_name: "Person A", address_line: "5/5, Gaznabi Road", district_oid: "BD-Dhaka", thana_oid: MOHAMMADPUR, area_text: "Gaznabi Road" }, source_oid: SOURCE, ...(advance ? { payment_type: "ADVANCE", payment_method: "bkash", amount_paid: advance } : { payment_type: "COD" }), delivery_charge: 60, total_amount: 1450 * quantity + 60, lines: [{ inventory_oid: shelf, quantity, discount: 0 }] };
     const placed = await h.call(CREATE_ORDER, { body, token });
     assert.equal(placed.status, 200, JSON.stringify(placed.body));
     if (confirm) assert.equal((await h.call(CONFIRM, { body: { oid, confirmed_via: "PhoneCall" }, token })).status, 200);
@@ -157,6 +156,17 @@ describe("delivery batches", () => {
             assert.equal(moved[0].n, held.length, "one dispatched movement per hold, against the order");
         }
 
+        const ledger = await h.query("SELECT reason, quantity, balance_after, source_oid FROM stock_movement WHERE inventory_oid = $1 ORDER BY created_on, oid", [shelf]);
+        let balance = 20;
+        for (const row of ledger.slice(1)) {
+            assert.equal(row.reason, "dispatched");
+            assert.ok([a, b].includes(row.source_oid));
+            balance += row.quantity;
+            assert.equal(row.balance_after, balance, "each movement carries the shelf as it left it");
+        }
+        assert.deepEqual(ledger.slice(1).map((row) => [row.source_oid, row.quantity]).sort(), [[a, -2], [b, -1]].sort());
+        assert.equal((await h.call(CANCEL_ORDER, { body: { oid: a, reason_code: "changed_mind" }, token })).status, 409, "a parcel with the courier can no longer be cancelled");
+
         const again = await h.call(HAND_OVER, { body: { oid }, token });
         assert.equal(again.status, 409);
         assert.equal(await on_hand(), 17);
@@ -164,12 +174,13 @@ describe("delivery batches", () => {
     });
 
     it("marks the ticked orders delivered and leaves the others with the courier", async () => {
-        const a = await order(token);
+        const a = await order(token, { advance: 200 });
         const b = await order(token, { quantity: 1 });
         const { oid } = await make(token, [a, b]);
         assert.equal((await h.call(DELIVER, { body: { oid, order_oids: [a] }, token })).status, 409, "not handed over yet");
         assert.equal((await h.call(HAND_OVER, { body: { oid }, token })).status, 200);
 
+        const moved = (await h.query("SELECT COUNT(*)::int AS n FROM stock_movement"))[0].n;
         const delivered = await h.call(DELIVER, { body: { oid, order_oids: [a] }, token });
         assert.equal(delivered.status, 200, JSON.stringify(delivered.body));
         assert.equal((await order_row(a)).status, "Delivered");
@@ -178,21 +189,10 @@ describe("delivery batches", () => {
         assert.deepEqual([sale.payment_status, sale.paid], ["paid", sale.total]);
         assert.equal((await h.query("SELECT total_sold::int AS n FROM product_stats WHERE product_oid = $1", [product]))[0].n, 2);
         assert.equal((await order_row(b)).delivery_status, "WithCourier");
-        await assert_balanced();
-    });
-
-    it("leaves out at handover an order dispatched on its own record meanwhile, deducting it once, and keeps it out of the file", async () => {
-        const a = await order(token);
-        const b = await order(token, { quantity: 1 });
-        const { oid } = await make(token, [a, b]);
-        assert.equal((await h.call(DISPATCH, { body: { oid: b, courier: "Steadfast" }, token })).status, 200);
-        const file = String((await get(`${FILE}/${oid}`, token)).body);
-        assert.equal(file.trim().split("\r\n").length, 2, "only the order still going with the batch");
-        const handed = await h.call(HAND_OVER, { body: { oid }, token });
-        assert.equal(handed.body.data.dispatched, 1);
-        assert.equal(handed.body.data.left_out.length, 1);
-        assert.equal((await order_row(b)).courier, "Steadfast");
-        assert.equal(await on_hand(), 20 - 3);
+        assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM stock_movement"))[0].n, moved, "delivering moves no stock");
+        assert.equal((await h.call(DELIVER, { body: { oid, order_oids: [a] }, token })).status, 409, "an order is sold once");
+        assert.equal((await h.query("SELECT sold_on FROM orders WHERE oid = $1", [a]))[0].sold_on.getTime(), sale.sold_on.getTime());
+        assert.equal((await h.query("SELECT total_sold::int AS n FROM product_stats WHERE product_oid = $1", [product]))[0].n, 2);
         await assert_balanced();
     });
 

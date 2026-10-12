@@ -6,8 +6,8 @@ const { sendOrderGifts } = require("./order-gifts");
 const { recordStatusHistory, resolveAmountPaid } = require("./order-utils");
 const { refuse_change } = require("../order/utils/order-state");
 
-// One order's dispatch and delivery, written once, so dispatching from its record and from a delivery
-// batch can never drift apart. Each runs inside the caller's transaction and changes the order only
+// One order's dispatch and delivery. A parcel leaves only in a delivery batch (decided by the user,
+// 2026-10-12), which calls these per order inside its own transaction; each changes the order only
 // from the state it leaves.
 
 // Dispatch (sales REQ-54): the parcel leaves with the courier, so the held units leave the shelf now,

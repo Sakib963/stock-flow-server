@@ -97,7 +97,16 @@ describe("refresh", () => {
         assert.equal(again.body.data.ended_reason, "Expired", "still told why when the ended session is presented again");
     });
 
-    it("refuses once the 30 day cap has passed, however recently the session was used", async () => {
+    it("holds a session to three days from sign-in, however often it renews", async () => {
+        const [session] = await h.query("SELECT EXTRACT(EPOCH FROM expires_on - created_on)::int AS seconds FROM auth_session WHERE oid = $1", [signed.session_id]);
+        assert.equal(session.seconds, 3 * 86400);
+        const renewed = await h.refresh(signed.refresh);
+        assert.equal(renewed.status, 200);
+        const [after] = await h.query("SELECT EXTRACT(EPOCH FROM expires_on - created_on)::int AS seconds FROM auth_session WHERE oid = $1", [signed.session_id]);
+        assert.equal(after.seconds, 3 * 86400, "a renewal never stretches the cap");
+    });
+
+    it("refuses once the three day cap has passed, however recently the session was used", async () => {
         await h.query("UPDATE auth_session SET expires_on = LOCALTIMESTAMP - interval '1 minute'");
 
         const res = await h.refresh(signed.refresh);
