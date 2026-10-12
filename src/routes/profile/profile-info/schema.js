@@ -1,14 +1,27 @@
 const Joi = require("joi");
+const { PHOTO_FOLDER, is_own_photo } = require("../../../utils/cloudinary-photo");
 
-const get_profile_info_schema = Joi.object({
-      user_id: Joi.string().guid({ version: 'uuidv4' }).required()
-});
+const get_profile_info_schema = Joi.object({});
 
+const sign_profile_photo_schema = Joi.object({});
+
+// Email and role are what a person signs in with and may do, so only an admin changes them; the
+// rest is the person's own. A photo is only ever one uploaded to our people folder.
 const update_profile_info_schema = Joi.object({
-      user_id: Joi.string().guid({ version: 'uuidv4' }).required(),
-      email: Joi.string().email().required(),
-      name: Joi.string().min(2).max(100).required(),
-      age: Joi.number().min(0).optional()
+    name: Joi.string().trim().min(2).max(128).required(),
+    mobile_number: Joi.string()
+        .trim()
+        .pattern(/^\+?[0-9][0-9 -]{5,19}$/)
+        .required()
+        .messages({ "string.pattern.base": "Enter a mobile number of digits, for example 01711000111." }),
+    designation: Joi.string().trim().max(128).allow(null, "").empty("").default(null),
+    photo: Joi.string()
+        .trim()
+        .max(1000)
+        .custom((value, helpers) => (is_own_photo(value, PHOTO_FOLDER.people) ? value : helpers.error("any.invalid")))
+        .allow(null, "")
+        .empty("")
+        .default(null),
 });
 
-module.exports = { get_profile_info_schema, update_profile_info_schema };
+module.exports = { get_profile_info_schema, sign_profile_photo_schema, update_profile_info_schema };

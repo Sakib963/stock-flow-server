@@ -187,6 +187,24 @@ describe("the stock movement list", () => {
         assert.equal((await get(LIST, token, { product_oid: ids.kurti })).body.total, 2);
     });
 
+    it("narrows the list to the business days chosen, either end on its own or both", async () => {
+        await h.reset();
+        const ids = await seed();
+        const token = await sign_in_with([...PO_RIGHTS, "inventory.stock-movement.view"]);
+        const received = await receive(ids, token);
+        await execute_transaction((tx) => deductSellableStock(tx, { inventory_oid: received.batch, quantity: 3, order_oid: uuidv4(), user_id: USER }));
+        await h.query("UPDATE stock_movement SET created_on = created_on - interval '10 days' WHERE reason = 'received'");
+        // The days are read from the stored rows the way the list reads them, so the test holds whatever zone the test database runs in.
+        const day = async (reason) => (await h.query("SELECT ((created_on AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Dhaka')::date::text AS d FROM stock_movement WHERE reason = $1", [reason]))[0].d;
+        const [today, earlier] = [await day("sold"), await day("received")];
+
+        const reasons = async (params) => (await get(LIST, token, params)).body.data.rows.map((row) => row.reason);
+        assert.deepEqual(await reasons({ date_from: today, date_to: today }), ["sold"]);
+        assert.deepEqual(await reasons({ date_to: earlier }), ["received"]);
+        assert.deepEqual(await reasons({ date_from: earlier }), ["sold", "received"]);
+        assert.equal((await get(LIST, token, { date_from: "12-10-2026" })).status, 400, "a day is YYYY-MM-DD");
+    });
+
     it("shows a giveaway, and a gift that came back in a refused parcel, against the giveaway number", async () => {
         await h.reset();
         const ids = await seed();

@@ -1,5 +1,7 @@
 const Joi = require("joi");
 
+const day = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow(null, "").empty("").optional();
+
 const REASONS = ["carried_over", "received", "sold", "dispatched", "returned", "disposed", "dispose_reversed", "given_away", "adjusted", "opening_stock"];
 
 const stock_movement_list_schema = Joi.object({
@@ -13,6 +15,8 @@ const stock_movement_list_schema = Joi.object({
         .allow(null, "")
         .optional(),
     product_oid: Joi.string().uuid().allow(null, "").optional(),
+    date_from: day,
+    date_to: day,
     include: Joi.string().valid("", "stats").optional(),
 });
 

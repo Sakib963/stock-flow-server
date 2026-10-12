@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
-const { sign } = require("../../src/routes/configuration/product/utils/photo");
+const { sign } = require("../../src/utils/cloudinary-photo");
 const { execute_transaction } = require("../../src/db/database");
 const { restockStock } = require("../../src/routes/sales/utils/stock-movement");
 

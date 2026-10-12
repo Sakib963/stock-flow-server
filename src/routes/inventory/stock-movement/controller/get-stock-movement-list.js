@@ -1,6 +1,7 @@
 const { TABLE } = require("../../../../utils/constant");
 const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
+const { business_day } = require("../../../../utils/business-time");
 
 // The document behind a movement, by its reason: a received batch names its purchase order, a sale
 // or dispatch its invoice, a return the invoice it came back from, a disposal, an adjustment or a giveaway its
@@ -39,6 +40,17 @@ const STATS = {
 
 const get_stock_movement_list = async (request, res) => {
     try {
+        const { query } = request;
+        const where = [];
+        const values = [];
+        if (query.date_from) {
+            values.push(query.date_from);
+            where.push(`${business_day("m.created_on")} >= $${values.length}::date`);
+        }
+        if (query.date_to) {
+            values.push(query.date_to);
+            where.push(`${business_day("m.created_on")} <= $${values.length}::date`);
+        }
         const { rows, total, stats } = await read_list({
             select: SELECT,
             from: FROM,
@@ -48,7 +60,9 @@ const get_stock_movement_list = async (request, res) => {
             default_sort: { key: "created_on", order: "desc" },
             stats: STATS,
             tie_breaker: "m.oid",
-            query: request.query,
+            where,
+            values,
+            query,
         });
         return res.status(200).json({ code: 200, message: "Stock movements", data: stats ? { rows, stats } : { rows }, total });
     } catch (e) {

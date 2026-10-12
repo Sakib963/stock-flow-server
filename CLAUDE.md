@@ -50,7 +50,9 @@ Utilities that already exist and must be used rather than re-implemented:
 - **Every route is `[jwtMiddleware, requirePermission('module.feature.action'), validator.x(schema)]`**,
   in that order. `requirePermission` after `jwtMiddleware` always: it reads `request.credentials`.
   The only routes without them are in `routes/auth/`, each with a comment saying why (a person who
-  has forgotten their password, or whose access token lapsed, has no token).
+  has forgotten their password, or whose access token lapsed, has no token). `routes/profile/`
+  (a person's own profile, password and notes) keeps `jwtMiddleware` and its validator but takes no
+  permission: every signed-in person has them, and each query is held to the caller's own rows.
 - A route with no permission is a bug, not a default. The code must already exist in the
   `permission` table: if the feature needs a new action, add it to a seed migration first (the
   `db-migration` skill). An unseeded code denies everyone.

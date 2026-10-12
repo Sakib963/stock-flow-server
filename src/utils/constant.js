@@ -320,6 +320,8 @@ module.exports = {
     VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change",
 
     GET_PROFILE_INFO: "/get-profile-info",
+    UPDATE_PROFILE_INFO: "/update-profile-info",
+    SIGN_PROFILE_PHOTO_UPLOAD: "/sign-profile-photo-upload",
 
     GET_ACTIVITY_LOG_LIST: "/get-activity-log-list",
 
@@ -328,10 +330,9 @@ module.exports = {
 
     // Notes
     GET_USER_NOTE_LIST: "/get-note-list",
-    GET_USER_NOTE_DETAILS: "/get-note-details",
     CREATE_USER_NOTE: "/create-note",
     UPDATE_USER_NOTE: "/update-note",
-    DELETE_USER_NOTE: "/delete-note/:oid",
+    DELETE_USER_NOTE: "/delete-note",
 
     // Analytics
     GET_CONFIGURATION_ANALYTICS: "/get-configuration-analytics",

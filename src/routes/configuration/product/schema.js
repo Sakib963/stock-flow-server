@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { is_own_photo } = require("./utils/photo");
+const { PHOTO_FOLDER, is_own_photo } = require("../../../utils/cloudinary-photo");
 
 const UNITS = ["pcs", "pair", "set", "dozen", "box", "pack", "kg", "g", "l", "m"];
 
@@ -30,7 +30,7 @@ const product_oid_schema = Joi.object({
 const photo = Joi.string()
       .trim()
       .max(1000)
-      .custom((value, helpers) => (is_own_photo(value) ? value : helpers.error("any.invalid")))
+      .custom((value, helpers) => (is_own_photo(value, PHOTO_FOLDER.products) ? value : helpers.error("any.invalid")))
       .allow(null, "")
       .empty("")
       .default(null);

@@ -2,6 +2,7 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { save_generated_otp } = require("../../../../utils/helper");
 const { log } = require("../../../../utils/log");
+const { check_rate_limit } = require("../../../../middleware/rate-limit");
 const bcrypt = require("bcrypt");
 const send_email = require("../../../../email/send-email");
 const { COMPANY_INFO } = require("../../../../utils/company-info");
@@ -13,14 +14,22 @@ const { business_zone, format_business } = require("../../../../utils/business-t
 const change_password = async (request, res) => {
   const payload = request.body;
   try {
+    // Behind a sign-in, but a stolen access token could still guess the current password, and each
+    // right one emails a code: five tries in fifteen minutes per account.
+    const verdict = await check_rate_limit({ bucket: "change-password", identifier: request.credentials.user_id, limit: 5, window_minutes: 15 });
+    if (!verdict.allowed) {
+      res.set("Retry-After", String(verdict.retry_after_seconds));
+      return res.status(429).json({ code: 429, message: "Too many tries. Wait a few minutes and try again." });
+    }
+
     const { isValid, user_name } = await check_current_password(
       request.credentials.user_id,
       payload.current_password,
     );
     if (!isValid) {
       return res
-        .status(404)
-        .json({ code: 404, message: "Current password is incorrect." });
+        .status(400)
+        .json({ code: 400, message: "That is not your current password. Check it and try again.", data: { field: "current_password" } });
     }
 
     let { otp_oid, otp } = await save_generated_otp(

@@ -102,6 +102,18 @@ describe("the orders list and record", () => {
         assert.equal((await get(LIST, counter)).body.total, 0);
     });
 
+    it("narrows the list to the business days the orders were placed on", async () => {
+        const old = await place(token, b1);
+        const fresh = await place(token, b1, { quantity: 1, phone: "01711000000" });
+        await h.query("UPDATE orders SET created_on = created_on - interval '10 days' WHERE oid = $1", [old]);
+        // The days are read from the stored rows the way the list reads them, so the test holds whatever zone the test database runs in.
+        const day = async (oid) => (await h.query("SELECT ((created_on AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Dhaka')::date::text AS d FROM orders WHERE oid = $1", [oid]))[0].d;
+        const [today, earlier] = [await day(fresh), await day(old)];
+        const oids = async (params) => (await get(LIST, token, params)).body.data.rows.map((row) => row.oid);
+        assert.deepEqual(await oids({ date_from: today, date_to: today }), [fresh]);
+        assert.deepEqual(await oids({ date_to: earlier }), [old]);
+    });
+
     it("shows a salesperson's order history as only the orders they placed, and lets them confirm and cancel only those", async () => {
         const seller = await person(SALESPERSON);
         const mine = await place(seller, b1);

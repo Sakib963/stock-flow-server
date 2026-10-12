@@ -4,7 +4,7 @@ const database = require("../db/database");
 const { describe_device } = require("../auth/user-agent");
 const { log } = require("../utils/log");
 
-const REDACTED_KEYS = new Set(["password", "new_password", "current_password", "confirm_password", "access_token", "refresh_token", "otp", "token"]);
+const REDACTED_KEYS = new Set(["password", "new_password", "current_password", "confirm_password", "access_token", "refresh_token", "otp", "token", "note_title", "note_text"]);
 const REQUEST_BODY_MAX_BYTES = 16 * 1024;
 const RESPONSE_BODY_MAX_BYTES = 4 * 1024;
 
