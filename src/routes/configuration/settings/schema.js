@@ -1,35 +1,46 @@
 const Joi = require("joi");
+const { PHOTO_FOLDER, is_own_photo } = require("../../../utils/cloudinary-photo");
 
-const s = () => Joi.string().allow(null, "").optional();
+const optional = (max) => Joi.string().trim().max(max).allow(null, "").empty("").default(null);
+// A web address as people type it: "www.shop.com" gets https:// in front rather than being refused.
+const link = Joi.string()
+    .trim()
+    .max(255)
+    .allow(null, "")
+    .empty("")
+    .default(null)
+    .custom((value, helpers) => {
+        const full = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+        try {
+            return new URL(full).hostname.includes(".") ? full : helpers.message("Write a web address, for example www.yourshop.com");
+        } catch {
+            return helpers.message("Write a web address, for example www.yourshop.com");
+        }
+    });
 
+// The business as its customers see it: on the receipt, the invoice, the label and the tracking
+// page. The website and the two pages print in the invoice footer. The rest of the settings row
+// (legal name, tax numbers, bank details, the tracker template) is not set from here: nothing the
+// new app prints reads it (decided by the user, 2026-10-12).
 const update_settings_schema = Joi.object({
-    name: s(),
-    legal_name: s(),
-    logo_url: s(),
-    address: s(),
-    phone_primary: s(),
-    phone_secondary: s(),
-    email: s(),
-    website: s(),
-    bin: s(),
-    tin: s(),
-    trade_license: s(),
-    bank_details: s(),
-    bkash_number: s(),
-    nagad_number: s(),
-    facebook_url: s(),
-    instagram_url: s(),
-    invoice_footer: s(),
-    invoice_logo_url: s(),
-    // Key of a tracker design (see stock-flow-tracker/src/templates). Validated as a
-    // slug, not an enum: the template list lives in the tracker repo and it falls
-    // back to its default for an unknown key.
-    tracker_template: Joi.string()
-        .pattern(/^[a-z0-9-]{1,32}$/)
+    name: Joi.string().trim().min(2).max(128).required(),
+    logo_url: Joi.string()
+        .trim()
+        .max(1000)
+        .custom((value, helpers) => (is_own_photo(value, PHOTO_FOLDER.branding) ? value : helpers.error("any.invalid")))
         .allow(null, "")
-        .optional(),
-    default_delivery_charge: Joi.number().min(0).optional(),
-    order_system: Joi.string().valid("pos", "online", "both").optional(),
+        .empty("")
+        .default(null),
+    address: optional(500),
+    phone_primary: optional(32),
+    phone_secondary: optional(32),
+    website: link,
+    facebook_url: link,
+    instagram_url: link,
 });
 
-module.exports = { update_settings_schema };
+const get_settings_schema = Joi.object({});
+
+const sign_logo_schema = Joi.object({});
+
+module.exports = { update_settings_schema, get_settings_schema, sign_logo_schema };

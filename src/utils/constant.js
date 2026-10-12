@@ -356,6 +356,7 @@ module.exports = {
     RECORD_MESSAGE_COPIED: "/record-message-copied",
     GET_SETTINGS: "/get-settings",
     UPDATE_SETTINGS: "/update-settings",
+    SIGN_SETTINGS_LOGO_UPLOAD: "/sign-settings-logo-upload",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],
 };

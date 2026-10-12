@@ -1,52 +1,39 @@
-const { v4: uuidv4 } = require("uuid");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../db/database");
+const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { primeSettings } = require("../../../../utils/settings-cache");
+const { bump_config_version } = require("../../../../utils/config-version");
+const { invalidateSettings } = require("../../../../utils/settings-cache");
 const { log } = require("../../../../utils/log");
 
-// Empty string -> NULL so optional fields can be cleared.
-const nz = (v) => (v === undefined || v === "" ? null : v);
-
-// Update the single settings row and prime the cache with the fresh values.
+// Only the fields the page sends are written; the rest of the row is left as it is. The version bump
+// in the same transaction is what makes every server instance's settings cache and every open tab
+// take the new name, logo and contact details on its next request.
 const update_settings = async (request, res) => {
     const p = request.body;
     const user_id = request.credentials.user_id;
     try {
-        const existing = await get_data({ text: `SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on ASC LIMIT 1`, values: [] });
-        const oid = existing.length ? existing[0].oid : uuidv4();
-
-        // Should already be seeded, but stay robust if the row is missing.
-        if (!existing.length) {
-            await execute_value({ text: `INSERT INTO ${TABLE.SETTINGS} (oid, created_by) VALUES ($1, $2)`, values: [oid, user_id] });
-        }
-
-        await execute_value({
-            text: `UPDATE ${TABLE.SETTINGS} SET
-                     name=$1, legal_name=$2, logo_url=$3, address=$4, phone_primary=$5, phone_secondary=$6,
-                     email=$7, website=$8, bin=$9, tin=$10, trade_license=$11, bank_details=$12,
-                     bkash_number=$13, nagad_number=$14, facebook_url=$15, instagram_url=$16, invoice_footer=$17,
-                     default_delivery_charge=$18, order_system=$19, invoice_logo_url=$20, tracker_template=$21,
-                     edited_by=$22, edited_on=NOW()
-                   WHERE oid=$23`,
-            values: [
-                nz(p.name), nz(p.legal_name), nz(p.logo_url), nz(p.address), nz(p.phone_primary), nz(p.phone_secondary),
-                nz(p.email), nz(p.website), nz(p.bin), nz(p.tin), nz(p.trade_license), nz(p.bank_details),
-                nz(p.bkash_number), nz(p.nagad_number), nz(p.facebook_url), nz(p.instagram_url), nz(p.invoice_footer),
-                Number(p.default_delivery_charge || 0), p.order_system || "both", nz(p.invoice_logo_url), p.tracker_template || "classic", user_id, oid,
-            ],
+        const saved = await execute_transaction(async (tx) => {
+            const updated = await tx.execute_value({
+                text: `UPDATE ${TABLE.SETTINGS}
+                          SET name = $1, logo_url = $2, address = $3, phone_primary = $4, phone_secondary = $5,
+                              website = $6, facebook_url = $7, instagram_url = $8, edited_by = $9, edited_on = clock_timestamp()
+                        WHERE oid = (SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1)
+                    RETURNING oid, name, logo_url, address, phone_primary, phone_secondary, website, facebook_url, instagram_url, edited_on, edited_by`,
+                values: [p.name, p.logo_url, p.address, p.phone_primary, p.phone_secondary, p.website, p.facebook_url, p.instagram_url, user_id],
+            });
+            if (updated.rowCount !== 1) fail(409, "The business settings are missing. Ask support to set them up.");
+            await bump_config_version(tx);
+            const { oid, ...row } = updated.rows[0];
+            await saveLogActivity({ reference_type: "settings", reference_oid: oid, title: "Business settings updated", description: `${row.name}: name, logo and contact details` }, { tx, request });
+            return row;
         });
-
-        const rows = await get_data({ text: `SELECT * FROM ${TABLE.SETTINGS} WHERE oid = $1`, values: [oid] });
-        const updated = rows.length ? rows[0] : null;
-        primeSettings(updated);
-
-        saveLogActivity({ reference_type: "settings", reference_oid: oid, title: "Settings Updated", description: "Business settings updated", performed_by: user_id });
-        log.info(`Settings updated by ${user_id}`);
-        return res.status(200).json({ code: 200, message: "Settings updated successfully!", data: updated });
+        invalidateSettings();
+        log.info(`Business settings updated by ${user_id}`);
+        return res.status(200).json({ code: 200, message: "Settings saved", data: saved });
     } catch (e) {
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
         log.error(`An exception occurred while updating settings: ${e?.message}`);
-        return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
+        return res.status(500).json({ code: 500, message: "The settings were not saved. Try again in a moment." });
     }
 };
 

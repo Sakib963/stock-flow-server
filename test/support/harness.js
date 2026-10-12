@@ -90,6 +90,8 @@ const call = async (route, { method = "POST", body, token, cookie, headers: extr
         status: res.status,
         body: text ? json_or_text(text) : null,
         request_id: res.headers.get("x-request-id"),
+        config_version: res.headers.get("x-config-version"),
+        etag: res.headers.get("etag"),
         set_cookie: refresh_cookie,
         cookie: refresh_cookie === null ? null : decodeURIComponent(refresh_cookie.slice("sf_rt=".length, refresh_cookie.indexOf(";"))),
     };

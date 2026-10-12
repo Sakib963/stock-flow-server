@@ -2,7 +2,7 @@ const crypto = require("crypto");
 
 // Where each kind of photo lands in our Cloudinary account. A signature names its folder, so an
 // upload signed for a person's photo cannot land among the products, nor the other way round.
-const PHOTO_FOLDER = { products: "stockflow/products", people: "stockflow/people" };
+const PHOTO_FOLDER = { products: "stockflow/products", people: "stockflow/people", branding: "stockflow/branding" };
 
 const cloud_name = () => process.env.CLOUDINARY_CLOUD_NAME || "";
 

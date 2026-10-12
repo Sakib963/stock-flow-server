@@ -36,6 +36,7 @@ const get_user_info = async (request, res) => {
         const etag = payload_etag({ configVersion, roleOid: user.role_oid, userEditedOn: user.edited_on });
 
         res.set("ETag", etag);
+        res.set("X-Config-Version", String(configVersion));
         // Must revalidate on every load: a revoked permission has to take effect at once, so the
         // client may reuse its copy only after asking.
         res.set("Cache-Control", "private, no-cache");
@@ -66,7 +67,7 @@ const get_user_info = async (request, res) => {
                        WHERE status = 'Active'
                        ORDER BY sort_order`,
             }),
-            get_data({ text: `SELECT name, logo_url, order_system, time_zone, address, phone_primary FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` }),
+            get_data({ text: `SELECT name, logo_url, order_system, time_zone, address, phone_primary, website, facebook_url, instagram_url FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` }),
         ]);
 
         const permissions = permissionRows.map((r) => r.code);
@@ -92,6 +93,10 @@ const get_user_info = async (request, res) => {
                 // What a counter receipt prints under the name.
                 address: settings.address ?? null,
                 phone: settings.phone_primary ?? null,
+                // The invoice footer.
+                website: settings.website ?? null,
+                facebookUrl: settings.facebook_url ?? null,
+                instagramUrl: settings.instagram_url ?? null,
             },
             permissions,
             menu: build_menu(menuRows, new Set(permissions)),

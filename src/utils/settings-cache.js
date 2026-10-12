@@ -1,43 +1,37 @@
 // -----------------------------------------------------------------------------
-// Settings cache: keeps the single `settings` row in memory so we do not hit the
-// DB on every request (settings change rarely). Freshness comes from prime/invalidate
-// on UPDATE -- that is the real mechanism. The cache is long-lived otherwise.
+// Settings cache: keeps the single `settings` row in memory so it is not read on every request.
 //
-// NOTE on serverless: each server instance has its own memory, so prime/invalidate
-// only refreshes THIS instance. The long TTL below is just a cross-instance backstop
-// so a warm instance that never handled the update still refreshes eventually.
+// Freshness follows config_version, as the permission cache does: every write to the settings row
+// bumps it in its own transaction, and this cache reloads the row whenever the version it was read
+// at is no longer the current one. On Vercel each instance has its own memory, so a timer or a
+// local invalidate only ever refreshed the instance that took the update; the version is in the
+// database, so every instance sees the change on its next request.
 // -----------------------------------------------------------------------------
 const { TABLE } = require("./constant");
 const { get_data } = require("../db/database");
-
-const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (backstop only; updates prime/invalidate)
+const { read_config_version } = require("./config-version");
 
 let cache = null;
-let cachedAt = 0;
+let cachedAt = null;
 
 const loadFromDb = async () => {
     const rows = await get_data({ text: `SELECT * FROM ${TABLE.SETTINGS} ORDER BY created_on ASC LIMIT 1`, values: [] });
     return rows.length ? rows[0] : null;
 };
 
-// Return settings from cache; reload from DB when empty or past its TTL.
+/** The settings row, read again whenever config_version has moved since it was cached. */
 const getSettings = async () => {
-    const now = Date.now();
-    if (cache && now - cachedAt < TTL_MS) return cache;
+    const version = await read_config_version();
+    if (cache && cachedAt === version) return cache;
     cache = await loadFromDb();
-    cachedAt = Date.now();
+    cachedAt = version;
     return cache;
 };
 
-// Overwrite the cache with a freshly-updated row (called right after an update).
-const primeSettings = (row) => {
-    cache = row || null;
-    cachedAt = Date.now();
-};
-
+/** Drops this instance's copy at once; the version does the same for every other instance. */
 const invalidateSettings = () => {
     cache = null;
-    cachedAt = 0;
+    cachedAt = null;
 };
 
-module.exports = { getSettings, primeSettings, invalidateSettings };
+module.exports = { getSettings, invalidateSettings };

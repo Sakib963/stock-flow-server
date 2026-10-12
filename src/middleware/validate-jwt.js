@@ -32,7 +32,7 @@ const jwtMiddleware = async (request, res, next) => {
 
     try {
         const rows = await get_data({
-            text: `SELECT l.email
+            text: `SELECT l.email, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version
                    FROM ${TABLE.AUTH_SESSION} s
                    JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid
                    WHERE s.oid = $1 AND s.login_oid = $2
@@ -42,6 +42,9 @@ const jwtMiddleware = async (request, res, next) => {
         });
         if (!rows.length) return unauthorized(res, "ended");
 
+        // Every signed-in answer names the config version it was served at, read in this same query, so
+        // an open tab learns a role, menu or settings change on its next request and reloads its payload.
+        res.set("X-Config-Version", String(rows[0].config_version ?? 0));
         request.credentials = { user_id: rows[0].email, login_oid: claims.sub, session_oid: claims.sid };
         return next();
     } catch (e) {

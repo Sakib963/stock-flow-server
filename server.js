@@ -15,7 +15,8 @@ app.set("trust proxy", 1);
 // is reflected, which is only acceptable because the cookie is SameSite=Strict: a page on another
 // site cannot make the browser send it. Set CORS_ORIGINS in production regardless.
 const allowedOrigins = (process.env.CORS_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
+// The web app reads X-Config-Version from a cross-origin response, which a browser hides unless named here.
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true, exposedHeaders: ["X-Config-Version"] }));
 
 // After cors so preflights are not logged, before the parser so malformed JSON is.
 app.use(request_log);
