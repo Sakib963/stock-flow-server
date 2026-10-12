@@ -324,6 +324,7 @@ module.exports = {
     SIGN_PROFILE_PHOTO_UPLOAD: "/sign-profile-photo-upload",
 
     GET_ACTIVITY_LOG_LIST: "/get-activity-log-list",
+    GET_ACTIVITY_LOG_SUMMARY: "/get-activity-log-summary",
 
     GET_PURCHASE_ORDER_REPORT: "/get-purchase-order-report",
     GET_PURCHASE_ORDER_PRODUCTS_REPORT: "/get-purchase-order-products-report",

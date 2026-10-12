@@ -13,6 +13,9 @@ const ZONE = `COALESCE((SELECT time_zone FROM ${TABLE.SETTINGS} ORDER BY created
 /** The business's calendar day of a stored UTC time. */
 const business_day = (column) => `((${column}) AT TIME ZONE 'UTC' AT TIME ZONE ${ZONE})::date`;
 
+/** A stored UTC time as the business's wall clock, for an hour or a weekday. */
+const business_local = (column) => `((${column}) AT TIME ZONE 'UTC' AT TIME ZONE ${ZONE})`;
+
 /** Today, on the business's calendar. */
 const business_today = `(now() AT TIME ZONE ${ZONE})::date`;
 
@@ -48,4 +51,4 @@ const zone_label = (zone) => {
       return `Times in ${zone}${offset ? ` (${offset})` : ""}`;
 };
 
-module.exports = { business_day, business_today, business_day_start, business_month_start, business_number, business_zone, format_business, zone_label };
+module.exports = { business_day, business_local, business_today, business_day_start, business_month_start, business_number, business_zone, format_business, zone_label };
