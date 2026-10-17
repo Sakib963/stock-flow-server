@@ -337,6 +337,11 @@ module.exports = {
 
     // Analytics
     GET_CONFIGURATION_ANALYTICS: "/get-configuration-analytics",
+    GET_SALES_ANALYTICS_OVERVIEW: "/get-sales-analytics-overview",
+    GET_SALES_ANALYTICS_ORDERS: "/get-sales-analytics-orders",
+    GET_SALES_ANALYTICS_TEAM: "/get-sales-analytics-team",
+    GET_SALES_ANALYTICS_PRODUCTS: "/get-sales-analytics-products",
+    GET_SALES_ANALYTICS_CUSTOMERS: "/get-sales-analytics-customers",
 
     // Customers and locations
     GET_CUSTOMER_LIST: "/get-customer-list",

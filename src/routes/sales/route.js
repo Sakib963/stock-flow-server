@@ -11,6 +11,7 @@ const { giveawayRouter } = require("./giveaway/route");
 const { customerRouter } = require("./customer/route");
 const { locationRouter } = require("./location/route");
 const { salesSettingsRouter } = require("./settings/route");
+const { salesAnalyticsRouter } = require("./analytics/route");
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use(SUB_CONTEXTS.GIVEAWAY, giveawayRouter);
 router.use(SUB_CONTEXTS.CUSTOMER, customerRouter);
 router.use(SUB_CONTEXTS.LOCATION, locationRouter);
 router.use(SUB_CONTEXTS.SETTINGS, salesSettingsRouter);
+router.use(SUB_CONTEXTS.ANALYTICS, salesAnalyticsRouter);
 
 module.exports = { salesRouter: router };
