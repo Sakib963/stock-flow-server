@@ -392,6 +392,8 @@ module.exports = {
     DELETE_CAMPAIGN_DELIVERABLE: "/delete-campaign-deliverable",
     GET_MARKETING_ANALYTICS_OVERVIEW: "/get-marketing-analytics-overview",
     GET_MARKETING_CAMPAIGN_RESULTS: "/get-marketing-campaign-results",
+    GET_MARKETING_COMPARISONS: "/get-marketing-comparisons",
+    GET_MARKETING_SOURCES: "/get-marketing-sources",
     CREATE_PARTNER_PAYMENT: "/create-partner-payment",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],

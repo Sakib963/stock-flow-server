@@ -61,7 +61,21 @@ const RESULT_SQL = `
            (SELECT COALESCE(SUM(sales) FILTER (WHERE part = 'W'), 0) FROM lines)::float AS business_window,
            (SELECT COUNT(*) FROM firsts f WHERE f.first_day BETWEEN span.w_start AND span.w_end)::int AS first_time,
            (SELECT COUNT(*) FROM firsts f WHERE f.first_day BETWEEN span.w_start AND span.w_end
-               AND EXISTS (SELECT 1 FROM lines l WHERE l.customer_oid = f.customer_oid AND l.part = 'W' AND l.units > 0 AND l.product_oid IN (SELECT product_oid FROM promoted)))::int AS first_time_promoted
+               AND EXISTS (SELECT 1 FROM lines l WHERE l.customer_oid = f.customer_oid AND l.part = 'W' AND l.units > 0 AND l.product_oid IN (SELECT product_oid FROM promoted)))::int AS first_time_promoted,
+           -- Who the campaign brought (REQ-09): its first-time customers beside the window before's buyers, by what is recorded on them.
+           (SELECT COALESCE(json_agg(x), '[]'::json) FROM (
+                SELECT c.gender, c.age_band, COUNT(*)::int AS customers FROM firsts f JOIN ${TABLE.CUSTOMERS} c ON c.oid = f.customer_oid
+                 WHERE f.first_day BETWEEN span.w_start AND span.w_end GROUP BY c.gender, c.age_band) x) AS brought,
+           (SELECT COALESCE(json_agg(x), '[]'::json) FROM (
+                SELECT c.gender, c.age_band, COUNT(*)::int AS customers FROM ${TABLE.CUSTOMERS} c
+                 WHERE c.oid IN (SELECT customer_oid FROM lines WHERE part = 'B' AND units > 0) GROUP BY c.gender, c.age_band) x) AS usual,
+           (SELECT COALESCE(json_agg(x ORDER BY x.customers DESC, x.name_en), '[]'::json) FROM (
+                SELECT d.oid, d.name_en, d.name_bn, COUNT(DISTINCT f.customer_oid)::int AS customers
+                  FROM firsts f
+                  JOIN ${TABLE.ORDERS} o ON o.customer_oid = f.customer_oid AND o.sold_on IS NOT NULL AND o.status <> 'Returned' AND o.channel = ANY($2) AND ${business_day("o.sold_on")} = f.first_day
+                  JOIN ${TABLE.ONLINE_ORDER} oo ON oo.order_oid = o.oid JOIN ${TABLE.DISTRICT} d ON d.oid = oo.district_oid
+                 WHERE f.first_day BETWEEN span.w_start AND span.w_end
+                 GROUP BY d.oid, d.name_en, d.name_bn ORDER BY 4 DESC, 2 LIMIT 5) x) AS districts
       FROM span`;
 
 // Other campaigns whose window meets this one's and that promote one of its products (REQ-08).

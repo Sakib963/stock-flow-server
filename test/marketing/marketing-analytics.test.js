@@ -7,6 +7,8 @@ const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 const BASE = CONTEXTS.MARKETING + SUB_CONTEXTS.ANALYTICS;
 const OVERVIEW = BASE + ROUTES.GET_MARKETING_ANALYTICS_OVERVIEW;
 const RESULTS = BASE + ROUTES.GET_MARKETING_CAMPAIGN_RESULTS;
+const COMPARISONS = BASE + ROUTES.GET_MARKETING_COMPARISONS;
+const SOURCES = BASE + ROUTES.GET_MARKETING_SOURCES;
 const OWNER = ["marketing.analytics.view", "sales.pos.view", "sales.online.view"];
 const MONEY = [...OWNER, "inventory.stock-value.view"];
 
@@ -63,7 +65,7 @@ describe("marketing analytics", () => {
 
     it("refuses someone who may run campaigns but not see marketing analytics", async () => {
         const token = await sign_in_with(["marketing.campaign.view", "sales.pos.view"]);
-        assert.equal((await get(RESULTS, token)).status, 403);
+        for (const url of [OVERVIEW, RESULTS, COMPARISONS, SOURCES]) assert.equal((await get(url, token)).status, 403, url);
     });
 
     it("works out the documented example: 22 extra dresses, 13,200 extra profit against 15,000, so sales rose but did not pay back", async () => {
@@ -167,5 +169,62 @@ describe("marketing analytics", () => {
         assert.deepEqual(data.campaigns.map((c) => [c.name, c.posted.map((p) => p.day)]), [["Winter dresses", ["2026-09-04"]]]);
         assert.equal(data.given, null);
         assert.notEqual((await get(OVERVIEW, await sign_in_with([...OWNER, "inventory.stock-value.view"]))).body.data.given, null);
+    });
+});
+
+
+describe("sources, partners and types compared, and who a campaign brought", () => {
+    beforeEach(async () => {
+        await h.reset();
+        await seed();
+    });
+
+    it("compares promotion types and partners, with what each partner delivered", async () => {
+        await example();
+        const id = await campaign();
+        const line = (await h.query("SELECT oid FROM campaign_partner WHERE campaign_oid = $1", [id]))[0].oid;
+        await h.query("INSERT INTO campaign_deliverable (oid, campaign_partner_oid, kind, quantity, due_on, status, posted_on) VALUES ($1, $3, 'Reel', 1, '2026-09-04', 'Posted', '2026-09-04'), ($2, $3, 'Story', 1, '2026-09-05', 'Late', '2026-09-07')", [uuidv4(), uuidv4(), line]);
+        const data = (await get(COMPARISONS, await sign_in_with(MONEY))).body.data;
+        assert.deepEqual(data.types.map((t) => [t.promotion_type, t.campaigns, t.cost, t.return_per_taka]), [["InfluencerPost", 1, 15000, 0.88]]);
+        assert.deepEqual(data.partners.map((p) => [p.campaigns, p.fees, p.average_extra, p.on_time, p.late, p.missed]), [[1, 15000, 22, 1, 1, 0]]);
+        assert.equal((await get(COMPARISONS, await sign_in_with(OWNER))).body.data.types[0].return_per_taka, null, "no ratio a buying price could come from");
+    });
+
+    it("compares the sources online orders came through: placed, sold, cancelled, refused and first-time customers", async () => {
+        const source = uuidv4();
+        await h.query("INSERT INTO order_source (oid, platform, name) VALUES ($1, 'Facebook', 'Main page')", [source]);
+        await h.query("INSERT INTO customers (oid, name, phone, phone_normalized) VALUES ('CU-1', 'A', '01711000001', '01711000001')");
+        const placed = async (status, extra = {}) => {
+            const oid = await sale("2026-09-05", dress, dress_batch, 1, 1000, { channel: "ONLINE", ...extra });
+            await h.query("UPDATE orders SET status = $2::text, sold_on = CASE WHEN $2::text = 'Delivered' THEN sold_on END WHERE oid = $1", [oid, status]);
+            await h.query("INSERT INTO online_order (order_oid, source_oid, delivery_status) VALUES ($1, $2, $3)", [oid, source, extra.delivery ?? null]);
+            await h.query("INSERT INTO order_status_history (oid, order_oid, to_status, performed_on) VALUES ($1, $2, 'Pending', $3)", [uuidv4(), oid, at("2026-09-04")]);
+            if (extra.reason) await h.query("UPDATE orders SET cancel_reason_code = $2 WHERE oid = $1", [oid, extra.reason]);
+        };
+        await placed("Delivered", { customer: "CU-1" });
+        await placed("Delivered");
+        await placed("Cancelled");
+        await placed("Confirmed", { delivery: "Failed" });
+        await placed("Cancelled", { reason: "out_of_stock" });
+        const data = (await get(SOURCES, await sign_in_with(MONEY))).body.data;
+        assert.deepEqual(data.sources.map((s) => [s.name, s.placed, s.sold, s.cancelled, s.refused, s.sales, s.first_time]), [["Main page", 5, 2, 1, 1, 2000, 1]], "the out of stock cancellation is the business's, not the source's");
+        assert.equal((await get(SOURCES, await sign_in_with(OWNER))).body.data.sources[0].profit, null);
+        assert.equal((await get(SOURCES, await sign_in_with(["marketing.analytics.view", "sales.pos.view"]))).body.data.applies, false);
+    });
+
+    it("names who a campaign brought by gender, age and district, beside the buyers before it", async () => {
+        await example();
+        await campaign();
+        await h.query("INSERT INTO customers (oid, name, phone, phone_normalized, gender, age_band) VALUES ('CU-1', 'A', '01711000001', '01711000001', 'Female', '18_24'), ('CU-2', 'B', '01711000002', '01711000002', 'Male', '35_44')");
+        await sale("2026-08-26", scarf, scarf_batch, 1, 300, { customer: "CU-2" });
+        const oid = await sale("2026-09-06", dress, dress_batch, 1, 1000, { customer: "CU-1", channel: "ONLINE" });
+        await h.query("INSERT INTO online_order (order_oid, district_oid) VALUES ($1, 'BD-Dhaka')", [oid]);
+        const returned = await sale("2026-09-06", scarf, scarf_batch, 1, 300, { customer: "CU-1", channel: "ONLINE" });
+        await h.query("UPDATE orders SET status = 'Returned' WHERE oid = $1", [returned]);
+        await h.query("INSERT INTO online_order (order_oid, district_oid) VALUES ($1, 'BD-Bhola')", [returned]);
+        const [result] = (await get(RESULTS, await sign_in_with(MONEY))).body.data.results;
+        assert.deepEqual(result.brought, [{ gender: "Female", age_band: "18_24", customers: 1 }]);
+        assert.deepEqual(result.usual, [{ gender: "Male", age_band: "35_44", customers: 1 }]);
+        assert.deepEqual(result.districts.map((d) => [d.oid, d.customers]), [["BD-Dhaka", 1]], "a parcel sent back in full adds no district");
     });
 });
