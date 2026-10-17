@@ -1,4 +1,4 @@
-const { describe, it, before, after, beforeEach } = require("node:test");
+const { describe, it, before, after, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
@@ -106,8 +106,16 @@ describe("password events", () => {
 });
 
 describe("turning an account off", () => {
+    afterEach(async () => {
+        await h.query("UPDATE menu_item SET is_disabled = true WHERE slug = 'administration-users'");
+        await h.query("UPDATE config_version SET version = version + 1");
+    });
+
     it("ends every session the account already has open", async () => {
         await h.reset();
+        // Users is switched off in the registry until it is built; the endpoint is what this proves.
+        await h.query("UPDATE menu_item SET is_disabled = false WHERE slug = 'administration-users'");
+        await h.query("UPDATE config_version SET version = version + 1");
         const admin = await h.seed_user({ email: "admin@arithmalabs.test", permissions: ["administration.user.edit"] });
         const staff = await h.seed_user({ email: "rafi@arithmalabs.test" });
         const counter = await h.sign_in(staff);

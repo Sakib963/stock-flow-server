@@ -2,6 +2,7 @@ const { TABLE } = require("../../../utils/constant");
 const { get_data } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { read_config_version, payload_etag } = require("../../../utils/config-version");
+const { switched_off, feature_of, off_reason } = require("../../../utils/switched-off");
 
 // Everything the shell needs to paint itself, in one round trip: who is signed in, the business
 // they belong to, what they may do, and the menu that follows from it. Called on every load and
@@ -71,6 +72,9 @@ const get_user_info = async (request, res) => {
         ]);
 
         const permissions = permissionRows.map((r) => r.code);
+        // The disabled and hidden features among those this person holds, so the web refuses their pages too.
+        const off = await switched_off();
+        const switchedOff = [...new Set(permissions.map(feature_of))].filter((feature) => off_reason(off, feature));
         const settings = settingsRows[0] ?? {};
 
         const payload = {
@@ -99,6 +103,7 @@ const get_user_info = async (request, res) => {
                 instagramUrl: settings.instagram_url ?? null,
             },
             permissions,
+            switchedOff,
             menu: build_menu(menuRows, new Set(permissions)),
             counters: { notifications: 0 },
         };
@@ -126,7 +131,8 @@ const get_user_info = async (request, res) => {
 const build_menu = (rows, held) => {
     const visible = (row) => !row.permission_code || held.has(row.permission_code);
 
-    const shape = (row, children) => ({
+    // A feature inside a switched-off module is off too, with the module's reason unless it has its own.
+    const shape = (row, children, parent = null) => ({
         id: row.slug,
         label: { en: row.label, bn: row.label_bn || row.label },
         description: { en: row.description_en, bn: row.description_bn },
@@ -138,8 +144,8 @@ const build_menu = (rows, held) => {
         // Present but unusable, and says why. Distinct from absent, which means no permission:
         // hiding a feature someone is allowed to reach would be a lie, and gets reported as a
         // permissions bug.
-        isDisabled: row.is_disabled ?? false,
-        disabledMessage: { en: row.disabled_message_en, bn: row.disabled_message_bn },
+        isDisabled: Boolean(row.is_disabled || parent?.is_disabled),
+        disabledMessage: row.is_disabled || !parent?.is_disabled ? { en: row.disabled_message_en, bn: row.disabled_message_bn } : { en: parent.disabled_message_en, bn: parent.disabled_message_bn },
         isNew: row.is_new ?? false,
         children,
     });
@@ -149,7 +155,7 @@ const build_menu = (rows, held) => {
 
     return parents
         .map((parent) => {
-            const children = childrenOf(parent.oid).filter(visible).map((c) => shape(c, []));
+            const children = childrenOf(parent.oid).filter(visible).map((c) => shape(c, [], parent));
             // A leaf is judged on its own permission; a group is judged on whether anything
             // survived inside it.
             const isGroup = childrenOf(parent.oid).length > 0;

@@ -2,6 +2,7 @@ const { TABLE } = require("../utils/constant");
 const { get_data } = require("../db/database");
 const { log } = require("../utils/log");
 const { read_config_version } = require("../utils/config-version");
+const { switched_off, feature_of, off_reason } = require("../utils/switched-off");
 
 // Route level authorisation.
 //
@@ -54,7 +55,14 @@ const requirePermission = (code) => async (request, res, next) => {
         }
 
         const held = await permissions_for(user_id);
-        if (codes.some((c) => held.has(c))) return next();
+        const usable = codes.filter((c) => held.has(c));
+        if (usable.length) {
+            const off = await switched_off();
+            if (usable.some((c) => !off_reason(off, feature_of(c)))) return next();
+            const reason = off_reason(off, feature_of(usable[0]));
+            log.warn(`Switched off: ${user_id} asked for ${code}`);
+            return res.status(403).json({ code: 403, message: reason.en || "This feature is not available.", data: { switched_off: true, reason } });
+        }
 
         // 403 and not 404: the caller is authenticated, the route exists, and they may not use it.
         // Distinct from the 401 jwtMiddleware returns for no or expired token, because the client
