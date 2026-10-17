@@ -1,7 +1,7 @@
 const Joi = require("joi");
 
 const COURIERS = ["Pathao", "Steadfast", "RedX", "Paperfly", "Sundarban", "OwnRider", "Other"];
-const STATUSES = ["Open", "HandedOver", "Cancelled"];
+const STATUSES = ["Open", "HandedOver", "Delivered", "PartlyDelivered", "NotDelivered", "Cancelled"];
 const one_or_more = (values) => Joi.string().pattern(new RegExp(`^(${values.join("|")})(,(${values.join("|")}))*$`)).allow(null, "").optional();
 const order_oids = Joi.array().items(Joi.string().uuid()).min(1).max(500).unique().required();
 

@@ -196,6 +196,34 @@ describe("delivery batches", () => {
         await assert_balanced();
     });
 
+    it("says how a handed over batch ended once every parcel has an answer, and goes back to the courier when an answer is undone", async () => {
+        const status = async (oid) => (await get(`${DETAILS}/${oid}`, token)).body.data.status;
+        const answer = (oid, delivery_status) => h.query("UPDATE online_order SET delivery_status = $2 WHERE order_oid = $1", [oid, delivery_status]);
+        const a = await order(token);
+        const b = await order(token, { quantity: 1 });
+        const mixed = await make(token, [a, b]);
+        assert.equal((await h.call(HAND_OVER, { body: { oid: mixed.oid }, token })).status, 200);
+        assert.equal((await h.call(DELIVER, { body: { oid: mixed.oid, order_oids: [a] }, token })).status, 200);
+        assert.equal(await status(mixed.oid), "HandedOver", "one parcel is still with the courier");
+        await answer(b, "Failed");
+        assert.equal(await status(mixed.oid), "PartlyDelivered");
+        const listed = await get(`${LIST}?status=PartlyDelivered`, token);
+        assert.deepEqual(listed.body.data.rows.map((row) => [row.oid, row.status]), [[mixed.oid, "PartlyDelivered"]]);
+        await answer(b, "WithCourier");
+        assert.equal(await status(mixed.oid), "HandedOver");
+
+        const c = await order(token, { quantity: 1 });
+        const d = await order(token, { quantity: 1 });
+        const whole = await make(token, [c]);
+        const none = await make(token, [d]);
+        for (const batch of [whole, none]) assert.equal((await h.call(HAND_OVER, { body: { oid: batch.oid }, token })).status, 200);
+        assert.equal((await h.call(DELIVER, { body: { oid: whole.oid, order_oids: [c] }, token })).status, 200);
+        await answer(d, "BackInShop");
+        assert.equal(await status(whole.oid), "Delivered");
+        assert.equal(await status(none.oid), "NotDelivered");
+        assert.equal((await get(`${LIST}?include=stats`, token)).body.data.stats.handed_over, 1);
+    });
+
     it("counts no money to collect for an order cancelled while in an open batch", async () => {
         const a = await order(token);
         const b = await order(token, { quantity: 1 });
