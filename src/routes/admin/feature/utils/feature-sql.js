@@ -16,7 +16,9 @@ const STATE = `(CASE WHEN m.status <> 'Active' OR COALESCE(p.status <> 'Active',
                      WHEN m.is_disabled OR COALESCE(p.is_disabled, false) THEN 'Disabled'
                      ELSE 'On' END)`;
 
-// The System module is how a feature is switched back on, so it and its pages are always on.
-const LOCKED = `(m.slug = 'system' OR COALESCE(p.slug = 'system', false))`;
+// The registry is where a feature is turned back on, so it, the module it sits in, and the System
+// module are always on.
+const LOCKED = `(m.slug = 'system' OR COALESCE(p.slug = 'system', false) OR COALESCE(m.permission_code LIKE 'system.feature.%', false)
+                 OR EXISTS (SELECT 1 FROM ${TABLE.MENU_ITEM} c WHERE c.parent_oid = m.oid AND c.permission_code LIKE 'system.feature.%'))`;
 
 module.exports = { FROM, KIND, STATE, OWN_STATE, LOCKED };

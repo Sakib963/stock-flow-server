@@ -85,7 +85,6 @@ module.exports = {
     ACTIVITY_LOG: "/api/v1/activity-log",
     SALES: "/api/v1/sales",
     MARKETING: "/api/v1/marketing",
-    SYSTEM: "/api/v1/system",
   },
   SUB_CONTEXTS: {
     USER: "/user",
@@ -398,6 +397,7 @@ module.exports = {
     GET_MARKETING_SOURCES: "/get-marketing-sources",
     GET_MARKETING_NEXT: "/get-marketing-next",
     GET_FEATURE_LIST: "/get-feature-list",
+    GET_FEATURE_TREE: "/get-feature-tree",
     GET_FEATURE_DETAILS: "/get-feature-details",
     UPDATE_FEATURE_DETAILS: "/update-feature-details",
     SWITCH_FEATURE: "/switch-feature",

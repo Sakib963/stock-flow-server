@@ -62,6 +62,14 @@ const request_log = (request, res, next) => {
         if (body) response_bytes += Buffer.byteLength(body);
         const credentials = request.credentials ?? {};
         const city = request.headers["x-vercel-ip-city"];
+        const duration_ms = Math.round(Number(process.hrtime.bigint() - started) / 1e6);
+
+        // One line per answer in the server log, beside the row: the address without its query, which
+        // can carry a reset token, and who asked.
+        const answered = `Answered ${request.method} ${request.originalUrl.split("?")[0]} ${res.statusCode} in ${duration_ms}ms${credentials.user_id ? ` for ${credentials.user_id}` : ""}`;
+        if (res.statusCode >= 500) log.error(answered);
+        else if (res.statusCode >= 400) log.warn(answered);
+        else log.info(answered);
 
         insert({
             oid: request_id,
@@ -69,7 +77,7 @@ const request_log = (request, res, next) => {
             ...route_of(request),
             path: request.originalUrl.slice(0, 1024),
             status: res.statusCode,
-            duration_ms: Math.round(Number(process.hrtime.bigint() - started) / 1e6),
+            duration_ms,
             request_bytes: Number(request.headers["content-length"]) || 0,
             response_bytes,
             login_oid: credentials.login_oid ?? null,

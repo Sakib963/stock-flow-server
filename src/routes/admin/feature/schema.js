@@ -11,6 +11,9 @@ const feature_list_schema = Joi.object({
     include: Joi.string().valid("", "stats").optional(),
 });
 
+// The tree takes nothing; an empty object still refuses unknown keys.
+const feature_tree_schema = Joi.object({});
+
 const feature_oid_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
@@ -36,4 +39,4 @@ const feature_switch_schema = Joi.object({
     reason_bn: Joi.when("state", { is: "Disabled", then: Joi.string().trim().min(1).max(256).required(), otherwise: Joi.any().strip() }),
 });
 
-module.exports = { feature_list_schema, feature_oid_schema, feature_update_schema, feature_switch_schema };
+module.exports = { feature_list_schema, feature_tree_schema, feature_oid_schema, feature_update_schema, feature_switch_schema };

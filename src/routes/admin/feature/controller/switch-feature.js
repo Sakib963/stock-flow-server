@@ -21,7 +21,7 @@ const switch_feature = async (request, res) => {
                 values: [oid],
             });
             if (!row) fail(404, "That feature is not in the registry.");
-            if (row.locked && state !== "On") fail(409, "The System module cannot be turned off: it is where features are turned back on.");
+            if (row.locked && state !== "On") fail(409, "The feature registry and its module cannot be turned off: it is where features are turned back on.");
             if (row.state === state) {
                 changed = false;
                 return;

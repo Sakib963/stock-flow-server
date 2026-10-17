@@ -4,8 +4,9 @@ const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 
-const BASE = CONTEXTS.SYSTEM + SUB_CONTEXTS.FEATURE;
+const BASE = CONTEXTS.ADMIN + SUB_CONTEXTS.FEATURE;
 const LIST = BASE + ROUTES.GET_FEATURE_LIST;
+const TREE = BASE + ROUTES.GET_FEATURE_TREE;
 const DETAILS = BASE + ROUTES.GET_FEATURE_DETAILS;
 const UPDATE = BASE + ROUTES.UPDATE_FEATURE_DETAILS;
 const SWITCH = BASE + ROUTES.SWITCH_FEATURE;
@@ -31,7 +32,7 @@ describe("the feature registry", () => {
     // The registry page is switched on by its migration; the test database may predate it.
     beforeEach(async () => {
         await h.reset();
-        await h.query("UPDATE menu_item SET is_disabled = false, disabled_message_en = NULL, disabled_message_bn = NULL WHERE slug = 'system-features'");
+        await h.query("UPDATE menu_item SET is_disabled = false, disabled_message_en = NULL, disabled_message_bn = NULL WHERE permission_code = 'system.feature.view'");
         await h.query("UPDATE config_version SET version = version + 1");
     });
     afterEach(async () => {
@@ -42,7 +43,9 @@ describe("the feature registry", () => {
     });
 
     it("is closed to someone who may not see it, and its changes to someone who may only look", async () => {
-        assert.equal((await get(`${LIST}?limit=50`, await sign_in_with(["marketing.partner.view"]))).status, 403);
+        const outsider = await sign_in_with(["marketing.partner.view"]);
+        assert.equal((await get(`${LIST}?limit=50`, outsider)).status, 403);
+        assert.equal((await get(TREE, outsider)).status, 403);
         const viewer = await sign_in_with(["system.feature.view"]);
         assert.equal((await get(`${LIST}?limit=50`, viewer)).status, 200);
         const partners = await oid_of("permission_code = 'marketing.partner.view'");
@@ -86,11 +89,13 @@ describe("the feature registry", () => {
         assert.deepEqual([pay.status, pay.body.data?.switched_off], [403, true], "a code with no menu entry of its own goes with its module");
     });
 
-    it("never turns off the System module, where features are turned back on", async () => {
+    it("never turns off the registry or the module it sits in, where features are turned back on", async () => {
         const admin = await sign_in_with(ADMIN);
         const registry = await oid_of("permission_code = 'system.feature.view'");
         const res = await h.call(SWITCH, { token: admin, body: { oid: registry, state: "Hidden" } });
         assert.equal(res.status, 409);
+        const module = (await h.query("SELECT parent_oid FROM menu_item WHERE permission_code = 'system.feature.view'"))[0].parent_oid;
+        assert.equal((await h.call(SWITCH, { token: admin, body: { oid: module, state: "Disabled", reason_en: "x", reason_bn: "x" } })).status, 409);
     });
 
     it("asks for the reason in both languages before disabling", async () => {
@@ -113,6 +118,14 @@ describe("the feature registry", () => {
         assert.equal(menu_entry((await get(h.ROUTE.ME, admin)).body.data.menu, "marketing.partner.view").label.en, "Influencers");
         const [log] = (await get(`${DETAILS}/${partners}`, admin)).body.data.activity;
         assert.match(log.description, /English label changed from ".*" to "Influencers"/);
+    });
+
+    it("gives the whole tree with every action, for the Feature tree drawer", async () => {
+        const admin = await sign_in_with([...ADMIN, "sales.pos.view", "sales.pos.create"]);
+        const { features, actions } = (await get(TREE, admin)).body.data;
+        assert.equal(features.length, (await h.query("SELECT COUNT(*)::int AS n FROM menu_item"))[0].n);
+        assert.ok(features.every((f) => !f.parent_oid || features.some((p) => p.oid === f.parent_oid)), "every feature's module is in the tree");
+        assert.ok(actions.some((a) => a.code === "sales.pos.create" && a.action === "create"));
     });
 
     it("shows a feature's actions with the roles that hold each", async () => {
