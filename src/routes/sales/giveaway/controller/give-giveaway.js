@@ -22,6 +22,13 @@ const give_giveaway = async (request, res) => {
                 fail(409, `${row.giveaway_no} is already ${row.status === "Given" ? "given" : "cancelled"}. Reload it to see what changed.`, { status: row.status });
             }
             const { giveaway_no, recipient_name } = given.rows[0];
+            // A gift for a campaign leaves only while the campaign runs: a closed campaign is a record.
+            const [campaign] = await tx.get_data({
+                text: `SELECT c.campaign_no, c.status FROM ${TABLE.GIVEAWAY} g JOIN ${TABLE.CAMPAIGN_PARTNER} cp ON cp.oid = g.campaign_partner_oid JOIN ${TABLE.CAMPAIGN} c ON c.oid = cp.campaign_oid
+                        WHERE g.oid = $1 FOR SHARE OF c`,
+                values: [oid],
+            });
+            if (campaign && !["Planned", "Live"].includes(campaign.status)) fail(409, `${campaign.campaign_no} is ${campaign.status.toLowerCase()}, so nothing more can be given for it. Cancel this gift.`);
             const lines = await tx.get_data({
                 text: `SELECT gl.inventory_oid, gl.product_oid, gl.quantity, p.name, i.batch_code
                          FROM ${TABLE.GIVEAWAY_LINE} gl JOIN ${TABLE.INVENTORY} i ON i.oid = gl.inventory_oid JOIN ${TABLE.PRODUCT} p ON p.oid = gl.product_oid

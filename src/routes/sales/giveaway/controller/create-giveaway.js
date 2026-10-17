@@ -8,7 +8,7 @@ const { log } = require("../../../../utils/log");
 // Saves a gift on its own as a Draft, which moves nothing; Give takes the stock. The oid is made by
 // the client, so a request repeated after a lost answer finds the draft it already saved.
 const create_giveaway = async (request, res) => {
-    const { oid, recipient_name, recipient_phone, address_line, note, lines } = request.body;
+    const { oid, recipient_name, recipient_phone, address_line, note, campaign_partner_oid, lines } = request.body;
     const user_id = request.credentials.user_id;
     try {
         const outcome = await execute_transaction(async (tx) => {
@@ -22,10 +22,10 @@ const create_giveaway = async (request, res) => {
             const [customer] = recipient_phone ? await tx.get_data({ text: `SELECT oid FROM ${TABLE.CUSTOMERS} WHERE phone_normalized = $1`, values: [recipient_phone] }) : [];
 
             const saved = await tx.execute_value({
-                text: `INSERT INTO ${TABLE.GIVEAWAY} (oid, giveaway_no, customer_oid, recipient_name, recipient_phone, address_line, note, status, created_by)
-                       VALUES ($1, ${business_number("GFT", "giveaway_number_seq")}, $2, $3, $4, $5, $6, 'Draft', $7)
+                text: `INSERT INTO ${TABLE.GIVEAWAY} (oid, giveaway_no, customer_oid, recipient_name, recipient_phone, address_line, note, campaign_partner_oid, status, created_by)
+                       VALUES ($1, ${business_number("GFT", "giveaway_number_seq")}, $2, $3, $4, $5, $6, $8, 'Draft', $7)
                        ON CONFLICT (oid) DO NOTHING RETURNING giveaway_no`,
-                values: [oid, customer?.oid ?? null, recipient_name, recipient_phone, address_line, note, user_id],
+                values: [oid, customer?.oid ?? null, recipient_name, recipient_phone, address_line, note, user_id, campaign_partner_oid],
             });
             if (saved.rowCount !== 1) {
                 const [already] = await tx.get_data({ text: `SELECT giveaway_no, created_by FROM ${TABLE.GIVEAWAY} WHERE oid = $1`, values: [oid] });
@@ -33,6 +33,15 @@ const create_giveaway = async (request, res) => {
                 return { giveaway_no: already.giveaway_no, repeated: true };
             }
             const { giveaway_no } = saved.rows[0];
+            // Checked only for a new draft, so a retry after the campaign closed still finds the draft it saved.
+            if (campaign_partner_oid) {
+                const [line] = await tx.get_data({
+                    text: `SELECT c.campaign_no, c.status FROM ${TABLE.CAMPAIGN_PARTNER} cp JOIN ${TABLE.CAMPAIGN} c ON c.oid = cp.campaign_oid WHERE cp.oid = $1 FOR SHARE OF cp, c`,
+                    values: [campaign_partner_oid],
+                });
+                if (!line) fail(404, "That partner is no longer on the campaign. Open the campaign again.");
+                if (!["Planned", "Live"].includes(line.status)) fail(409, `${line.campaign_no} is ${line.status.toLowerCase()}, so nothing more can be given for it.`);
+            }
             const by_oid = new Map(batches.map((batch) => [batch.oid, batch]));
             await tx.execute_value({
                 text: `INSERT INTO ${TABLE.GIVEAWAY_LINE} (oid, giveaway_oid, inventory_oid, product_oid, quantity, cost_price)

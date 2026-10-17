@@ -28,6 +28,8 @@ const create_giveaway_schema = Joi.object({
     recipient_phone: Joi.string().trim().allow(null, "").empty("").default(null).custom(joi_phone),
     address_line: optional_text(512),
     note: Joi.string().trim().min(1).max(256).required(),
+    // Set when the gift is for a partner on a campaign (promotion campaign REQ-10).
+    campaign_partner_oid: Joi.string().uuid().allow(null).default(null),
     lines: Joi.array()
         .items(Joi.object({ inventory_oid: Joi.string().uuid().required(), quantity: Joi.number().integer().min(1).max(9999).required() }))
         .min(1)
