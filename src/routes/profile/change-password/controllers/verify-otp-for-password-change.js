@@ -3,8 +3,9 @@ const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, execute_value, fail, TransactionError } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
-const { end_sessions_for_login, request_context } = require("../../../../auth/auth-session");
+const { end_sessions_for_login, count_live, request_context } = require("../../../../auth/auth-session");
 const { record_sessions_ended } = require("../../../../auth/auth-event");
+const { SAME_PASSWORD } = require("./change-password");
 
 // Five wrong codes and the code is spent, as on password reset: a million guesses is not a
 // defence on its own, even behind a sign-in.
@@ -25,6 +26,9 @@ const verify_otp_for_password_change = async (request, res) => {
             });
             if (!code || !code.live) fail(404, "That code has expired. Start again to get a new one.");
             if (code.attempts >= MAX_ATTEMPTS) fail(429, "Too many incorrect codes. Start again to get a new one.");
+            // The first step checks this too, but this one sets the password, so it cannot rely on it.
+            const [login] = await tx.get_data({ text: `SELECT password FROM ${TABLE.LOGIN} WHERE oid = $1`, values: [login_oid] });
+            if (login?.password && (await bcrypt.compare(new_password, login.password))) fail(400, SAME_PASSWORD, { field: "new_password" });
             // The count has to survive the rollback `fail` causes, so it is written after the transaction.
             if (code.otp !== String(otp)) fail(400, "That code is not right. Check the email and try again.", { wrong_code_oid: code.oid });
 
@@ -35,15 +39,16 @@ const verify_otp_for_password_change = async (request, res) => {
             });
             const ended = await end_sessions_for_login(tx, { login_oid, reason: "PasswordChanged", by: user_id, except_session_oid: session_oid });
             await record_sessions_ended(tx, ended, { login_oid, email: user_id, reason: "PasswordChanged", context: request_context(request) });
-            await saveLogActivity({ reference_type: "auth", reference_oid: user_id, title: "Password changed", description: `Changed with an emailed code; ${ended.length} other device${ended.length === 1 ? "" : "s"} signed out.` }, { tx, request });
-            return ended.length;
+            const signed_out = count_live(ended);
+            await saveLogActivity({ reference_type: "auth", reference_oid: user_id, title: "Password changed", description: `Changed with an emailed code; ${signed_out} other device${signed_out === 1 ? "" : "s"} signed out.` }, { tx, request });
+            return signed_out;
         });
 
         log.info(`Password changed by ${user_id}`);
         return res.status(200).json({ code: 200, message: "Your password has been changed.", data: { sessions_closed } });
     } catch (e) {
         if (e?.data?.wrong_code_oid) await count_failed_attempt(e.data.wrong_code_oid);
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, ...(e.data?.field && { data: { field: e.data.field } }) });
         log.error(`An exception occurred while changing a password: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "The password was not changed. Try again in a moment." });
     }

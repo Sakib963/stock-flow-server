@@ -85,11 +85,15 @@ const open_session = async (tx, { login_oid, email, remember, context }) => {
 const end_where = async (tx, { clause, values, reason, by }) => {
     const status = reason === "SignOut" ? "SignedOut" : reason === "Expired" ? "Expired" : "Revoked";
     const n = values.length;
+    // `live` matches the signed-in devices list: a row still marked Active whose refresh token has
+    // idled out is closed too, but it was never a device the person could see, so it is not counted.
     const ended = await tx.execute_value({
-        text: `UPDATE ${TABLE.AUTH_SESSION}
+        text: `UPDATE ${TABLE.AUTH_SESSION} s
                SET status = $${n + 1}, end_reason = $${n + 2}, ended_on = LOCALTIMESTAMP, edited_by = $${n + 3}, edited_on = LOCALTIMESTAMP
-               WHERE status = 'Active' AND ${clause}
-               RETURNING oid, login_oid, user_agent`,
+               WHERE s.status = 'Active' AND ${clause}
+               RETURNING s.oid, s.login_oid, s.user_agent,
+                         (s.expires_on > LOCALTIMESTAMP AND EXISTS (SELECT 1 FROM ${TABLE.AUTH_REFRESH_TOKEN} t
+                                                                    WHERE t.session_oid = s.oid AND t.status = 'Active' AND t.expires_on > LOCALTIMESTAMP)) AS live`,
         values: [...values, status, reason, by],
     });
 
@@ -105,14 +109,17 @@ const end_where = async (tx, { clause, values, reason, by }) => {
 };
 
 /** Ends one session if it is still open. Returns the ended row, or null if it was already over. */
-const end_session = async (tx, { session_oid, reason, by }) => (await end_where(tx, { clause: "oid = $1", values: [session_oid], reason, by }))[0] ?? null;
+const end_session = async (tx, { session_oid, reason, by }) => (await end_where(tx, { clause: "s.oid = $1", values: [session_oid], reason, by }))[0] ?? null;
 
 /** Ends one session only if it belongs to this account, so a session id alone is never enough. */
-const end_own_session = async (tx, { session_oid, login_oid, reason, by }) => (await end_where(tx, { clause: "oid = $1 AND login_oid = $2", values: [session_oid, login_oid], reason, by }))[0] ?? null;
+const end_own_session = async (tx, { session_oid, login_oid, reason, by }) => (await end_where(tx, { clause: "s.oid = $1 AND s.login_oid = $2", values: [session_oid, login_oid], reason, by }))[0] ?? null;
 
 /** Ends every open session of an account, optionally sparing the one making the request. */
 const end_sessions_for_login = (tx, { login_oid, reason, by, except_session_oid = null }) =>
-    end_where(tx, { clause: "login_oid = $1 AND ($2::varchar IS NULL OR oid <> $2)", values: [login_oid, except_session_oid], reason, by });
+    end_where(tx, { clause: "s.login_oid = $1 AND ($2::varchar IS NULL OR s.oid <> $2)", values: [login_oid, except_session_oid], reason, by });
+
+/** How many of the ended sessions were devices the person could see in their list. */
+const count_live = (ended) => ended.filter((row) => row.live).length;
 
 const cookie_options = (remember) => {
     const { cookie_secure, refresh_idle_seconds } = auth_config();
@@ -195,6 +202,7 @@ module.exports = {
     end_session,
     end_own_session,
     end_sessions_for_login,
+    count_live,
     read_refresh_token,
     clear_refresh_token,
     grant_tokens,

@@ -98,6 +98,9 @@ describe("signed-in devices", () => {
 
     it("signs out every other device and keeps this one", async () => {
         const laptop = await h.sign_in(user);
+        // An earlier sign-in on this browser that idled out: closed, but never a device in the list.
+        const idle = await h.sign_in(user);
+        await h.query("UPDATE auth_refresh_token SET expires_on = LOCALTIMESTAMP - interval '1 minute' WHERE session_oid = $1", [idle.session_id]);
 
         const res = await h.call(h.ROUTE.SIGN_OUT_EVERYWHERE, { token: counter.access, body: { keep_current: true } });
 
@@ -105,7 +108,7 @@ describe("signed-in devices", () => {
         assert.equal(res.body.data.sessions_closed, 2);
         assert.equal(res.set_cookie, null, "this device keeps its cookie");
         assert.equal((await h.session(counter.session_id)).status, "Active");
-        for (const other of [phone, laptop]) assert.equal((await h.session(other.session_id)).status, "Revoked");
+        for (const other of [phone, laptop, idle]) assert.equal((await h.session(other.session_id)).status, "Revoked");
         assert.deepEqual((await sessions(counter.access)).body.data.map((s) => s.id), [counter.session_id]);
     });
 

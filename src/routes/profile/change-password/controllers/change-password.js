@@ -11,6 +11,8 @@ const fs = require("fs");
 const path = require("path");
 const { business_zone, format_business } = require("../../../../utils/business-time");
 
+const SAME_PASSWORD = "The new password is the one you use now. Choose a different one.";
+
 const change_password = async (request, res) => {
   const payload = request.body;
   try {
@@ -30,6 +32,10 @@ const change_password = async (request, res) => {
       return res
         .status(400)
         .json({ code: 400, message: "That is not your current password. Check it and try again.", data: { field: "current_password" } });
+    }
+    // The current password was just proved, so matching it is matching what is stored.
+    if (payload.new_password === payload.current_password) {
+      return res.status(400).json({ code: 400, message: SAME_PASSWORD, data: { field: "new_password" } });
     }
 
     let { otp_oid, otp } = await save_generated_otp(
@@ -127,3 +133,4 @@ const send_otp = async (request, otp, user_name) => {
 };
 
 module.exports = change_password;
+module.exports.SAME_PASSWORD = SAME_PASSWORD;

@@ -74,7 +74,7 @@ describe("password events", () => {
         const second = await h.sign_in(user);
         await issue_code("123456");
 
-        const res = await h.call(h.ROUTE.RESET_PASSWORD, { body: { email: user.email, otp: "123456", new_password: "NewPass2026", confirm_password: "NewPass2026" } });
+        const res = await h.call(h.ROUTE.RESET_PASSWORD, { body: { email: user.email, otp: "123456", new_password: "NewPass-2026", confirm_password: "NewPass-2026" } });
 
         assert.equal(res.status, 200, JSON.stringify(res.body));
         for (const device of [first, second]) {
@@ -92,7 +92,7 @@ describe("password events", () => {
         const elsewhere = await h.sign_in(user);
         const otp_oid = await issue_code("654321");
 
-        const res = await h.call(h.ROUTE.VERIFY_PASSWORD_CHANGE, { token: here.access, body: { otp: "654321", otp_oid, new_password: "NewPass2026" } });
+        const res = await h.call(h.ROUTE.VERIFY_PASSWORD_CHANGE, { token: here.access, body: { otp: "654321", otp_oid, new_password: "NewPass-2026" } });
 
         assert.equal(res.status, 200, JSON.stringify(res.body));
         assert.equal(res.body.data.sessions_closed, 1);

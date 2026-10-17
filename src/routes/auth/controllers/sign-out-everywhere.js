@@ -1,7 +1,7 @@
 const { execute_transaction } = require("../../../db/database");
 const { log } = require("../../../utils/log");
 const { saveLogActivity } = require("../../../utils/activity-logger");
-const { end_sessions_for_login, clear_refresh_token, request_context } = require("../../../auth/auth-session");
+const { end_sessions_for_login, count_live, clear_refresh_token, request_context } = require("../../../auth/auth-session");
 const { record_sessions_ended } = require("../../../auth/auth-event");
 
 /**
@@ -18,7 +18,7 @@ const sign_out_everywhere = async (request, res) => {
         const sessions_closed = await execute_transaction(async (tx) => {
             const ended = await end_sessions_for_login(tx, { login_oid, reason: "SignOutEverywhere", by: user_id, except_session_oid: keep_current ? session_oid : null });
             await record_sessions_ended(tx, ended, { login_oid, email: user_id, reason: "SignOutEverywhere", context });
-            return ended.length;
+            return count_live(ended);
         });
 
         const devices = `${sessions_closed} open ${sessions_closed === 1 ? "session" : "sessions"}`;
