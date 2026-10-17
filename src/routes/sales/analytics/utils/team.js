@@ -115,4 +115,6 @@ const TEAM_SQL = `
 
 const read_team = async (from, to, { channels, source_oid, category_oid }) => (await get_data({ text: TEAM_SQL, values: [from, to, channels, source_oid, category_oid] }))[0];
 
-module.exports = { read_team };
+const read_arrivals = async (from, to, channels) => get_data({ text: `WITH ${PLACED_IN_PERIOD} SELECT * FROM (${ARRIVALS_SQL}) x`, values: [from, to, channels, null, null] });
+
+module.exports = { read_team, read_arrivals };

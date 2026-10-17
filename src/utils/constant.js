@@ -394,6 +394,7 @@ module.exports = {
     GET_MARKETING_CAMPAIGN_RESULTS: "/get-marketing-campaign-results",
     GET_MARKETING_COMPARISONS: "/get-marketing-comparisons",
     GET_MARKETING_SOURCES: "/get-marketing-sources",
+    GET_MARKETING_NEXT: "/get-marketing-next",
     CREATE_PARTNER_PAYMENT: "/create-partner-payment",
   },
   IMAGE_FILE_UPLOAD_TYPE: ["photo", "report"],

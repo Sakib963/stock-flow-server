@@ -9,6 +9,7 @@ const OVERVIEW = BASE + ROUTES.GET_MARKETING_ANALYTICS_OVERVIEW;
 const RESULTS = BASE + ROUTES.GET_MARKETING_CAMPAIGN_RESULTS;
 const COMPARISONS = BASE + ROUTES.GET_MARKETING_COMPARISONS;
 const SOURCES = BASE + ROUTES.GET_MARKETING_SOURCES;
+const NEXT = BASE + ROUTES.GET_MARKETING_NEXT;
 const OWNER = ["marketing.analytics.view", "sales.pos.view", "sales.online.view"];
 const MONEY = [...OWNER, "inventory.stock-value.view"];
 
@@ -65,7 +66,7 @@ describe("marketing analytics", () => {
 
     it("refuses someone who may run campaigns but not see marketing analytics", async () => {
         const token = await sign_in_with(["marketing.campaign.view", "sales.pos.view"]);
-        for (const url of [OVERVIEW, RESULTS, COMPARISONS, SOURCES]) assert.equal((await get(url, token)).status, 403, url);
+        for (const url of [OVERVIEW, RESULTS, COMPARISONS, SOURCES, NEXT]) assert.equal((await get(url, token)).status, 403, url);
     });
 
     it("works out the documented example: 22 extra dresses, 13,200 extra profit against 15,000, so sales rose but did not pay back", async () => {
@@ -226,5 +227,43 @@ describe("sources, partners and types compared, and who a campaign brought", () 
         assert.deepEqual(result.brought, [{ gender: "Female", age_band: "18_24", customers: 1 }]);
         assert.deepEqual(result.usual, [{ gender: "Male", age_band: "35_44", customers: 1 }]);
         assert.deepEqual(result.districts.map((d) => [d.oid, d.customers]), [["BD-Dhaka", 1]], "a parcel sent back in full adds no district");
+    });
+});
+
+describe("what to promote next", () => {
+    beforeEach(async () => {
+        await h.reset();
+        await seed();
+    });
+
+    it("suggests a product rising with no campaign behind it, the category no campaign reached, and when orders arrive", async () => {
+        await sale("2026-08-20", dress, dress_batch, 20, 1000);
+        await sale("2026-08-20", scarf, scarf_batch, 100, 300);
+        await sale("2026-09-10", dress, dress_batch, 50, 1000);
+        await sale("2026-09-10", scarf, scarf_batch, 100, 300);
+        for (let n = 0; n < 20; n++) await sale("2026-09-09", scarf, scarf_batch, 1, 300);
+        const { suggestions } = (await get(NEXT, await sign_in_with(OWNER))).body.data;
+        assert.deepEqual(suggestions.map((s) => s.kind), ["rising", "audience", "arrivals"]);
+        assert.deepEqual(suggestions[0].products.map((p) => [p.name, p.units_before, p.units_window, p.expected, p.extra]), [["Floral dress", 20, 50, 24, 26]], "the scarf grew no faster than the rest");
+        assert.deepEqual([suggestions[1].category.name, suggestions[1].sales, suggestions[1].age_band], ["Clothing", 86000, null]);
+        assert.deepEqual([suggestions[2].total, suggestions[2].weekday, suggestions[2].weekday_orders, suggestions[2].hour], [22, new Date("2026-09-09").getUTCDay(), 20, 12]);
+    });
+
+    it("names the promotion type and partner that paid for themselves, and never calls a promoted product's rise unpaid for", async () => {
+        await example();
+        await campaign({ fee: 5000 });
+        const { suggestions } = (await get(NEXT, await sign_in_with(MONEY))).body.data;
+        assert.deepEqual(suggestions.map((s) => s.kind), ["type", "partner"], "the dress was promoted, and its category with it");
+        assert.deepEqual([suggestions[0].promotion_type, suggestions[0].paid, suggestions[0].return_per_taka], ["InfluencerPost", 1, 2.64]);
+        assert.equal((await get(NEXT, await sign_in_with(OWNER))).body.data.suggestions[1].return_per_taka, null, "no ratio a buying price could come from");
+    });
+
+    it("never suggests from online sales to someone who sells only at the counter", async () => {
+        await sale("2026-08-20", dress, dress_batch, 20, 1000, { channel: "ONLINE" });
+        await sale("2026-08-20", scarf, scarf_batch, 100, 300, { channel: "ONLINE" });
+        await sale("2026-09-10", dress, dress_batch, 50, 1000, { channel: "ONLINE" });
+        await sale("2026-09-10", scarf, scarf_batch, 100, 300, { channel: "ONLINE" });
+        const { suggestions } = (await get(NEXT, await sign_in_with(["marketing.analytics.view", "sales.pos.view"]))).body.data;
+        assert.deepEqual(suggestions, []);
     });
 });

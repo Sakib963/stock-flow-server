@@ -8,6 +8,7 @@ const get_marketing_analytics_overview = require("./controller/get-marketing-ana
 const get_marketing_campaign_results = require("./controller/get-marketing-campaign-results");
 const get_marketing_comparisons = require("./controller/get-marketing-comparisons");
 const get_marketing_sources = require("./controller/get-marketing-sources");
+const get_marketing_next = require("./controller/get-marketing-next");
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.get(ROUTES.GET_MARKETING_ANALYTICS_OVERVIEW, [jwtMiddleware, requirePermi
 router.get(ROUTES.GET_MARKETING_CAMPAIGN_RESULTS, [jwtMiddleware, requirePermission("marketing.analytics.view"), validator.get(sales_analytics_schema)], get_marketing_campaign_results);
 router.get(ROUTES.GET_MARKETING_COMPARISONS, [jwtMiddleware, requirePermission("marketing.analytics.view"), validator.get(sales_analytics_schema)], get_marketing_comparisons);
 router.get(ROUTES.GET_MARKETING_SOURCES, [jwtMiddleware, requirePermission("marketing.analytics.view"), validator.get(sales_analytics_schema)], get_marketing_sources);
+router.get(ROUTES.GET_MARKETING_NEXT, [jwtMiddleware, requirePermission("marketing.analytics.view"), validator.get(sales_analytics_schema)], get_marketing_next);
 
 module.exports = { marketingAnalyticsRouter: router };
