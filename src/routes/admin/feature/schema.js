@@ -39,4 +39,19 @@ const feature_switch_schema = Joi.object({
     reason_bn: Joi.when("state", { is: "Disabled", then: Joi.string().trim().min(1).max(256).required(), otherwise: Joi.any().strip() }),
 });
 
-module.exports = { feature_list_schema, feature_tree_schema, feature_oid_schema, feature_update_schema, feature_switch_schema };
+const mark_sensitive_schema = Joi.object({
+    code: Joi.string().trim().max(128).required(),
+    is_sensitive: Joi.boolean().required(),
+});
+
+// Each group is one level of the menu in its new order: the modules (parent null), or one module's features.
+const reorder_schema = Joi.object({
+    groups: Joi.array()
+        .items(Joi.object({ parent_oid: Joi.string().uuid().allow(null).required(), oids: Joi.array().items(Joi.string().uuid()).min(1).max(200).unique().required() }))
+        .min(1)
+        .max(50)
+        .unique('parent_oid')
+        .required(),
+});
+
+module.exports = { reorder_schema, mark_sensitive_schema, feature_list_schema, feature_tree_schema, feature_oid_schema, feature_update_schema, feature_switch_schema };

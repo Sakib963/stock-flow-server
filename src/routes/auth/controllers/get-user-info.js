@@ -54,7 +54,9 @@ const get_user_info = async (request, res) => {
         // 2. Only now, having established something changed, do the work.
         const [permissionRows, menuRows, settingsRows] = await Promise.all([
             get_data({
+                // An Inactive role grants nothing, here as in requirePermission.
                 text: `SELECT p.code FROM ${TABLE.ROLE_PERMISSION} rp
+                       JOIN ${TABLE.ROLE} r ON r.oid = rp.role_oid AND r.status = 'Active'
                        JOIN ${TABLE.PERMISSION} p ON p.oid = rp.permission_oid
                        WHERE rp.role_oid = $1
                        ORDER BY p.sort_order`,

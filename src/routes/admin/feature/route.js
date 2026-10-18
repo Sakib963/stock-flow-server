@@ -3,12 +3,14 @@ const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
 const requirePermission = require("../../../middleware/require-permission");
 const { validator } = require("../../../middleware/validator");
-const { feature_list_schema, feature_tree_schema, feature_oid_schema, feature_update_schema, feature_switch_schema } = require("./schema");
+const { feature_list_schema, feature_tree_schema, feature_oid_schema, feature_update_schema, feature_switch_schema, mark_sensitive_schema, reorder_schema } = require("./schema");
 const get_feature_list = require("./controller/get-feature-list");
 const get_feature_tree = require("./controller/get-feature-tree");
 const get_feature_details = require("./controller/get-feature-details");
 const update_feature_details = require("./controller/update-feature-details");
 const switch_feature = require("./controller/switch-feature");
+const mark_action_sensitive = require("./controller/mark-action-sensitive");
+const reorder_features = require("./controller/reorder-features");
 
 const router = Router();
 
@@ -17,5 +19,7 @@ router.get(ROUTES.GET_FEATURE_TREE, [jwtMiddleware, requirePermission("system.fe
 router.get(ROUTES.GET_FEATURE_DETAILS + "/:oid", [jwtMiddleware, requirePermission("system.feature.view"), validator.params(feature_oid_schema)], get_feature_details);
 router.post(ROUTES.UPDATE_FEATURE_DETAILS, [jwtMiddleware, requirePermission("system.feature.edit"), validator.post(feature_update_schema)], update_feature_details);
 router.post(ROUTES.SWITCH_FEATURE, [jwtMiddleware, requirePermission("system.feature.edit"), validator.post(feature_switch_schema)], switch_feature);
+router.post(ROUTES.MARK_ACTION_SENSITIVE, [jwtMiddleware, requirePermission("system.feature.edit"), validator.post(mark_sensitive_schema)], mark_action_sensitive);
+router.post(ROUTES.REORDER_FEATURES, [jwtMiddleware, requirePermission("system.feature.edit"), validator.post(reorder_schema)], reorder_features);
 
 module.exports = { featureRouter: router };

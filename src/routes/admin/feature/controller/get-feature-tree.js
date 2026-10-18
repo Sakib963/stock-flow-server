@@ -10,7 +10,7 @@ const FEATURES_SQL = `
 
 // Every action the product has. The web hangs each under the feature whose code it starts with, and a
 // code with no menu entry of its own (inventory.stock-value) under its module.
-const ACTIONS_SQL = `SELECT code, module, feature, action, label FROM ${TABLE.PERMISSION} ORDER BY sort_order, code`;
+const ACTIONS_SQL = `SELECT code, module, feature, action, label, label_bn, is_sensitive FROM ${TABLE.PERMISSION} ORDER BY sort_order, code`;
 
 const get_feature_tree = async (request, res) => {
     try {

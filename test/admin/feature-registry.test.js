@@ -10,6 +10,7 @@ const TREE = BASE + ROUTES.GET_FEATURE_TREE;
 const DETAILS = BASE + ROUTES.GET_FEATURE_DETAILS;
 const UPDATE = BASE + ROUTES.UPDATE_FEATURE_DETAILS;
 const SWITCH = BASE + ROUTES.SWITCH_FEATURE;
+const REORDER = BASE + ROUTES.REORDER_FEATURES;
 const PARTNERS = CONTEXTS.MARKETING + SUB_CONTEXTS.PARTNER + ROUTES.GET_PARTNER_LIST;
 const PAY = CONTEXTS.MARKETING + SUB_CONTEXTS.PARTNER_PAYMENT + ROUTES.CREATE_PARTNER_PAYMENT;
 const ADMIN = ["system.feature.view", "system.feature.edit"];
@@ -27,7 +28,7 @@ let snapshot;
 
 describe("the feature registry", () => {
     before(async () => {
-        snapshot = await h.query("SELECT oid, label, label_bn, description_en, description_bn, tags, is_new, status, is_disabled, disabled_message_en, disabled_message_bn FROM menu_item");
+        snapshot = await h.query("SELECT oid, label, label_bn, description_en, description_bn, tags, is_new, status, is_disabled, disabled_message_en, disabled_message_bn, sort_order FROM menu_item");
     });
     // The registry page is switched on by its migration; the test database may predate it.
     beforeEach(async () => {
@@ -37,7 +38,7 @@ describe("the feature registry", () => {
     });
     afterEach(async () => {
         for (const r of snapshot) {
-            await h.query("UPDATE menu_item SET label = $2, label_bn = $3, description_en = $4, description_bn = $5, tags = $6, is_new = $7, status = $8, is_disabled = $9, disabled_message_en = $10, disabled_message_bn = $11 WHERE oid = $1", [r.oid, r.label, r.label_bn, r.description_en, r.description_bn, r.tags, r.is_new, r.status, r.is_disabled, r.disabled_message_en, r.disabled_message_bn]);
+            await h.query("UPDATE menu_item SET label = $2, label_bn = $3, description_en = $4, description_bn = $5, tags = $6, is_new = $7, status = $8, is_disabled = $9, disabled_message_en = $10, disabled_message_bn = $11, sort_order = $12 WHERE oid = $1", [r.oid, r.label, r.label_bn, r.description_en, r.description_bn, r.tags, r.is_new, r.status, r.is_disabled, r.disabled_message_en, r.disabled_message_bn, r.sort_order]);
         }
         await h.query("UPDATE config_version SET version = version + 1");
     });
@@ -133,5 +134,35 @@ describe("the feature registry", () => {
         const partners = await oid_of("permission_code = 'marketing.partner.view'");
         const { actions } = (await get(`${DETAILS}/${partners}`, admin)).body.data;
         assert.equal(actions.find((a) => a.code === "marketing.partner.view").roles.length, 1);
+    });
+
+    it("reorders a module's features, and the menu follows on the next request", async () => {
+        const admin = await sign_in_with([...ADMIN, "marketing.partner.view", "marketing.campaign.view"]);
+        const marketing = await oid_of("slug = 'marketing'");
+        const children = await h.query("SELECT oid FROM menu_item WHERE parent_oid = $1 ORDER BY sort_order", [marketing]);
+        const reversed = children.map((c) => c.oid).reverse();
+        const before = (await h.query("SELECT version FROM config_version"))[0].version;
+
+        const res = await h.call(REORDER, { token: admin, body: { groups: [{ parent_oid: marketing, oids: reversed }] } });
+        assert.deepEqual([res.status, res.body.data.changed], [200, true]);
+        assert.ok((await h.query("SELECT version FROM config_version"))[0].version > before);
+        const menu = (await get(h.ROUTE.ME, admin)).body.data.menu.find((m) => m.children.some((c) => c.permission === "marketing.partner.view"));
+        const shown = menu.children.map((c) => c.permission);
+        assert.ok(shown.indexOf("marketing.campaign.view") < shown.indexOf("marketing.partner.view"), shown.join(", "));
+        assert.equal((await h.query("SELECT title FROM activity_log WHERE reference_oid = $1", [marketing]))[0].title, "Reordered the menu");
+
+        const again = await h.call(REORDER, { token: admin, body: { groups: [{ parent_oid: marketing, oids: reversed }] } });
+        assert.equal(again.body.data.changed, false);
+    });
+
+    it("refuses an order that moves a feature to another module or leaves one out, and anyone who may only look", async () => {
+        const admin = await sign_in_with(ADMIN);
+        const marketing = await oid_of("slug = 'marketing'");
+        const children = (await h.query("SELECT oid FROM menu_item WHERE parent_oid = $1 ORDER BY sort_order", [marketing])).map((c) => c.oid);
+        const elsewhere = (await h.query("SELECT oid FROM menu_item WHERE parent_oid IS NOT NULL AND parent_oid <> $1 LIMIT 1", [marketing]))[0].oid;
+        assert.equal((await h.call(REORDER, { token: admin, body: { groups: [{ parent_oid: marketing, oids: [...children, elsewhere] }] } })).status, 409);
+        assert.equal((await h.call(REORDER, { token: admin, body: { groups: [{ parent_oid: marketing, oids: children.slice(1) }] } })).status, 409);
+        const viewer = await sign_in_with(["system.feature.view"]);
+        assert.equal((await h.call(REORDER, { token: viewer, body: { groups: [{ parent_oid: marketing, oids: children }] } })).status, 403);
     });
 });

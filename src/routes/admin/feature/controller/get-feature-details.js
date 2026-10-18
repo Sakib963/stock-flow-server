@@ -18,7 +18,7 @@ const DETAILS_SQL = `
 
 // Every action of the feature, with the roles that hold it in this deployment. Grants are made in Roles.
 const ACTIONS_SQL = `
-    SELECT pm.code, pm.action,
+    SELECT pm.code, pm.action, pm.is_sensitive,
            COALESCE((SELECT json_agg(r.name ORDER BY r.name) FROM ${TABLE.ROLE_PERMISSION} rp JOIN ${TABLE.ROLE} r ON r.oid = rp.role_oid
                       WHERE rp.permission_oid = pm.oid AND r.status = 'Active'), '[]'::json) AS roles
       FROM ${TABLE.PERMISSION} pm
