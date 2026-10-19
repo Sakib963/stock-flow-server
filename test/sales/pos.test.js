@@ -281,6 +281,15 @@ describe("parked carts", () => {
         assert.equal((await get(PARKED, token)).body.data.length, 0);
     });
 
+    it("lets only the person who parked a cart check it out, so the sale stays theirs", async () => {
+        const parked = (await h.call(PARK, { body: cart(b1), token })).body.data;
+        const other = await person();
+        const res = await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 2 }], { oid: parked.oid }), token: other });
+        assert.equal(res.status, 403, JSON.stringify(res.body));
+        assert.equal((await order_of(parked.oid)).status, "Draft", "the cart waits for its owner");
+        assert.equal((await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 2 }], { oid: parked.oid }), token })).status, 200);
+    });
+
     it("refuses checking out a cart whose stock was sold while it waited, names the line, and keeps the cart", async () => {
         const parked = (await h.call(PARK, { body: cart(b1, 4), token })).body.data;
         assert.equal((await h.call(CHECKOUT, { body: sale([{ inventory_oid: b1, quantity: 3 }]), token })).status, 200);

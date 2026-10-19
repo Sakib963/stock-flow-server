@@ -19,6 +19,7 @@ const sellable_of = async (tx, inventory_oid) => {
 const refuse_existing = async (tx, oid) => {
     const [order] = await tx.get_data({ text: `SELECT invoice_no, status FROM ${TABLE.ORDERS} WHERE oid = $1`, values: [oid] });
     if (order?.status === "Cancelled") fail(409, "This cart was discarded at another counter.", { invoice_no: order.invoice_no, status: order.status });
+    if (order?.status === "Draft") fail(403, "This cart was parked by someone else. Only they can check it out.");
     fail(409, `This sale is already recorded as ${order?.invoice_no}. Nothing was charged twice.`, { invoice_no: order?.invoice_no, status: order?.status });
 };
 
@@ -50,14 +51,15 @@ const checkout_pos_sale = async (request, res) => {
 
             // The page names every sale with its own oid: a parked cart's, or a new one per cart. A
             // checkout pressed again after a lost answer, or at a second counter, then finds the sale
-            // already made and is refused instead of selling twice.
+            // already made and is refused instead of selling twice. A parked cart is checked out only by
+            // the person who parked it, so the sale stays theirs.
             const order_oid = payload.oid;
             const parked = await tx.execute_value({
                 text: `UPDATE ${TABLE.ORDERS}
                           SET customer_oid = $1, customer_name = $2, customer_phone = $3, subtotal = $4, discount_total = $5, total_amount = $6, amount_paid = $7,
                               payment_method = $8, payment_reference = $9, payment_status = $10, notes = $11, edited_by = $12, edited_on = clock_timestamp(),
                               status = 'Purchased', sold_on = clock_timestamp(), draft_label = NULL
-                        WHERE oid = $13 AND channel = 'POS' AND status = 'Draft' AND sold_on IS NULL
+                        WHERE oid = $13 AND channel = 'POS' AND status = 'Draft' AND sold_on IS NULL AND created_by = $12
                     RETURNING invoice_no`,
                 values: [...header, order_oid],
             });
