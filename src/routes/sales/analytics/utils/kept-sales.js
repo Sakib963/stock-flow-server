@@ -8,9 +8,9 @@ const { business_day, business_day_start, business_today } = require("../../../.
 // still go down. Cost is the line's own batch, so a product bought at two prices costs what was sold.
 //
 // $1 first day, $2 last day (both business days, inclusive), $3 channels, $4 source, $5 category.
-const LINES = `
+const lines_cte = (narrow = "") => `
     lines AS (
-        SELECT o.oid AS order_oid, o.channel, o.sold_on, oi.quantity, oi.returned_qty, oi.unit_price, COALESCE(oi.discount, 0) AS discount, i.cost_price
+        SELECT o.oid AS order_oid, o.channel, o.sold_on, p.oid AS product_oid, p.name AS product_name, p.photo, oi.quantity, oi.returned_qty, oi.unit_price, COALESCE(oi.discount, 0) AS discount, i.cost_price
           FROM ${TABLE.ORDERS} o
           JOIN ${TABLE.ORDER_ITEMS} oi ON oi.order_oid = o.oid
           JOIN ${TABLE.PRODUCT} p ON p.oid = oi.product_oid
@@ -21,10 +21,12 @@ const LINES = `
            AND o.channel = ANY($3)
            AND ($4::text IS NULL OR oo.source_oid = $4)
            AND ($5::text IS NULL OR p.category_oid = $5)
+           ${narrow}
     )`;
+const LINES = lines_cte();
 
-const TOTALS_SQL = `
-    WITH ${LINES}
+const totals_sql = (narrow = "") => `
+    WITH ${lines_cte(narrow)}
     SELECT COALESCE(SUM(unit_price * quantity), 0)::numeric AS list_price,
            COALESCE(SUM(discount * quantity), 0)::numeric AS discounts,
            COALESCE(SUM((unit_price - discount) * returned_qty), 0)::numeric AS returns,
@@ -33,6 +35,22 @@ const TOTALS_SQL = `
            COALESCE(SUM(quantity - returned_qty) FILTER (WHERE cost_price IS NULL), 0)::int AS units_without_cost,
            COUNT(DISTINCT order_oid) FILTER (WHERE quantity > returned_qty)::int AS orders
       FROM lines`;
+
+// The products that brought the most kept sales in the period, for a headline rather than a report.
+const TOP_PRODUCTS_SQL = `
+    WITH ${LINES}
+    SELECT product_oid AS oid, product_name AS name, replace(MAX(photo), '/image/upload/', '/image/upload/c_fill,w_48,h_48,f_auto,q_auto/') AS photo_thumb,
+           SUM(quantity - returned_qty)::int AS units,
+           SUM((unit_price - discount) * (quantity - returned_qty))::float AS sales
+      FROM lines
+     GROUP BY product_oid, product_name
+    HAVING SUM(quantity - returned_qty) > 0
+     ORDER BY sales DESC, units DESC, product_name
+     LIMIT 5`;
+
+// The same totals for one person's own sales: $6 is the account that made the order.
+const TOTALS_SQL = totals_sql();
+const OWN_TOTALS_SQL = totals_sql("AND o.created_by = $6");
 
 const DAILY_SQL = `
     WITH ${LINES}
@@ -90,6 +108,10 @@ const numbers = (row) => Object.fromEntries(Object.entries(row).map(([key, value
 
 const read_totals = async (from, to, filters) => numbers((await get_data({ text: TOTALS_SQL, values: [from, to, filters.channels, filters.source_oid, filters.category_oid] }))[0]);
 
+const read_own_totals = async (from, to, channels, user_id) => numbers((await get_data({ text: OWN_TOTALS_SQL, values: [from, to, channels, null, null, user_id] }))[0]);
+
+const read_top_products = async (from, to, filters) => get_data({ text: TOP_PRODUCTS_SQL, values: [from, to, filters.channels, filters.source_oid, filters.category_oid] });
+
 const read_daily = async (from, to, filters) =>
     (await get_data({ text: DAILY_SQL, values: [from, to, filters.channels, filters.source_oid, filters.category_oid] })).map((row) => ({ day: row.day, sales: Number(row.sales), profit: Number(row.profit) }));
 
@@ -97,4 +119,4 @@ const read_by_channel = async (from, to, filters) => get_data({ text: BY_CHANNEL
 
 const read_refusal = async (from, to, filters) => (await get_data({ text: REFUSAL_SQL, values: [from, to, filters.source_oid, filters.category_oid] }))[0];
 
-module.exports = { read_period, read_totals, read_daily, read_refusal, read_sources, read_by_channel };
+module.exports = { read_period, read_totals, read_own_totals, read_top_products, read_daily, read_refusal, read_sources, read_by_channel };

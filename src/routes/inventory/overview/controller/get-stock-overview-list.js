@@ -1,28 +1,8 @@
 const { TABLE } = require("../../../../utils/constant");
 const { read_list } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
-const { BATCH_FIGURES, PRODUCT_FIGURES, without_money } = require("../utils/stock-figures");
+const { PRODUCT_STOCK, STOCK_STATUS, EXPIRY_STATE, without_money } = require("../utils/stock-figures");
 const { sees_money } = require("../../utils/sees-money");
-
-// Every product that is not deleted and has ever had a batch, Active or Inactive: the old list showed
-// Active products only, so an Inactive product's stock on the shelf appeared on no stock page at all.
-// Low and out read sellable against the restock level, as the catalogue's product list does.
-const FROM = `(
-      SELECT p.oid, p.name, p.sku, p.photo, p.status, p.unit_type, p.restock_threshold::int AS restock_threshold,
-             p.category_oid, c.name AS category_name, p.sub_category_oid, s.name AS sub_category_name, p.brand_oid, br.name AS brand_name,
-             ${PRODUCT_FIGURES},
-             string_agg(b.batch_code, ' ') AS batch_codes
-        FROM ${TABLE.PRODUCT} p
-        JOIN (${BATCH_FIGURES}) b ON b.product_oid = p.oid
-        LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
-        LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
-        LEFT JOIN ${TABLE.BRANDS} br ON br.oid = p.brand_oid
-       WHERE p.is_deleted = FALSE
-       GROUP BY p.oid, c.name, s.name, br.name
-) o`;
-
-const STOCK_STATUS = `(CASE WHEN o.sellable = 0 THEN 'out' WHEN o.sellable <= o.restock_threshold THEN 'low' ELSE 'in' END)`;
-const EXPIRY_STATE = `(CASE WHEN o.expired_units > 0 THEN 'expired' WHEN o.expiring_units > 0 THEN 'soon' END)`;
 
 const SELECT = `o.oid, o.name, o.sku, replace(o.photo, '/image/upload/', '/image/upload/c_fill,w_48,h_48,f_auto,q_auto/') AS photo_thumb, o.status, o.unit_type, o.restock_threshold, o.category_name, o.sub_category_name, o.brand_name,
                 o.on_hand, o.held, o.sellable, o.batches, o.unpriced_batches, o.expired_units, o.expiring_units,
@@ -55,7 +35,7 @@ const get_stock_overview_list = async (request, res) => {
             const money = await sees_money(request);
             const { rows, total, stats } = await read_list({
                   select: SELECT,
-                  from: FROM,
+                  from: PRODUCT_STOCK,
                   search: ["o.name", "o.sku", "o.batch_codes"],
                   filters: { category_oid: "o.category_oid", sub_category_oid: "o.sub_category_oid", brand_oid: "o.brand_oid", stock_status: STOCK_STATUS, expiry_state: EXPIRY_STATE },
                   // Sorting by a hidden figure would still reveal it through the order.

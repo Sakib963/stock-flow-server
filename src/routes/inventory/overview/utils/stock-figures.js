@@ -48,4 +48,24 @@ const MONEY_FIELDS = ["cost_price", ...BUDGETS, "cost_remarks", "budget_per_unit
 
 const without_money = (row) => Object.fromEntries(Object.entries(row).filter(([key]) => !MONEY_FIELDS.includes(key)));
 
-module.exports = { BUDGETS, BATCH_FIGURES, PRODUCT_FIGURES, MONEY_FIELDS, without_money };
+// Every product that is not deleted and has ever had a batch, Active or Inactive: the old list showed
+// Active products only, so an Inactive product's stock on the shelf appeared on no stock page at all.
+// Low and out read sellable against the restock level, as the catalogue's product list does.
+const PRODUCT_STOCK = `(
+      SELECT p.oid, p.name, p.sku, p.photo, p.status, p.unit_type, p.restock_threshold::int AS restock_threshold,
+             p.category_oid, c.name AS category_name, p.sub_category_oid, s.name AS sub_category_name, p.brand_oid, br.name AS brand_name,
+             ${PRODUCT_FIGURES},
+             string_agg(b.batch_code, ' ') AS batch_codes
+        FROM ${TABLE.PRODUCT} p
+        JOIN (${BATCH_FIGURES}) b ON b.product_oid = p.oid
+        LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
+        LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
+        LEFT JOIN ${TABLE.BRANDS} br ON br.oid = p.brand_oid
+       WHERE p.is_deleted = FALSE
+       GROUP BY p.oid, c.name, s.name, br.name
+) o`;
+
+const STOCK_STATUS = `(CASE WHEN o.sellable = 0 THEN 'out' WHEN o.sellable <= o.restock_threshold THEN 'low' ELSE 'in' END)`;
+const EXPIRY_STATE = `(CASE WHEN o.expired_units > 0 THEN 'expired' WHEN o.expiring_units > 0 THEN 'soon' END)`;
+
+module.exports = { BUDGETS, BATCH_FIGURES, PRODUCT_FIGURES, PRODUCT_STOCK, STOCK_STATUS, EXPIRY_STATE, MONEY_FIELDS, without_money };

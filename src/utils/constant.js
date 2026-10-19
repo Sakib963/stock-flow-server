@@ -85,6 +85,7 @@ module.exports = {
     ACTIVITY_LOG: "/api/v1/activity-log",
     SALES: "/api/v1/sales",
     MARKETING: "/api/v1/marketing",
+    DASHBOARD: "/api/v1/dashboard",
   },
   SUB_CONTEXTS: {
     USER: "/user",
@@ -137,6 +138,7 @@ module.exports = {
     GET_USER_INFO: "/get-user-info",
     FORGOT_PASSWORD: "/forgot-password",
     RESET_PASSWORD: "/reset-password",
+    GET_DASHBOARD: "/get-dashboard",
     GET_USER_LIST: "/get-user-list",
     CREATE_USER: "/create-user",
     UPDATE_USER: "/update-user",
