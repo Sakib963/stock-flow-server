@@ -34,7 +34,7 @@ const sign_in = async (request, res) => {
         }
 
         const users = await get_data({
-            text: `SELECT l.oid, l.email, l.name, l.password, l.status, r.name AS role_name
+            text: `SELECT l.oid, l.email, l.name, l.password, l.status, l.must_change_password, r.name AS role_name
                    FROM ${TABLE.LOGIN} l
                    LEFT JOIN ${TABLE.ROLE} r ON r.oid = l.role_oid
                    WHERE LOWER(l.email) = $1`,
@@ -52,7 +52,8 @@ const sign_in = async (request, res) => {
         // Only reachable with the right password, so saying the account is off tells a guesser nothing.
         if (user.status !== "Active") {
             await record_auth_event({ event_type: AUTH_EVENT.LOGIN_FAILED, login_oid: user.oid, email: user.email, context, detail: { reason: "inactive" } });
-            return res.status(403).json({ code: 403, message: "This account is turned off. Ask your organisation's admin to turn it back on." });
+            const message = user.status === "Deleted" ? "This account has been closed. Ask your organisation's admin if you still need access." : "This account is turned off. Ask your organisation's admin to turn it back on.";
+            return res.status(403).json({ code: 403, message });
         }
 
         const session = await execute_transaction(async (tx) => {
@@ -70,7 +71,7 @@ const sign_in = async (request, res) => {
             message: "Sign-in successful",
             data: {
                 ...grant_tokens(res, { login_oid: user.oid, session_oid: session.session_oid, refresh_token: session.refresh_token, remember }),
-                user: { id: user.oid, email: user.email, name: user.name, role: user.role_name },
+                user: { id: user.oid, email: user.email, name: user.name, role: user.role_name, must_change_password: user.must_change_password },
             },
         });
     } catch (e) {

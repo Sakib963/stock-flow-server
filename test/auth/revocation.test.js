@@ -1,4 +1,4 @@
-const { describe, it, before, after, beforeEach, afterEach } = require("node:test");
+const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
@@ -106,26 +106,15 @@ describe("password events", () => {
 });
 
 describe("turning an account off", () => {
-    afterEach(async () => {
-        await h.query("UPDATE menu_item SET is_disabled = true WHERE slug = 'administration-users'");
-        await h.query("UPDATE config_version SET version = version + 1");
-    });
-
     it("ends every session the account already has open", async () => {
         await h.reset();
-        // Users is switched off in the registry until it is built; the endpoint is what this proves.
-        await h.query("UPDATE menu_item SET is_disabled = false WHERE slug = 'administration-users'");
-        await h.query("UPDATE config_version SET version = version + 1");
         const admin = await h.seed_user({ email: "admin@arithmalabs.test", permissions: ["administration.user.edit"] });
         const staff = await h.seed_user({ email: "rafi@arithmalabs.test" });
         const counter = await h.sign_in(staff);
         const phone = await h.sign_in(staff);
         const signed_admin = await h.sign_in(admin);
 
-        const res = await h.call(h.ROUTE.UPDATE_USER, {
-            token: signed_admin.access,
-            body: { oid: staff.oid, name: "Rafi Ahmed", email: staff.email, mobile_number: "01700000000", role: "Salesman", designation: null, photo: null, status: "Inactive" },
-        });
+        const res = await h.call(h.ROUTE.SWITCH_USER_STATUS, { token: signed_admin.access, body: { oid: staff.oid, status: "Inactive" } });
 
         assert.equal(res.status, 200, JSON.stringify(res.body));
         for (const device of [counter, phone]) {

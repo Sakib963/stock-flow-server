@@ -23,6 +23,7 @@ const update_profile_info = async (request, res) => {
         return res.status(200).json({ code: 200, message: "Profile saved", data: profile });
     } catch (e) {
         if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e?.code === "23505" && e.constraint === "login_mobile_number_unique") return res.status(409).json({ code: 409, message: "Someone else already uses this mobile number. Use another number.", data: { field: "mobile_number" } });
         log.error(`An exception occurred while updating a profile: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Your profile was not saved. Try again in a moment." });
     }

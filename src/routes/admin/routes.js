@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { userRouter } = require("./user/routes");
+const { userRouter } = require("./user/route");
 const { featureRouter } = require("./feature/route");
 const { roleRouter } = require("./role/route");
 const { SUB_CONTEXTS } = require("../../utils/constant");

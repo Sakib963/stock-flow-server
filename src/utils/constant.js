@@ -139,7 +139,12 @@ module.exports = {
     RESET_PASSWORD: "/reset-password",
     GET_USER_LIST: "/get-user-list",
     CREATE_USER: "/create-user",
-    UPDATE_USER_DETAILS: "/update-user-details",
+    UPDATE_USER: "/update-user",
+    GET_ASSIGNABLE_ROLES: "/get-assignable-roles",
+    CHECK_USER_TAKEN: "/check-user-taken",
+    SWITCH_USER_STATUS: "/switch-user-status",
+    DELETE_USER: "/delete-user",
+    SIGN_OUT_USER_EVERYWHERE: "/sign-out-user-everywhere",
     GET_USER_DETAILS: "/get-user-details",
     GET_USER_CARD: "/get-user-card",
 
@@ -330,6 +335,7 @@ module.exports = {
 
     CHANGE_PASSWORD: "/change-user-password",
     VERIFY_OTP_FOR_PASSWORD_CHANGE: "/verify-otp-for-password-change",
+    SET_FIRST_PASSWORD: "/set-first-password",
 
     GET_PROFILE_INFO: "/get-profile-info",
     UPDATE_PROFILE_INFO: "/update-profile-info",

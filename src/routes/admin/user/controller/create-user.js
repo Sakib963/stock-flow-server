@@ -1,54 +1,40 @@
+const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
 const { TABLE } = require("../../../../utils/constant");
-const { get_data, execute_value } = require("../../../../db/database");
+const { execute_transaction, TransactionError } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
-const { v4: uuidv4 } = require('uuid');
-const bcrypt = require('bcrypt')
+const { saveLogActivity } = require("../../../../utils/activity-logger");
+const { caller_for, read_role, contact_taken, taken_by_index } = require("../utils/user-rules");
 
+// The password is temporary: must_change_password makes the person set their own before anything
+// else, so whoever created the account never knows the one they use. login.role stays NOT NULL
+// until it is dropped after the release, so it gets an empty string: no access check reads it.
 const create_user = async (request, res) => {
-      let payload = request.body;
-      let user_id = request.credentials.user_id;
-      try {
-            let encrypted_pass = await bcrypt.hash(payload.password, 10);
+    const { name, email, mobile_number, designation, photo, role_oid, password } = request.body;
+    const oid = uuidv4();
+    try {
+        const caller = await caller_for(request);
+        const hashed = await bcrypt.hash(password, 10);
+        const role = await execute_transaction(async (tx) => {
+            const role = await read_role(tx, role_oid, caller);
+            await contact_taken(tx, { email, mobile_number });
+            await tx.execute_value({
+                text: `INSERT INTO ${TABLE.LOGIN} (oid, email, password, name, mobile_number, designation, photo, role, role_oid, status, must_change_password, created_by)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, '', $8, 'Active', true, $9)`,
+                values: [oid, email, hashed, name, mobile_number, designation, photo, role_oid, caller.user_id],
+            });
+            await saveLogActivity({ reference_type: "user", reference_oid: oid, title: "Created user", description: `${name} (${email}) with the ${role.name} role.` }, { tx, request });
+            return role;
+        });
+        log.info(`User ${email} created with role ${role.name}`);
+    } catch (e) {
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
+        const taken = taken_by_index(e);
+        if (taken) return res.status(409).json({ code: 409, message: taken.message, data: { field: taken.field } });
+        log.error(`An exception occurred while creating a user: ${e?.message}`);
+        return res.status(500).json({ code: 500, message: "Could not create the user. Try again in a moment." });
+    }
+    return res.status(200).json({ code: 200, message: "User created", data: { oid } });
+};
 
-            // Check User
-            const exiting_user_id = await check_existing_user(payload.email)
-            if (exiting_user_id) {
-                  log.warn(`Email already exists [${payload.email}]`);
-                  return res.status(409).json({ code: 409, message: "Email Already Exists!" });
-            }
-
-            const sql = {
-                  text: `INSERT INTO ${TABLE.LOGIN} (oid, name, email, mobile_number, role, designation, photo, password, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                  values: [uuidv4(), payload.name, payload.email, payload.mobile_number, payload.role, payload.designation, payload.photo, encrypted_pass, payload.status, user_id]
-            }
-
-            await execute_value(sql);
-      } catch (e) {
-            log.error(`An exception occurred while creating user : ${e?.message}`);
-            return res.status(500).json({ code: 500, message: "Something Went Wrong! Please try again later!" });
-      }
-
-      log.info(`User ${payload.email} created successfully by : ${user_id}`);
-      return res.status(200).json({
-            code: 200,
-            message: "User Created Successfully!",
-      });
-}
-
-const check_existing_user = async (email) => {
-      let count = 0;
-      const sql = {
-            text: `select count(oid)::int4 as total from ${TABLE.LOGIN} where email = $1`,
-            values: [email]
-      }
-      try {
-            let data_set = await get_data(sql);
-            count = data_set[0]["total"];
-      } catch (e) {
-            log.error(`An exception occurred while checking user count : ${e?.message}`);
-            throw new Error(e);
-      }
-      return count;
-}
-
-module.exports = create_user
+module.exports = create_user;

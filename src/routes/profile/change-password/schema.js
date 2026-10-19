@@ -16,4 +16,9 @@ const verify_otp_for_password_change_schema = Joi.object({
       new_password: password_rule,
 });
 
-module.exports = { change_password_schema, verify_otp_for_password_change_schema };
+const set_first_password_schema = Joi.object({
+      current_password: Joi.string().min(1).max(100).required(),
+      new_password: password_rule,
+});
+
+module.exports = { change_password_schema, verify_otp_for_password_change_schema, set_first_password_schema };

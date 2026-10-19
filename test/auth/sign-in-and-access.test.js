@@ -22,7 +22,7 @@ describe("sign-in", () => {
         assert.equal(data.expires_in, 900);
         assert.equal(data.refresh_transport, "cookie");
         assert.equal(data.refresh_token, undefined);
-        assert.deepEqual(data.user, { id: user.oid, email: user.email, name: "Samiha Rahman", role: user.role_name });
+        assert.deepEqual(data.user, { id: user.oid, email: user.email, name: "Samiha Rahman", role: user.role_name, must_change_password: false });
 
         assert.match(res.set_cookie, /HttpOnly/i);
         assert.match(res.set_cookie, /SameSite=Strict/i);

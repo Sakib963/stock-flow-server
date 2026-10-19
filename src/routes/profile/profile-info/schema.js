@@ -1,4 +1,5 @@
 const Joi = require("joi");
+const { mobile_number_rule } = require("../../../utils/mobile-number");
 const { PHOTO_FOLDER, is_own_photo } = require("../../../utils/cloudinary-photo");
 
 const get_profile_info_schema = Joi.object({});
@@ -9,11 +10,7 @@ const sign_profile_photo_schema = Joi.object({});
 // rest is the person's own. A photo is only ever one uploaded to our people folder.
 const update_profile_info_schema = Joi.object({
     name: Joi.string().trim().min(2).max(128).required(),
-    mobile_number: Joi.string()
-        .trim()
-        .pattern(/^\+?[0-9][0-9 -]{5,19}$/)
-        .required()
-        .messages({ "string.pattern.base": "Enter a mobile number of digits, for example 01711000111." }),
+    mobile_number: mobile_number_rule.required(),
     designation: Joi.string().trim().max(128).allow(null, "").empty("").default(null),
     photo: Joi.string()
         .trim()
