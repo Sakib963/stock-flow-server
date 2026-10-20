@@ -192,6 +192,25 @@ describe("users", () => {
         assert.equal((await details(owner.oid, manager.token)).details.within_reach, false);
     });
 
+    it("signs everyone out the owner could sign out one by one, and keeps the owner, the vendor and anyone with more access signed in", async () => {
+        const owner = await person(USERS);
+        const staff = await holder(owner.role_oid);
+        const staff_device = await h.sign_in(staff);
+        const vendor = await person(USERS, { system: true });
+        const senior = await person([...USERS, ...CATEGORY]);
+
+        const res = await h.call(BASE + ROUTES.SIGN_OUT_EVERYONE, { token: owner.token, body: {} });
+        assert.equal(res.status, 200);
+        assert.equal((await h.session(staff_device.session_id)).end_reason, "RemoteSignOut");
+        assert.equal((await get(LIST, owner.token)).status, 200, "the owner stays signed in");
+        assert.equal((await get(LIST, vendor.token)).status, 200, "a vendor account is out of an owner's reach");
+        assert.equal((await get(CATEGORIES, senior.token)).status, 200, "someone with more access than the owner is out of reach");
+        assert.equal(res.body.data.people, 1);
+
+        const looker = await person(["administration.user.view"]);
+        assert.equal((await h.call(BASE + ROUTES.SIGN_OUT_EVERYONE, { token: looker.token, body: {} })).status, 403, "seeing users is not signing them out");
+    });
+
     it("turned off lose every session and cannot sign in until turned on", async () => {
         const owner = await person(USERS);
         const staff = await holder(owner.role_oid);

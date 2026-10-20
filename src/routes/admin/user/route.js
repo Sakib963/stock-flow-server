@@ -13,6 +13,7 @@ const update_user = require("./controller/update-user");
 const switch_user_status = require("./controller/switch-user-status");
 const delete_user = require("./controller/delete-user");
 const sign_out_user_everywhere = require("./controller/sign-out-user-everywhere");
+const sign_out_everyone = require("./controller/sign-out-everyone");
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.post(ROUTES.CREATE_USER, [jwtMiddleware, requirePermission("administratio
 router.post(ROUTES.UPDATE_USER, [jwtMiddleware, requirePermission("administration.user.edit"), validator.post(update_user_schema)], update_user);
 router.post(ROUTES.SWITCH_USER_STATUS, [jwtMiddleware, requirePermission("administration.user.edit"), validator.post(switch_user_status_schema)], switch_user_status);
 router.post(ROUTES.SIGN_OUT_USER_EVERYWHERE, [jwtMiddleware, requirePermission("administration.user.edit"), validator.post(user_oid_schema)], sign_out_user_everywhere);
+router.post(ROUTES.SIGN_OUT_EVERYONE, [jwtMiddleware, requirePermission("administration.user.edit"), validator.post(empty_schema)], sign_out_everyone);
 router.post(ROUTES.DELETE_USER, [jwtMiddleware, requirePermission("administration.user.delete"), validator.post(user_oid_schema)], delete_user);
 
 module.exports = { userRouter: router };

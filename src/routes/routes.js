@@ -9,6 +9,7 @@ const { inventoryRouter } = require("./inventory/route");
 const { salesRouter } = require("./sales/route");
 const { marketingRouter } = require("./marketing/route");
 const { dashboardRouter } = require("./dashboard/route");
+const { systemRouter } = require("./system/routes");
 
 const mainRouter = Router();
 
@@ -21,5 +22,6 @@ mainRouter.use(CONTEXTS.INVENTORY, inventoryRouter);
 mainRouter.use(CONTEXTS.SALES, salesRouter);
 mainRouter.use(CONTEXTS.MARKETING, marketingRouter);
 mainRouter.use(CONTEXTS.DASHBOARD, dashboardRouter);
+mainRouter.use(CONTEXTS.SYSTEM, systemRouter);
 
 module.exports = mainRouter;
