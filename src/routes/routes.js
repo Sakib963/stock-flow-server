@@ -10,6 +10,7 @@ const { salesRouter } = require("./sales/route");
 const { marketingRouter } = require("./marketing/route");
 const { dashboardRouter } = require("./dashboard/route");
 const { systemRouter } = require("./system/routes");
+const { reportRouter } = require("./report/route");
 
 const mainRouter = Router();
 
@@ -23,5 +24,6 @@ mainRouter.use(CONTEXTS.SALES, salesRouter);
 mainRouter.use(CONTEXTS.MARKETING, marketingRouter);
 mainRouter.use(CONTEXTS.DASHBOARD, dashboardRouter);
 mainRouter.use(CONTEXTS.SYSTEM, systemRouter);
+mainRouter.use(CONTEXTS.REPORT, reportRouter);
 
 module.exports = mainRouter;
