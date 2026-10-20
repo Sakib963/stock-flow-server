@@ -4,6 +4,7 @@ const { channels_of } = require("../../sales/utils/channels");
 const { read_dashboard_period } = require("../utils/period");
 const { read_attention } = require("../utils/attention");
 const { read_for_you } = require("../utils/for-you");
+const { read_your_work } = require("../utils/your-work");
 const { read_business, read_stock } = require("../utils/at-a-glance");
 
 // One section failing must not blank the first page anyone sees: it answers its own error and the
@@ -24,14 +25,15 @@ const get_dashboard = async (request, res) => {
         const user_id = request.credentials.user_id;
         const [held, channels, period] = await Promise.all([permissions_for(user_id), channels_of(request), read_dashboard_period(key)]);
 
-        const [for_you, attention, business, stock] = await Promise.all([
+        const [for_you, your_work, attention, business, stock] = await Promise.all([
             section("for you", () => read_for_you({ held, user_id, period })),
+            section("your work", () => read_your_work({ user_id, today: period.date_to })),
             section("needs attention", () => read_attention({ held, channels })),
             section("business at a glance", () => read_business({ held, channels, period })),
             section("stock at a glance", () => read_stock({ held })),
         ]);
 
-        return res.status(200).json({ code: 200, message: "Dashboard", data: { period: { key, ...period }, for_you, attention, business, stock } });
+        return res.status(200).json({ code: 200, message: "Dashboard", data: { period: { key, ...period }, for_you, your_work, attention, business, stock } });
     } catch (e) {
         log.error(`An exception occurred while reading the dashboard: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not load the dashboard. Try again in a moment." });

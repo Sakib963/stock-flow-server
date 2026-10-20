@@ -113,6 +113,27 @@ describe("dashboard", () => {
         assert.deepEqual((await dashboard(owner.token, "today")).business.daily, [], "one day has no chart");
     });
 
+    it("draws the period before by day and splits kept sales by channel only for someone selling through both", async () => {
+        const product = await seed_product();
+        await seed_order({ channel: "POS", status: "Purchased", created_by: "a@arithmalabs.test", sold: true, lines: [{ product, quantity: 2, price: 300 }] });
+        await seed_order({ channel: "ONLINE", status: "Delivered", created_by: "a@arithmalabs.test", sold: true, lines: [{ product, quantity: 1, price: 400 }] });
+        const last_week = await seed_order({ channel: "POS", status: "Purchased", created_by: "a@arithmalabs.test", sold: true, lines: [{ product, quantity: 1, price: 250 }] });
+        await h.query("UPDATE orders SET sold_on = sold_on - interval '7 days' WHERE oid = $1", [last_week]);
+        await seed_order({ channel: "ONLINE", status: "Pending", created_by: "a@arithmalabs.test", lines: [{ product, quantity: 5, price: 1000 }] });
+        await seed_order({ channel: "POS", status: "PartiallyReturned", created_by: "a@arithmalabs.test", sold: true, lines: [{ product, quantity: 2, price: 100, returned: 2 }] });
+
+        const owner = await person(["sales.pos.view", "sales.online.view", "sales.analytics.view"]);
+        const week = (await dashboard(owner.token, "week")).business;
+        assert.deepEqual(week.previous_daily.map((d) => d.sales), [250]);
+        assert.deepEqual(week.by_channel, [
+            { channel: "ONLINE", sales: 400 },
+            { channel: "POS", sales: 600 },
+        ]);
+
+        const counter_owner = await person(["sales.pos.view", "sales.analytics.view"]);
+        assert.deepEqual((await dashboard(counter_owner.token, "week")).business.by_channel, [], "one channel has nothing to split");
+    });
+
     it("shows stock value only with the stock value permission", async () => {
         const looker = await person(["inventory.overview.view"]);
         assert.equal((await dashboard(looker.token)).stock, null);
@@ -155,5 +176,25 @@ describe("dashboard", () => {
         const mine = (await dashboard(moderator.token, "week")).for_you;
         assert.deepEqual([mine.online.entered, mine.online.sold, mine.drafts.online], [2, 1, 1]);
         assert.equal(mine.counter, null);
+    });
+
+    it("shows a person their own work: today, active days, the streak and their latest actions, never someone else's", async () => {
+        const viewer = await person([]);
+        const act = (performed_by, days_ago, title) =>
+            h.query("INSERT INTO activity_log (oid, reference_oid, reference_type, title, performed_by, performed_on) VALUES ($1, $1, 'brand', $2, $3, (now() AT TIME ZONE 'UTC') - make_interval(days => $4))", [uuidv4(), title, performed_by, days_ago]);
+        await act(viewer.email, 0, "Created brand");
+        await act(viewer.email, 0, "Updated brand");
+        await act(viewer.email, 1, "Older");
+        await act(viewer.email, 2, "Older");
+        await act(viewer.email, 4, "Before the gap");
+        await act(viewer.email, 40, "Last month");
+        await act("someone-else@arithmalabs.test", 0, "Not mine");
+
+        const work = (await dashboard(viewer.token)).your_work;
+        assert.deepEqual([work.today, work.active_days, work.streak], [2, 4, 3]);
+        assert.equal(work.recent.length, 5);
+        assert.ok(!work.recent.some((row) => row.title === "Not mine"));
+        assert.equal(work.recent[0].area, "configuration");
+        assert.equal(work.week.reduce((sum, cell) => sum + cell.count, 0), 6, "every action of the last eight weeks, none of someone else's");
     });
 });
