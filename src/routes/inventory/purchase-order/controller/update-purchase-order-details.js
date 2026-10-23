@@ -69,7 +69,8 @@ const update_purchase_order_details = async (request, res) => {
 
                   const updated = await tx.execute_value({
                         text: `UPDATE ${TABLE.PURCHASE}
-                                  SET supplier_oid = $1, purchase_type = $2, expected_delivery_date = $3, special_notes = $4, payment_status = $5, paid_amount = $6, total_amount = $7, status = $8,
+                                  SET supplier_oid = $1, purchase_type = $2, expected_delivery_date = $3, special_notes = $4, payment_status = $5, paid_amount = $6, total_amount = $7, status = $8::text,
+                                      submitted_on = COALESCE(submitted_on, CASE WHEN $8::text = 'Submitted' THEN clock_timestamp() END),
                                       edited_by = $9, edited_on = clock_timestamp()
                                 WHERE oid = $10 AND status = $11`,
                         values: [payload.supplier_oid, payload.purchase_type, payload.expected_delivery_date, payload.special_notes, payment.payment_status, paid_amount, total_amount, status, user_id, payload.oid, order.status],

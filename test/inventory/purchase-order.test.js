@@ -407,6 +407,24 @@ describe("what a purchase order reads from elsewhere", () => {
             assert.notEqual(await last_ordered(), null);
       });
 
+      it("dates the last order by when a draft was submitted, not when it was started, and keeps that date when it is edited again", async () => {
+            const ids = await seed();
+            const owner = await sign_in_with(ALL);
+            const last_ordered = async () => (await get(SUPPLIERS, owner)).body.data.find((s) => s.value === ids.supplier).last_ordered_on;
+
+            const oid = (await post(CREATE, owner, { draft: true, supplier_oid: ids.supplier, products: [{ product_oid: ids.kurti }] })).body.data.oid;
+            await h.query("UPDATE purchase SET created_on = '2026-09-01 10:00' WHERE oid = $1", [oid]);
+            assert.equal((await h.query("SELECT submitted_on FROM purchase WHERE oid = $1", [oid]))[0].submitted_on, null, "a draft was never ordered");
+
+            assert.equal((await post(UPDATE, owner, { oid, ...order(ids) })).status, 200);
+            const [{ submitted_on }] = await h.query("SELECT submitted_on FROM purchase WHERE oid = $1", [oid]);
+            assert.ok(submitted_on > new Date("2026-09-02"), "dated at the submit, not at the draft");
+            assert.equal(new Date(await last_ordered()).getTime(), submitted_on.getTime());
+
+            assert.equal((await post(UPDATE, owner, { ...edit_of(ids, oid), special_notes: "Pack in two boxes" })).status, 200);
+            assert.equal((await h.query("SELECT submitted_on FROM purchase WHERE oid = $1", [oid]))[0].submitted_on.getTime(), submitted_on.getTime());
+      });
+
       it("refuses the reports to someone without the export permission", async () => {
             const viewer = await sign_in_with(["inventory.purchase-order.view"]);
             assert.equal((await post(REPORT, viewer, { oid: uuidv4() })).status, 403);

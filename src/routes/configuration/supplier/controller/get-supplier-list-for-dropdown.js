@@ -2,10 +2,10 @@ const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
 
-// last_ordered_on leaves out drafts, never sent, and cancelled orders, which bought nothing.
+// Last ordered is when an order was sent, not when its draft was started; drafts and cancelled orders bought nothing.
 const DROPDOWN_SQL = {
       text: `SELECT s.oid AS value, s.name AS label, s.phone_number,
-                    (SELECT MAX(p.created_on) FROM ${TABLE.PURCHASE} p WHERE p.supplier_oid = s.oid AND p.status IN ('Submitted', 'Verified')) AS last_ordered_on
+                    (SELECT MAX(p.submitted_on) FROM ${TABLE.PURCHASE} p WHERE p.supplier_oid = s.oid AND p.status IN ('Submitted', 'Verified')) AS last_ordered_on
              FROM ${TABLE.SUPPLIER} s WHERE s.status = 'Active' ORDER BY s.name ASC`,
       values: [],
 };
