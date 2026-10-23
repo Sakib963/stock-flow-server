@@ -119,4 +119,4 @@ const read_by_channel = async (from, to, filters) => get_data({ text: BY_CHANNEL
 
 const read_refusal = async (from, to, filters) => (await get_data({ text: REFUSAL_SQL, values: [from, to, filters.source_oid, filters.category_oid] }))[0];
 
-module.exports = { read_period, read_totals, read_own_totals, read_top_products, read_daily, read_refusal, read_sources, read_by_channel };
+module.exports = { lines_cte, read_period, read_totals, read_own_totals, read_top_products, read_daily, read_refusal, read_sources, read_by_channel };

@@ -2,6 +2,8 @@ const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
 const { log } = require("../../../../utils/log");
+const { sees_money } = require("../../../inventory/utils/sees-money");
+const { read_recent_sales } = require("../utils/recent-sales");
 
 const DETAILS_SQL = `
       SELECT p.oid, p.name, p.sku, p.photo, p.unit_type, p.description, p.restock_threshold::int AS restock_threshold, p.status, p.has_expiry,
@@ -57,7 +59,14 @@ const get_product_details = async (request, res) => {
                   return res.status(404).json({ code: 404, message: "Product not found", data: null });
             }
 
-            const [batches, [lifetime], [{ booked }], activity_set] = await Promise.all([get_data({ text: BATCHES_SQL, values: [productOid] }), get_data({ text: LIFETIME_SQL, values: [productOid] }), get_data({ text: BOOKED_SQL, values: [productOid] }), getLogActivities("product", productOid, 5)]);
+            const money = await sees_money(request);
+            const [batches, [lifetime], [{ booked }], recent, activity_set] = await Promise.all([
+                  get_data({ text: BATCHES_SQL, values: [productOid] }),
+                  get_data({ text: LIFETIME_SQL, values: [productOid] }),
+                  get_data({ text: BOOKED_SQL, values: [productOid] }),
+                  read_recent_sales(productOid, { money }),
+                  getLogActivities("product", productOid, 5),
+            ]);
 
             const stock = batches.reduce((sum, batch) => ({ on_hand: sum.on_hand + batch.on_hand, held: sum.held + batch.held, sellable: sum.sellable + batch.sellable }), { on_hand: 0, held: 0, sellable: 0 });
 
@@ -66,8 +75,10 @@ const get_product_details = async (request, res) => {
                   message: "Product details found successfully",
                   data: {
                         details,
-                        stock: { ...stock, booked, batches },
+                        // What a batch cost is left out for someone without inventory.stock-value.view, as on the stock overview.
+                        stock: { ...stock, booked, batches: money ? batches : batches.map(({ cost_price, ...batch }) => batch) },
                         lifetime,
+                        recent,
                         activity: activity_set.map((a) => ({
                               oid: a.oid,
                               date: a.performed_on,

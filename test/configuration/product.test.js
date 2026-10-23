@@ -343,6 +343,58 @@ describe("the product list and record", () => {
     });
 });
 
+// A sale as the app leaves one: an order in a realized state with sold_on, its line on a batch.
+const sell = async (product, batch, { channel = "POS", status = "Purchased", days_ago = 0, quantity = 1, unit_price = 150, discount = 0, returned = 0 } = {}) => {
+    const oid = uuidv4();
+    const sold_on = status === "Pending" ? null : new Date(Date.now() - days_ago * 86400000);
+    await h.query("INSERT INTO orders (oid, invoice_no, total_amount, status, channel, sold_on) VALUES ($1, $1, 0, $2, $3, $4)", [oid, status, channel, sold_on]);
+    await h.query("INSERT INTO order_items (oid, order_oid, product_oid, inventory_oid, product_name, quantity, unit_price, discount, total, returned_qty) VALUES ($1, $2, $3, $4, 'x', $5, $6, $7, $8, $9)", [uuidv4(), oid, product, batch, quantity, unit_price, discount, (unit_price - discount) * quantity, returned]);
+};
+
+describe("the last 30 days on the product record", () => {
+    it("counts what customers kept over the last 30 business days by channel, the units they returned, and sales and profit at the line price and the batch cost", async () => {
+        const owner = await sign_in_with([...WRITER, "inventory.stock-value.view"]);
+        const kurti = await seed_product("Cotton Kurti");
+        const batch = await receive(kurti, 20, { cost: 100, price: 150 });
+        await sell(kurti, batch, { quantity: 3, discount: 10 });
+        await sell(kurti, batch, { channel: "ONLINE", status: "Delivered", days_ago: 2, quantity: 2, returned: 1 });
+        await sell(kurti, batch, { days_ago: 29 });
+        await sell(kurti, batch, { days_ago: 30, quantity: 5 });
+        await sell(kurti, batch, { channel: "ONLINE", status: "Pending", quantity: 4 });
+
+        const { recent } = (await get(`${DETAILS}/${kurti}`, owner)).body.data;
+
+        assert.deepEqual(recent, { days: 30, units_sold: 6, units_returned: 1, counter_units: 4, online_units: 1, sales: 720, profit: 220, units_without_cost: 0 });
+    });
+
+    it("shows someone who may not see money the units, but no sales, profit or batch cost", async () => {
+        const staff = await sign_in_with(WRITER);
+        const kurti = await seed_product("Cotton Kurti");
+        const batch = await receive(kurti, 20, { cost: 100, price: 150 });
+        await sell(kurti, batch, { quantity: 2 });
+
+        const { recent, stock } = (await get(`${DETAILS}/${kurti}`, staff)).body.data;
+
+        assert.deepEqual(recent, { days: 30, units_sold: 2, units_returned: 0, counter_units: 2, online_units: 0 });
+        assert.equal("cost_price" in stock.batches[0], false);
+        assert.equal(stock.batches[0].selling_price, 150);
+    });
+});
+
+describe("the product names a list filter picks from", () => {
+    it("lists inactive products too, since their history stays, but never a deleted one", async () => {
+        const viewer = await sign_in_with(["configuration.product.view"]);
+        await seed_product("Cotton Kurti");
+        const saree = await seed_product("Silk Saree");
+        await h.query("UPDATE product SET status = 'Inactive' WHERE oid = $1", [saree]);
+        await seed_product("Old Scarf", { deleted: true });
+
+        const names = (await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer)).body.data.map((p) => p.label).sort();
+
+        assert.deepEqual(names, ["Cotton Kurti", "Silk Saree"]);
+    });
+});
+
 describe("SKU helpers", () => {
     it("answers taken for another product's SKU and free for the product's own", async () => {
         const author = await sign_in_with(WRITER);
