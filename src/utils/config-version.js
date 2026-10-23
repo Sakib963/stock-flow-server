@@ -18,7 +18,7 @@ const { log } = require("./log");
 // Their newest created_on or edited_on is that version: every write to them stamps one, none is ever
 // hard deleted, so it only moves forward and no write can forget to raise it. Read inside the session
 // check's own query, so it costs no extra round trip.
-const REFERENCE_TABLES = [TABLE.CATEGORIES, TABLE.SUB_CATEGORIES, TABLE.BRANDS, TABLE.SUPPLIER, TABLE.WAREHOUSE, TABLE.AISLE, TABLE.PARTNER, TABLE.ORDER_SOURCE, TABLE.MESSAGE_TEMPLATE, TABLE.LOGIN];
+const REFERENCE_TABLES = [TABLE.PRODUCT, TABLE.CATEGORIES, TABLE.SUB_CATEGORIES, TABLE.BRANDS, TABLE.SUPPLIER, TABLE.WAREHOUSE, TABLE.AISLE, TABLE.PARTNER, TABLE.ORDER_SOURCE, TABLE.MESSAGE_TEMPLATE, TABLE.LOGIN];
 const REFERENCE_VERSION_SQL = `(SELECT COALESCE(floor(extract(epoch FROM max(changed)) * 1000), 0)::bigint FROM (${REFERENCE_TABLES.map((table) => `SELECT max(GREATEST(created_on, edited_on)) AS changed FROM ${table}`).join(" UNION ALL ")}) reference)`;
 
 /** Global stamp, one indexed read. */

@@ -27,7 +27,7 @@ const delete_product = async (request, res) => {
                   if (stock.on_hand > 0) fail(409, `This product still has ${stock.on_hand} units in stock. Dispose of them first, or set the product Inactive.`, { reason: "in_stock", on_hand: stock.on_hand });
 
                   await tx.execute_value({
-                        text: `UPDATE ${TABLE.PRODUCT} SET is_deleted = TRUE, deleted_on = clock_timestamp(), deleted_by = $2 WHERE oid = $1`,
+                        text: `UPDATE ${TABLE.PRODUCT} SET is_deleted = TRUE, deleted_on = clock_timestamp(), deleted_by = $2, edited_on = clock_timestamp(), edited_by = $2 WHERE oid = $1`,
                         values: [oid, user_id],
                   });
                   await saveLogActivity(

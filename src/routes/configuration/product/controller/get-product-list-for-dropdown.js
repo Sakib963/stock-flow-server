@@ -31,6 +31,7 @@ const get_product_list_for_dropdown = async (request, res) => {
   }
 };
 
+// Inactive products too: it names the products in a list filter, and an inactive one still has its history.
 const generate_data_sql = (request) => {
   let query = `SELECT p.oid as value, p.name as label,
       COALESCE(c.name, 'Uncategorized') as category_label,
@@ -38,7 +39,7 @@ const generate_data_sql = (request) => {
       FROM ${TABLE.PRODUCT} p
       LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
       LEFT JOIN ${TABLE.SUB_CATEGORIES} sc ON sc.oid = p.sub_category_oid
-      WHERE p.status = 'Active' AND p.is_deleted = FALSE
+      WHERE p.is_deleted = FALSE
       ORDER BY c.name ASC, sc.name ASC, p.name ASC`;
   let values = [];
   return { text: query, values };

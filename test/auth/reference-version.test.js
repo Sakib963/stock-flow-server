@@ -45,6 +45,20 @@ describe("the reference version the web keeps its picker lists by", () => {
         assert.ok((await version_seen_by(token)) > before_change);
     });
 
+    it("moves when a product is deleted, since the product filter lists products", async () => {
+        const [category, sub_category, product] = [uuidv4(), uuidv4(), uuidv4()];
+        await h.query("INSERT INTO categories (oid, name, category_code, status) VALUES ($1, $1, $1, 'Active')", [category]);
+        await h.query("INSERT INTO sub_categories (oid, name, category_code, category_oid, status) VALUES ($1, $1, $1, $2, 'Active')", [sub_category, category]);
+        await h.query("INSERT INTO product (oid, name, category_oid, sub_category_oid, status) VALUES ($1, 'Old Scarf', $2, $3, 'Active')", [product, category, sub_category]);
+        const deleter = (await h.sign_in(await h.seed_user({ email: "deleter@arithmalabs.test", permissions: ["configuration.product.delete"] }))).access;
+        const before_change = await version_seen_by(deleter);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        const deleted = await h.call(CONTEXTS.CONFIGURATION + SUB_CONTEXTS.PRODUCT + ROUTES.DELETE_PRODUCT, { body: { oid: product }, token: deleter });
+        assert.equal(deleted.status, 200, deleted.body?.message);
+        assert.ok((await version_seen_by(deleter)) > before_change);
+    });
+
     it("stays where it is after a write to something no picker lists", async () => {
         const before_change = await version_seen_by(token);
         const note = await h.call(CREATE_NOTE, { body: { oid: uuidv4(), note_title: "Call the courier", note_text: "About the late parcel" }, token });

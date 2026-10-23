@@ -13,11 +13,18 @@ const REFERENCE = `CASE WHEN m.reason = 'received' THEN pu.po_number
                         WHEN m.reason IN ('adjusted', 'opening_stock') THEN sa.adjustment_number
                         WHEN m.reason = 'given_away' THEN g.giveaway_no END`;
 
+// Which kind of document that is, so the web can link the number to its own page.
+const REFERENCE_KIND = `CASE WHEN m.reason = 'received' THEN 'purchase-order'
+                             WHEN m.reason IN ('sold', 'dispatched') THEN 'order'
+                             WHEN m.reason = 'returned' THEN CASE WHEN pr.oid IS NOT NULL THEN 'return' WHEN g.oid IS NOT NULL THEN 'giveaway' END
+                             WHEN m.reason IN ('disposed', 'dispose_reversed') THEN 'disposal'
+                             WHEN m.reason IN ('adjusted', 'opening_stock') THEN 'adjustment'
+                             WHEN m.reason = 'given_away' THEN 'giveaway' END`;
+
 const SELECT = `m.oid, m.created_on, m.reason, m.quantity, m.balance_after,
                 m.product_oid, p.name AS product_name, p.sku, i.batch_code,
                 w.name AS warehouse_name, ${REFERENCE} AS reference,
-                CASE WHEN m.reason = 'received' THEN m.source_oid END AS purchase_oid,
-                CASE WHEN m.reason IN ('adjusted', 'opening_stock') THEN m.source_oid END AS adjustment_oid,
+                ${REFERENCE_KIND} AS reference_kind, CASE WHEN ${REFERENCE} IS NOT NULL THEN m.source_oid END AS reference_oid,
                 m.created_by, u.name AS created_by_name`;
 
 const FROM = `${TABLE.STOCK_MOVEMENT} m

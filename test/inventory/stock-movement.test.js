@@ -148,7 +148,7 @@ describe("the stock movement ledger", () => {
 });
 
 describe("the stock movement list", () => {
-    it("shows each movement with its product, batch, warehouse and purchase order", async () => {
+    it("shows each movement with its product, batch, warehouse and purchase order, and the document it opens", async () => {
         await h.reset();
         const ids = await seed();
         const token = await sign_in_with([...PO_RIGHTS, "inventory.stock-movement.view"]);
@@ -159,8 +159,8 @@ describe("the stock movement list", () => {
         assert.equal(res.status, 200, JSON.stringify(res.body));
         const [row] = res.body.data.rows;
         assert.equal(res.body.total, 1);
-        const shown = { reason: row.reason, quantity: row.quantity, balance_after: row.balance_after, product_name: row.product_name, warehouse_name: row.warehouse_name, reference: row.reference, purchase_oid: row.purchase_oid };
-        assert.deepEqual(shown, { reason: "received", quantity: 50, balance_after: 50, product_name: "Cotton kurti", warehouse_name: "Main", reference: po_number, purchase_oid: received.purchase_oid });
+        const shown = { reason: row.reason, quantity: row.quantity, balance_after: row.balance_after, product_name: row.product_name, warehouse_name: row.warehouse_name, reference: row.reference, reference_kind: row.reference_kind, reference_oid: row.reference_oid };
+        assert.deepEqual(shown, { reason: "received", quantity: 50, balance_after: 50, product_name: "Cotton kurti", warehouse_name: "Main", reference: po_number, reference_kind: "purchase-order", reference_oid: received.purchase_oid });
         assert.deepEqual(res.body.data.stats, { units_in: 50, units_out: 0 });
     });
 
@@ -205,6 +205,27 @@ describe("the stock movement list", () => {
         assert.equal((await get(LIST, token, { date_from: "12-10-2026" })).status, 400, "a day is YYYY-MM-DD");
     });
 
+    it("opens the document behind every other kind of movement: the sale's order, the return, the disposal and the adjustment", async () => {
+        await h.reset();
+        const ids = await seed();
+        await h.query("TRUNCATE product_return, product_dispose, stock_adjustment CASCADE");
+        const token = await sign_in_with([...PO_RIGHTS, "inventory.stock-movement.view"]);
+        const received = await receive(ids, token);
+        const [order, back, dispose, adjustment] = [await an_order(), uuidv4(), uuidv4(), uuidv4()];
+        await h.query("INSERT INTO product_return (oid, order_oid, invoice_no, refund_amount, return_reason, status) VALUES ($1, $2, 'INV-R1', 0, 'changed_mind', 'Returned')", [back, order]);
+        await h.query("INSERT INTO product_dispose (oid, dispose_no, disposal_date, status) VALUES ($1, 'DSP-0001', now(), 'Approved')", [dispose]);
+        await h.query("INSERT INTO stock_adjustment (oid, adjustment_number, reason, status) VALUES ($1, 'ADJ-0001', 'found', 'Verified')", [adjustment]);
+        await execute_transaction((tx) => deductSellableStock(tx, { inventory_oid: received.batch, quantity: 3, order_oid: order, user_id: USER }));
+        await execute_transaction((tx) => restockStock(tx, { inventory_oid: received.batch, quantity: 1, reason: "returned", source_oid: back, user_id: USER }));
+        await execute_transaction((tx) => deductStock(tx, { inventory_oid: received.batch, quantity: 2, reason: "disposed", source_oid: dispose, user_id: USER }));
+        await execute_transaction((tx) => restockStock(tx, { inventory_oid: received.batch, quantity: 1, reason: "adjusted", source_oid: adjustment, user_id: USER }));
+
+        const rows = (await get(LIST, token)).body.data.rows;
+        const opens = Object.fromEntries(rows.map((row) => [row.reason, [row.reference_kind, row.reference_oid]]));
+        assert.deepEqual(opens, { received: ["purchase-order", received.purchase_oid], sold: ["order", order], returned: ["return", back], disposed: ["disposal", dispose], adjusted: ["adjustment", adjustment] });
+        await assert_balanced(received.batch);
+    });
+
     it("shows a giveaway, and a gift that came back in a refused parcel, against the giveaway number", async () => {
         await h.reset();
         const ids = await seed();
@@ -218,8 +239,9 @@ describe("the stock movement list", () => {
 
         const given = (await get(LIST, token, { reason: "given_away" })).body;
         assert.equal(given.total, 1);
-        assert.deepEqual({ quantity: given.data.rows[0].quantity, reference: given.data.rows[0].reference }, { quantity: -2, reference: "GA-0001" });
-        assert.equal((await get(LIST, token, { reason: "returned" })).body.data.rows[0].reference, "GA-0001");
+        assert.deepEqual({ quantity: given.data.rows[0].quantity, reference: given.data.rows[0].reference, kind: given.data.rows[0].reference_kind, oid: given.data.rows[0].reference_oid }, { quantity: -2, reference: "GA-0001", kind: "giveaway", oid: giveaway });
+        const back = (await get(LIST, token, { reason: "returned" })).body.data.rows[0];
+        assert.deepEqual({ reference: back.reference, kind: back.reference_kind, oid: back.reference_oid }, { reference: "GA-0001", kind: "giveaway", oid: giveaway }, "a gift back from a refused parcel opens its giveaway, not a return");
         await assert_balanced(received.batch);
     });
 
