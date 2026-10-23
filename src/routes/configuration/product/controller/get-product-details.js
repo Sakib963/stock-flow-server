@@ -41,7 +41,7 @@ const LIFETIME_SQL = `
              (SELECT COALESCE(SUM(total_given_away), 0)::int FROM ${TABLE.PRODUCT_STATS} WHERE product_oid = $1) AS given_away,
              (SELECT MAX(o.sold_on)
                 FROM ${TABLE.ORDER_ITEMS} oi JOIN ${TABLE.ORDERS} o ON o.oid = oi.order_oid
-               WHERE oi.product_oid = $1 AND o.status IN ('Purchased', 'Delivered', 'PartiallyReturned')) AS last_sold_on`;
+               WHERE oi.product_oid = $1 AND o.sold_on IS NOT NULL AND oi.quantity > oi.returned_qty) AS last_sold_on`;
 
 // Units on open bookings: wanted, but no order yet, so they hold nothing (pre-order REQ-14).
 const BOOKED_SQL = `

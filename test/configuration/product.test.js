@@ -367,6 +367,18 @@ describe("the last 30 days on the product record", () => {
         assert.deepEqual(recent, { days: 30, units_sold: 6, units_returned: 1, counter_units: 4, online_units: 1, sales: 720, profit: 220, units_without_cost: 0 });
     });
 
+    it("dates the last sale by a unit the customer kept, so a sale returned in full does not count", async () => {
+        const viewer = await sign_in_with(WRITER);
+        const kurti = await seed_product("Cotton Kurti");
+        const batch = await receive(kurti, 20);
+        await sell(kurti, batch, { days_ago: 20 });
+        await sell(kurti, batch, { days_ago: 3, quantity: 2, returned: 2 });
+
+        const { lifetime } = (await get(`${DETAILS}/${kurti}`, viewer)).body.data;
+
+        assert.equal(Math.round((Date.now() - new Date(lifetime.last_sold_on).getTime()) / 86400000), 20);
+    });
+
     it("shows someone who may not see money the units, but no sales, profit or batch cost", async () => {
         const staff = await sign_in_with(WRITER);
         const kurti = await seed_product("Cotton Kurti");

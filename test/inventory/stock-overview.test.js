@@ -108,6 +108,37 @@ describe("the stock overview list", () => {
         assert.deepEqual(found.body.data.rows.map((r) => r.oid), [ids.cream]);
     });
 
+    it("shows what each product sold in the last 30 days, how long its stock lasts at that pace, and finds stock that has not sold in 60 days", async () => {
+        const token = await sign_in_with(OWNER);
+        const sale = uuidv4();
+        await h.query("INSERT INTO orders (oid, invoice_no, total_amount, status, channel, sold_on) VALUES ($1, 'INV-2', 0, 'Purchased', 'POS', now() AT TIME ZONE 'UTC')", [sale]);
+        await h.query("INSERT INTO order_items (oid, order_oid, product_oid, inventory_oid, product_name, quantity, unit_price, total, returned_qty) VALUES ($1, $2, $3, $4, 'Sun cream', 4, 500, 2000, 1)", [uuidv4(), sale, ids.cream, ids.cream_batch.oid]);
+
+        const recent = await get(LIST, token, { include: "stats" });
+        const cream = recent.body.data.rows.find((r) => r.oid === ids.cream);
+        assert.deepEqual({ sold: cream.sold_30_days, days_left: cream.days_left, sold_before: cream.last_sold_on !== null }, { sold: 3, days_left: 80, sold_before: true });
+        assert.equal(recent.body.data.stats.not_selling, 0);
+
+        await h.query("UPDATE orders SET sold_on = (now() AT TIME ZONE 'UTC') - interval '70 days' WHERE oid = $1", [sale]);
+        const stale = await get(LIST, token, { include: "stats", not_selling: "true" });
+        assert.deepEqual(stale.body.data.rows.map((r) => [r.oid, r.sold_30_days, r.days_left]), [[ids.cream, 0, null]], "the bag holds nothing to sell, so it is not stale stock");
+        assert.equal(stale.body.data.stats.not_selling, 1);
+    });
+
+    it("lets Staff sort by units sold and last sold, which carry no money, newest sale first and never sold last", async () => {
+        const sale = uuidv4();
+        await h.query("INSERT INTO orders (oid, invoice_no, total_amount, status, channel, sold_on) VALUES ($1, 'INV-3', 0, 'Purchased', 'POS', now() AT TIME ZONE 'UTC')", [sale]);
+        await h.query("INSERT INTO order_items (oid, order_oid, product_oid, inventory_oid, product_name, quantity, unit_price, total) VALUES ($1, $2, $3, $4, 'Tote bag', 1, 100, 100)", [uuidv4(), sale, ids.bag, ids.bag_batch.oid]);
+        const staff = await sign_in_with(STAFF);
+
+        const by_sold = await get(LIST, staff, { sort: "sold_30_days", order: "desc" });
+        assert.deepEqual(by_sold.body.data.rows.map((r) => [r.name, r.sold_30_days]), [["Tote bag", 1], ["Sun cream", 0]]);
+        for (const row of by_sold.body.data.rows) assert.deepEqual(MONEY.filter((key) => key in row), []);
+
+        const by_last = await get(LIST, staff, { sort: "last_sold_on", order: "desc" });
+        assert.deepEqual(by_last.body.data.rows.map((r) => r.name), ["Tote bag", "Sun cream"]);
+    });
+
     it("filters by stock status", async () => {
         const out = await get(LIST, await sign_in_with(OWNER), { stock_status: "out" });
         assert.deepEqual(out.body.data.rows.map((r) => r.oid), [ids.bag]);

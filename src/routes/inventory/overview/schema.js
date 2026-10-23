@@ -8,13 +8,14 @@ const stock_overview_list_schema = Joi.object({
       offset: Joi.number().integer().min(0).default(0),
       limit: Joi.number().integer().min(1).max(100).default(20),
       search: Joi.string().trim().max(100).allow(null, "").optional(),
-      sort: Joi.string().valid("name", "on_hand", "sellable", "batches", "stock_value", "expected_revenue", "profit_full").optional(),
+      sort: Joi.string().valid("name", "on_hand", "sellable", "batches", "sold_30_days", "days_left", "last_sold_on", "stock_value", "expected_revenue", "profit_full").optional(),
       order: Joi.string().valid("asc", "desc").optional(),
       category_oid: oid_list,
       sub_category_oid: oid_list,
       brand_oid: oid_list,
       stock_status: Joi.string().pattern(/^(in|low|out)(,(in|low|out))*$/).allow(null, "").optional(),
       expiry_state: Joi.string().pattern(/^(expired|soon)(,(expired|soon))*$/).allow(null, "").optional(),
+      not_selling: Joi.string().valid("true").allow(null, "").optional(),
       include: Joi.string().valid("", "stats").optional(),
 });
 
