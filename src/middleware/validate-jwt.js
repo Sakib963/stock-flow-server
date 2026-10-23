@@ -2,6 +2,7 @@ const { get_data } = require("../db/database");
 const { log } = require("../utils/log");
 const { verify_access_token } = require("../auth/auth-session");
 const { TABLE, CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../utils/constant");
+const { REFERENCE_VERSION_SQL } = require("../utils/config-version");
 
 // A valid signature only proves this server issued the token. The session it names must also still
 // be open, for an account that is still active. That second check is one primary-key read, and it
@@ -36,7 +37,7 @@ const jwtMiddleware = async (request, res, next) => {
 
     try {
         const rows = await get_data({
-            text: `SELECT l.email, l.must_change_password, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version
+            text: `SELECT l.email, l.must_change_password, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version, ${REFERENCE_VERSION_SQL} AS reference_version
                    FROM ${TABLE.AUTH_SESSION} s
                    JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid
                    WHERE s.oid = $1 AND s.login_oid = $2
@@ -49,6 +50,7 @@ const jwtMiddleware = async (request, res, next) => {
         // Every signed-in answer names the config version it was served at, read in this same query, so
         // an open tab learns a role, menu or settings change on its next request and reloads its payload.
         res.set("X-Config-Version", String(rows[0].config_version ?? 0));
+        res.set("X-Reference-Version", String(rows[0].reference_version ?? 0));
         if (rows[0].must_change_password && !BEFORE_FIRST_PASSWORD.has(request.baseUrl + request.path)) {
             return res.status(403).json({ code: 403, message: "Set your own password before you continue.", data: { reason: "must_change_password" } });
         }

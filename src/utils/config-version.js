@@ -14,6 +14,13 @@ const { log } = require("./log");
 // bump_config_version() in the same transaction, or clients will serve stale menus until their
 // next sign-in.
 
+// The lists the web keeps for its pickers (docs/caching) are fresh until any of these tables changes.
+// Their newest created_on or edited_on is that version: every write to them stamps one, none is ever
+// hard deleted, so it only moves forward and no write can forget to raise it. Read inside the session
+// check's own query, so it costs no extra round trip.
+const REFERENCE_TABLES = [TABLE.CATEGORIES, TABLE.SUB_CATEGORIES, TABLE.BRANDS, TABLE.SUPPLIER, TABLE.WAREHOUSE, TABLE.AISLE, TABLE.PARTNER, TABLE.ORDER_SOURCE, TABLE.MESSAGE_TEMPLATE, TABLE.LOGIN];
+const REFERENCE_VERSION_SQL = `(SELECT COALESCE(floor(extract(epoch FROM max(changed)) * 1000), 0)::bigint FROM (${REFERENCE_TABLES.map((table) => `SELECT max(GREATEST(created_on, edited_on)) AS changed FROM ${table}`).join(" UNION ALL ")}) reference)`;
+
 /** Global stamp, one indexed read. */
 const read_config_version = async () => {
     try {
@@ -44,4 +51,4 @@ const payload_etag = ({ configVersion, roleOid, userEditedOn }) => {
     return `"${crypto.createHash("sha1").update(raw).digest("hex").slice(0, 16)}"`;
 };
 
-module.exports = { read_config_version, bump_config_version, payload_etag };
+module.exports = { read_config_version, bump_config_version, payload_etag, REFERENCE_VERSION_SQL };
