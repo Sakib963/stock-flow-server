@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon ./server.js",
+    "dev:local": "node tools/start-local-service.js",
     "test": "node test/support/create-test-db.js && node --test --test-concurrency=1 \"test/**/*.test.js\""
   },
   "keywords": [],
