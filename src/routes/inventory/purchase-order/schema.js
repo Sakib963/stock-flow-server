@@ -52,7 +52,10 @@ const order_fields = {
       products: draftOr(Joi.array().max(200).items(line).default([]), Joi.array().min(1).max(200).items(line).required()),
 };
 
+// The form makes `oid` once, so a submit repeated after a lost response finds the order it already
+// raised instead of raising a second one.
 const purchase_order_create_schema = Joi.object({
+      oid: Joi.string().uuid().optional(),
       ...order_fields,
       payment_status: draftOr(optional(Joi.string().valid(...PAYMENT_STATUSES)), payment_fields.payment_status),
       paid_amount: payment_fields.paid_amount,

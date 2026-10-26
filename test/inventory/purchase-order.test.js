@@ -118,6 +118,38 @@ describe("raising a purchase order", () => {
             assert.equal((await post(CREATE, viewer, order(ids))).status, 403);
       });
 
+      it("raises one order when the same submit arrives twice, even at the same moment", async () => {
+            const oid = uuidv4();
+            const [first, second] = await Promise.all([post(CREATE, owner, order(ids, { oid })), post(CREATE, owner, order(ids, { oid }))]);
+            const again = await post(CREATE, owner, order(ids, { oid }));
+
+            for (const res of [first, second, again]) assert.equal(res.status, 200, JSON.stringify(res.body));
+            assert.deepEqual(new Set([first, second, again].map((res) => res.body.data.po_number)).size, 1);
+            assert.equal((await h.query("SELECT 1 FROM purchase")).length, 1);
+            assert.equal((await lines_of(oid)).length, 2);
+      });
+
+      it("refuses a submit that reuses a saved draft's number with other lines, and leaves the draft as it was", async () => {
+            const oid = uuidv4();
+            await post(CREATE, owner, order(ids, { oid, draft: true, products: [order(ids).products[0]] }));
+
+            const res = await post(CREATE, owner, order(ids, { oid }));
+            assert.equal(res.status, 409);
+            const [row] = await h.query("SELECT status FROM purchase WHERE oid = $1", [oid]);
+            assert.equal(row.status, "Draft");
+            assert.equal((await lines_of(oid)).length, 1);
+      });
+
+      it("never hands one person's order to another who sends its number", async () => {
+            const oid = uuidv4();
+            await post(CREATE, owner, order(ids, { oid }));
+            const other = await sign_in_with(ALL);
+
+            const res = await post(CREATE, other, order(ids, { oid }));
+            assert.equal(res.status, 409);
+            assert.equal(res.body.data, undefined);
+      });
+
       it("keeps a payment recorded while the edit page was open", async () => {
             const oid = (await post(CREATE, owner, order(ids))).body.data.oid;
             await post(PAYMENT, owner, { oid, payment_status: "paid" });
