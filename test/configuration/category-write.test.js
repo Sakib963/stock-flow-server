@@ -1,6 +1,7 @@
 const { describe, it, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
+const ExcelJS = require("exceljs");
 const h = require("../support/harness");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 const { buildCandidates } = require("../../src/routes/configuration/utils/code-generator");
@@ -408,6 +409,43 @@ describe("downloading a category's reports", () => {
             assert.equal(res.status, 401);
         });
     }
+
+    // 12 sarees with 8 promised to an online order, 40 bags of packaging nobody sells, and a deleted
+    // product: the record page reads 4 sellable and 6,800 spent, and so must both downloads.
+    it("reports what can be sold and what the stock cost, as the record page does, and no sale value", async () => {
+        const sarees = await seed_stock(saree, { quantity: 12, cost: 500, price: 800, threshold: 2 });
+        await hold_stock(sarees.inventory_oid, 8);
+        const bags = await seed_stock(saree, { quantity: 40, cost: 20, price: null, threshold: 0, status: "internal_use" });
+        await h.query("UPDATE inventory SET intended_use = 'internal_use' WHERE oid = $1", [bags.inventory_oid]);
+        const gone = await seed_stock(saree, { quantity: 5, cost: 100, price: 200, threshold: 0 });
+        await h.query("UPDATE product SET is_deleted = TRUE WHERE oid = $1", [gone.product_oid]);
+        const owner = (await h.sign_in(await h.seed_user({ email: `export-${uuidv4().slice(0, 8)}@arithmalabs.test`, permissions: ["configuration.category.view", "configuration.category.export"] }))).access;
+
+        const sheet = async (route) => {
+            const res = await fetch(`${h.url()}${route}`, { method: "POST", headers: { authorization: `Bearer ${owner}`, "content-type": "application/json" }, body: JSON.stringify({ oid: saree }) });
+            assert.equal(res.status, 200);
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+            const rows = [];
+            workbook.worksheets[0].eachRow((row) => rows.push(row.values.slice(1).map((value) => String(value ?? ""))));
+            return { rows, line: (label) => rows.find((row) => row[0] === label)?.filter(Boolean).at(-1) };
+        };
+
+        const products = await sheet(PRODUCT_REPORT);
+        assert.equal(products.line("Total Products:"), "2");
+        assert.equal(products.line("Total Sellable Quantity:"), "4");
+        assert.equal(Number(products.line("Stock Value at Cost:")), 6800);
+        assert.equal(products.line("Products Sellable Now:"), "1");
+
+        const inventory = await sheet(INVENTORY_REPORT);
+        const header = inventory.rows.find((row) => row[0] === "Product Name");
+        const batches = inventory.rows.filter((row) => row[header.indexOf("Batch Code")]?.startsWith("B-"));
+        assert.equal(batches.length, 2);
+        assert.equal(batches.reduce((sum, row) => sum + Number(row[header.indexOf("Sellable")]), 0), 4);
+        assert.equal(Number(inventory.line("Stock Value at Cost:")), 6800);
+
+        for (const { rows } of [products, inventory]) assert.ok(!rows.flat().some((cell) => /Potential Profit|Selling Price\)/.test(cell)));
+    });
 });
 
 describe("checking whether a category name or code is free", () => {

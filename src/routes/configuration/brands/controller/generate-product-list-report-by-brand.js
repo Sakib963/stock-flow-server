@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { BATCH_FIGURES } = require("../../../inventory/overview/utils/stock-figures");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
@@ -85,24 +86,24 @@ const generate_products_sql = (brandOid) => {
                   b.name AS brand_name,
                   b.description AS brand_description,
                   b.status AS brand_status,
-                  COALESCE(COUNT(DISTINCT i.batch_code), 0) AS total_batches,
-                  COALESCE(SUM(CAST(i.quantity_available AS INTEGER)), 0) AS total_available_quantity,
+                  COUNT(i.oid) FILTER (WHERE i.on_hand > 0 OR i.held > 0) AS total_batches,
+                  COALESCE(SUM(i.sellable), 0) AS total_available_quantity,
                   COALESCE(ps.total_sold, 0) AS total_quantity_sold,
                   COALESCE(ps.total_returned, 0) AS total_quantity_returned,
                   COALESCE(ps.total_given_away, 0) AS total_quantity_given_away,
-                  ROUND(COALESCE(MIN(CAST(i.selling_price AS NUMERIC)), 0), 2) AS min_price,
-                  ROUND(COALESCE(MAX(CAST(i.selling_price AS NUMERIC)), 0), 2) AS max_price,
-                  ROUND(COALESCE(AVG(CAST(i.selling_price AS NUMERIC)), 0), 2) AS avg_price,
-                  ROUND(COALESCE(SUM(CAST(i.quantity_available AS INTEGER) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 0), 2) AS total_inventory_value,
-                  BOOL_OR(i.status = 'pending_pricing') AS has_pending_pricing,
-                  BOOL_OR(i.intended_use = 'for_sale') AS has_for_sale_batch
+                  COALESCE(MIN(i.selling_price) FILTER (WHERE i.priced AND i.on_hand > 0), 0) AS min_price,
+                  COALESCE(MAX(i.selling_price) FILTER (WHERE i.priced AND i.on_hand > 0), 0) AS max_price,
+                  ROUND(COALESCE(SUM(i.on_hand * i.selling_price) FILTER (WHERE i.priced)::numeric / NULLIF(SUM(i.on_hand) FILTER (WHERE i.priced), 0), 0), 2) AS avg_price,
+                  COALESCE(SUM(i.on_hand * i.cost_price), 0) AS total_inventory_value,
+                  COALESCE(BOOL_OR(i.status = 'pending_pricing' AND i.on_hand > 0), FALSE) AS has_pending_pricing,
+                  COALESCE(SUM(i.sellable), 0) > 0 AS has_for_sale_batch
             FROM ${TABLE.PRODUCT} p
-            LEFT JOIN ${TABLE.INVENTORY} i ON i.product_oid = p.oid
+            LEFT JOIN (${BATCH_FIGURES}) i ON i.product_oid = p.oid
             LEFT JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
-            LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
+            LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
             LEFT JOIN ${TABLE.PRODUCT_STATS} ps ON ps.product_oid = p.oid
-            WHERE p.brand_oid = $1
+            WHERE p.brand_oid = $1 AND p.is_deleted = FALSE
             GROUP BY p.oid, p.name, p.sku, p.status, p.restock_threshold, p.unit_type, s.name, c.name, b.name, b.description, b.status, ps.total_sold, ps.total_returned, ps.total_given_away
             ORDER BY p.name ASC
       `;
@@ -121,7 +122,7 @@ const generate_products_xlsx = async (products, brandDetails) => {
     "Sub Category",
     "Unit Type",
     "Total Batches",
-    "Available Qty",
+    "Sellable Qty",
     "Qty Sold",
     "Qty Returned",
     "Qty Given Away",
@@ -129,9 +130,9 @@ const generate_products_xlsx = async (products, brandDetails) => {
     "Min Price",
     "Max Price",
     "Avg Price",
-    "Inventory Value",
+    "Stock Value (Cost)",
     "Has Pending Pricing",
-    "Has For Sale Batch",
+    "Sellable Now",
   ];
 
   // Add report header (logo + company info + title)
@@ -216,13 +217,13 @@ const generate_products_xlsx = async (products, brandDetails) => {
     "",
   ]);
   sheet.addRow(["Total Products:", totalProducts]);
-  sheet.addRow(["Total Available Quantity:", totalAvailableQty]);
+  sheet.addRow(["Total Sellable Quantity:", totalAvailableQty]);
   sheet.addRow(["Total Quantity Sold:", totalQuantitySold]);
   sheet.addRow(["Total Quantity Returned:", totalQuantityReturned]);
   sheet.addRow(["Total Quantity Given Away:", totalQuantityGivenAway]);
-  sheet.addRow(["Total Inventory Value:", totalInventoryValue.toFixed(2)]);
+  sheet.addRow(["Stock Value at Cost:", totalInventoryValue.toFixed(2)]);
   sheet.addRow(["Products with Pending Pricing:", productsWithPendingPricing]);
-  sheet.addRow(["Products Ready for Sale:", productsWithForSale]);
+  sheet.addRow(["Products Sellable Now:", productsWithForSale]);
 
   // Make summary rows bold
   sheet.getRow(summaryRowIndex + 1).font = { bold: true, size: 12 };

@@ -235,8 +235,6 @@ module.exports = {
     CHECK_PRODUCT_AVAILABILITY: "/check-product-availability",
     GENERATE_PRODUCT_SKU: "/generate-product-sku",
     SIGN_PRODUCT_PHOTO_UPLOAD: "/sign-product-photo-upload",
-    GENERATE_PRODUCT_INVENTORY_REPORT: "/generate-product-inventory-report",
-    GENERATE_PRODUCT_MOVEMENT_REPORT: "/generate-product-movement-report",
 
     GET_WAREHOUSE_LIST: "/get-warehouse-list",
     CREATE_WAREHOUSE: "/create-warehouse",

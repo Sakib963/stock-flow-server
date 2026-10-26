@@ -13,8 +13,6 @@ const delete_product = require("./controller/delete-product");
 const check_product_availability = require("./controller/check-product-availability");
 const generate_product_sku = require("./controller/generate-product-sku");
 const sign_product_photo_upload = require("./controller/sign-product-photo-upload");
-const generate_product_inventory_report = require("./controller/generate-product-inventory-report");
-const generate_product_movement_report = require("./controller/generate-product-movement-report");
 
 const router = Router();
 
@@ -35,9 +33,5 @@ router.post(ROUTES.UPDATE_PRODUCT_DETAILS, [jwtMiddleware, requirePermission("co
 router.get(ROUTES.GET_PRODUCT_DETAILS + "/:oid", [jwtMiddleware, requirePermission("configuration.product.view"), validator.params(product_oid_schema)], get_product_details);
 
 router.post(ROUTES.DELETE_PRODUCT, [jwtMiddleware, requirePermission("configuration.product.delete"), validator.post(product_details_schema)], delete_product);
-
-router.post(ROUTES.GENERATE_PRODUCT_INVENTORY_REPORT, [jwtMiddleware, requirePermission("configuration.product.export"), validator.post(product_details_schema)], generate_product_inventory_report);
-
-router.post(ROUTES.GENERATE_PRODUCT_MOVEMENT_REPORT, [jwtMiddleware, requirePermission("configuration.product.export"), validator.post(product_details_schema)], generate_product_movement_report);
 
 module.exports = { productRouter: router };

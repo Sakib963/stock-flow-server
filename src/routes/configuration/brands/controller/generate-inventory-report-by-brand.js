@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { BATCH_FIGURES } = require("../../../inventory/overview/utils/stock-figures");
 const { log } = require("../../../../utils/log");
 const ExcelJS = require("exceljs");
 const { addReportHeader } = require("../../../../utils/report-header");
@@ -81,31 +82,32 @@ const generate_inventory_sql = (brandOid) => {
                   c.name AS category_name,
                   s.name AS sub_category_name,
                   i.batch_code,
-                  CAST(i.initial_quantity AS INTEGER) AS initial_quantity,
-                  CAST(i.quantity_available AS INTEGER) AS quantity_available,
-                  ROUND(CAST(i.cost_price AS NUMERIC), 2) AS cost_price,
-                  ROUND(CAST(COALESCE(i.selling_price, 0) AS NUMERIC), 2) AS selling_price,
-                  ROUND((CAST(i.quantity_available AS NUMERIC) * CAST(COALESCE(i.selling_price, 0) AS NUMERIC)), 2) AS inventory_value,
-                  ROUND((CAST(i.quantity_available AS NUMERIC) * CAST(i.cost_price AS NUMERIC)), 2) AS cost_value,
+                  i.initial_quantity,
+                  i.on_hand,
+                  i.held,
+                  i.sellable,
+                  i.cost_price,
+                  i.selling_price,
+                  (i.on_hand * i.cost_price) AS cost_value,
                   i.maximum_discount,
                   i.status AS batch_status,
                   i.intended_use,
                   TO_CHAR(${business_day("pu.created_on")}, 'YYYY-MM-DD') AS purchase_date,
-                  TO_CHAR(${business_day("i.created_on")}, 'YYYY-MM-DD') AS batch_created_date,
+                  TO_CHAR(${business_day("i.received_on")}, 'YYYY-MM-DD') AS batch_created_date,
                   sup.name AS supplier_name,
                   w.name AS warehouse_name,
                   a.name AS aisle_name
-            FROM ${TABLE.INVENTORY} i
+            FROM (${BATCH_FIGURES}) i
             INNER JOIN ${TABLE.PRODUCT} p ON p.oid = i.product_oid
             INNER JOIN ${TABLE.BRANDS} b ON b.oid = p.brand_oid
             INNER JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid
-            LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = s.category_oid
+            LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
             LEFT JOIN ${TABLE.PURCHASE_DETAILS} pd ON pd.oid = i.purchase_details_oid
             LEFT JOIN ${TABLE.PURCHASE} pu ON pu.oid = pd.purchase_oid
             LEFT JOIN ${TABLE.SUPPLIER} sup ON sup.oid = pu.supplier_oid
             LEFT JOIN ${TABLE.WAREHOUSE} w ON w.oid = i.warehouse_oid
             LEFT JOIN ${TABLE.AISLE} a ON a.oid = i.aisle_oid
-            WHERE p.brand_oid = $1
+            WHERE p.brand_oid = $1 AND p.is_deleted = FALSE
             ORDER BY p.name ASC, i.batch_code ASC
       `;
   return { text: query, values: [brandOid] };
@@ -122,11 +124,12 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
     "Sub Category",
     "Batch Code",
     "Initial Qty",
-    "Available Qty",
+    "On Hand",
+    "Held",
+    "Sellable",
     "Cost Price",
     "Selling Price",
-    "Inventory Value",
-    "Cost Value",
+    "Stock Value (Cost)",
     "Max Discount",
     "Batch Status",
     "Intended Use",
@@ -150,10 +153,8 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
   sheet.getRow(headerRowIndex).font = { bold: true };
 
   // Add data rows
-  let totalInventoryValue = 0;
   let totalCostValue = 0;
   inventory.forEach((r) => {
-    totalInventoryValue += parseFloat(r.inventory_value || 0);
     totalCostValue += parseFloat(r.cost_value || 0);
     sheet.addRow([
       r.product_name,
@@ -162,10 +163,11 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
       r.sub_category_name || "N/A",
       r.batch_code,
       r.initial_quantity,
-      r.quantity_available,
+      r.on_hand,
+      r.held,
+      r.sellable,
       r.cost_price,
-      r.selling_price,
-      r.inventory_value,
+      r.selling_price ?? "Not priced",
       r.cost_value,
       r.maximum_discount || 0,
       r.batch_status,
@@ -192,20 +194,8 @@ const generate_inventory_xlsx = async (inventory, brandDetails) => {
   // Add summary rows
   const summaryRowIndex = sheet.rowCount + 2;
   sheet.addRow([]);
-  sheet.addRow(["Total Cost Value:", "", totalCostValue.toFixed(2)]);
-  sheet.addRow([
-    "Total Inventory Value (Selling Price):",
-    "",
-    totalInventoryValue.toFixed(2),
-  ]);
-  sheet.addRow([
-    "Potential Profit:",
-    "",
-    (totalInventoryValue - totalCostValue).toFixed(2),
-  ]);
+  sheet.addRow(["Stock Value at Cost:", "", totalCostValue.toFixed(2)]);
   sheet.getRow(summaryRowIndex + 1).font = { bold: true };
-  sheet.getRow(summaryRowIndex + 2).font = { bold: true };
-  sheet.getRow(summaryRowIndex + 3).font = { bold: true };
 
   // Auto-size columns
   sheet.columns.forEach((col) => {
