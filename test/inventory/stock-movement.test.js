@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { v4: uuidv4 } = require("uuid");
 const h = require("../support/harness");
 const { execute_transaction } = require("../../src/db/database");
-const { deductSellableStock, deductFreeStock, holdStock, deductHeldStock, restockStock, deductStock, releaseHolds } = require("../../src/routes/sales/utils/stock-movement");
+const { deductSellableStock, deductFreeStock, holdStock, deductHeldStock, restockStock, deductStock, releaseHolds, incrementProductStat } = require("../../src/routes/sales/utils/stock-movement");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 
 const PO = CONTEXTS.INVENTORY + SUB_CONTEXTS.PURCHASE_ORDER;
@@ -120,6 +120,23 @@ describe("the stock movement ledger", () => {
             ["dispose_reversed", 5, 50],
         ]);
         await assert_balanced(received.batch);
+    });
+
+    it("refuses to put stock back on a batch that does not exist, and records nothing", async () => {
+        const missing = uuidv4();
+        await assert.rejects(
+            execute_transaction((tx) => restockStock(tx, { inventory_oid: missing, quantity: 2, reason: "returned", source_oid: uuidv4(), user_id: USER })),
+            (e) => e.code === 409 && e.data.reason === "batch_missing",
+        );
+        assert.equal((await movements(missing)).length, 0);
+        await assert_balanced(received.batch);
+    });
+
+    it("counts two first sales of a product made at the same moment on one stats row", async () => {
+        await h.query("DELETE FROM product_stats WHERE product_oid = $1", [ids.kurti]);
+        const sell = () => execute_transaction((tx) => incrementProductStat(tx, { product_oid: ids.kurti, column: "total_sold", quantity: 2, user_id: USER }));
+        await Promise.all([sell(), sell()]);
+        assert.deepEqual(await h.query("SELECT total_sold::int AS sold FROM product_stats WHERE product_oid = $1", [ids.kurti]), [{ sold: 4 }]);
     });
 
     it("records nothing when stock is refused for want of it", async () => {

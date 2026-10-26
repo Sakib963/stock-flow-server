@@ -162,13 +162,14 @@ const refuseDeletedProduct = async (tx, inventory_oid) => {
 
 const restockStock = async (tx, { inventory_oid, quantity, reason, source_oid, user_id }) => {
     await refuseDeletedProduct(tx, inventory_oid);
-    await tx.execute_value({
+    const restocked = await tx.execute_value({
         text: `UPDATE ${TABLE.INVENTORY}
                   SET quantity_available = quantity_available + $1,
                       edited_by = $2, edited_on = clock_timestamp()
                 WHERE oid = $3`,
         values: [quantity, user_id, inventory_oid],
     });
+    if (restocked.rowCount !== 1) fail(409, "The stock batch these units came from could not be found, so nothing was put back. Refresh the page and try again.", { reason: "batch_missing" });
     await recordMovement(tx, { inventory_oid, quantity, reason, source_oid, user_id });
 };
 
@@ -176,18 +177,11 @@ const restockStock = async (tx, { inventory_oid, quantity, reason, source_oid, u
 const incrementProductStat = async (tx, { product_oid, column, quantity, user_id }) => {
     const allowed = new Set(["total_sold", "total_returned", "total_damaged", "total_wasted", "total_given_away"]);
     if (!allowed.has(column)) throw new Error(`Invalid product_stats column: ${column}`);
-    const updated = await tx.execute_value({
-        text: `UPDATE ${TABLE.PRODUCT_STATS}
-                  SET ${column} = ${column} + $1, last_edited_on = clock_timestamp()
-                WHERE product_oid = $2`,
-        values: [quantity, product_oid],
+    await tx.execute_value({
+        text: `INSERT INTO ${TABLE.PRODUCT_STATS} (oid, product_oid, ${column}) VALUES ($1, $2, $3)
+               ON CONFLICT (product_oid) DO UPDATE SET ${column} = ${TABLE.PRODUCT_STATS}.${column} + EXCLUDED.${column}, last_edited_on = clock_timestamp()`,
+        values: [uuidv4(), product_oid, quantity],
     });
-    if (updated.rowCount === 0) {
-        await tx.execute_value({
-            text: `INSERT INTO ${TABLE.PRODUCT_STATS} (oid, product_oid, ${column}) VALUES ($1, $2, $3)`,
-            values: [uuidv4(), product_oid, quantity],
-        });
-    }
 };
 
 module.exports = {
