@@ -36,7 +36,8 @@ zero, totals and payments are consistent, and no time lies in the future. It mus
 `Every check passed`. If a check fails, stop and look before running anything else.
 
 **How long it takes.** On a local database twelve days took about a minute. Against the cloud every
-action crosses the internet, so expect it to be much slower; leave it running until it prints `Done`.
+action crosses the internet: on 2026-10-26 three days (279 events) took 8 minutes 26 seconds from a
+laptop in Bangladesh, so allow about 3 minutes a day. Leave it running until it prints `Done`.
 
 ### Good to know
 
