@@ -169,6 +169,16 @@ describe("a product's stock page", () => {
         assert.equal(res.body.data.sees_money, true);
     });
 
+    it("says how many days each batch has held stock, counted in the business's days, and nothing for a sold out batch", async () => {
+        const [batch] = await h.query("SELECT oid FROM inventory WHERE product_oid = $1", [ids.cream]);
+        await h.query("UPDATE inventory SET created_on = created_on - interval '12 days' WHERE oid = $1", [batch.oid]);
+        const owner = await sign_in_with(OWNER);
+        assert.equal((await get(`${STOCK}/${ids.cream}`, owner)).body.data.batches[0].days_in_stock, 12);
+
+        await h.query("UPDATE inventory SET quantity_available = 0 WHERE oid = $1", [batch.oid]);
+        assert.equal((await get(`${STOCK}/${ids.cream}`, owner)).body.data.batches[0].days_in_stock, null);
+    });
+
     it("leaves buying price, budgets and profit out for Staff, and keeps the selling price", async () => {
         const res = await get(`${STOCK}/${ids.cream}`, await sign_in_with(STAFF));
         const [batch] = res.body.data.batches;

@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { BATCH_FIGURES, PRODUCT_FIGURES } = require("./stock-figures");
+const { business_day, business_today } = require("../../../../utils/business-time");
 
 // Read by the product stock page and its report, so the file always says what the page says.
 const PRODUCT_SQL = `
@@ -18,6 +19,7 @@ const FIGURES_SQL = `SELECT ${PRODUCT_FIGURES} FROM (${BATCH_FIGURES}) b WHERE b
 const BATCHES_SQL = `
       SELECT b.*, (b.selling_price - b.cost_price - b.budget_per_unit)::bigint AS margin_per_unit,
              (b.on_hand * b.cost_price)::float8 AS stock_value,
+             (CASE WHEN b.on_hand > 0 THEN ${business_today} - ${business_day("b.received_on")} END)::int AS days_in_stock,
              (CASE WHEN b.priced THEN b.on_hand * b.selling_price END)::float8 AS expected_revenue,
              (CASE WHEN b.priced THEN b.on_hand * (b.selling_price - b.cost_price - b.budget_per_unit) END)::float8 AS profit_full,
              w.name AS warehouse_name, a.name AS aisle_name, pu.oid AS purchase_oid, pu.po_number, su.name AS supplier_name
