@@ -272,3 +272,34 @@ describe("the category picker behind the sub-category form", () => {
         assert.equal((await get(CATEGORY_DROPDOWN, access)).status, 403);
     });
 });
+
+describe("the sub-categories a product or a filter picks from, searched on the server", () => {
+    let viewer;
+
+    beforeEach(async () => {
+        await h.reset();
+        viewer = await sign_in_with(["configuration.sub-category.view"]);
+    });
+
+    it("finds a sub-category by its own name or its category's, fifty at a time", async () => {
+        const clothing = await seed_category("Clothing", "CLO");
+        const shoes = await seed_category("Shoes", "SHO");
+        for (let i = 0; i < 52; i++) await seed_sub_category(clothing, `Kurti ${String(i).padStart(2, "0")}`, `K${String(i).padStart(2, "0")}`);
+        await seed_sub_category(shoes, "Sneakers", "SNK");
+
+        assert.equal((await get(DROPDOWN, viewer)).body.data.length, 50);
+        assert.equal((await get(DROPDOWN, viewer, { offset: 50 })).body.data.length, 3);
+        assert.deepEqual((await get(DROPDOWN, viewer, { search: "shoes" })).body.data.map((s) => s.label), ["Sneakers"]);
+        assert.deepEqual((await get(DROPDOWN, viewer, { search: "kurti 01" })).body.data.map((s) => s.label), ["Kurti 01"]);
+    });
+
+    it("keeps to one category when asked, and names an inactive one by oids", async () => {
+        const clothing = await seed_category("Clothing", "CLO");
+        const shoes = await seed_category("Shoes", "SHO");
+        await seed_sub_category(clothing, "Kurti", "KUR");
+        const old = await seed_sub_category(shoes, "Old Sandals", "OLD", "Inactive");
+
+        assert.deepEqual((await get(DROPDOWN, viewer, { category_oid: clothing })).body.data.map((s) => s.label), ["Kurti"]);
+        assert.deepEqual((await get(DROPDOWN, viewer, { oids: old })).body.data.map((s) => s.label), ["Old Sandals"]);
+    });
+});

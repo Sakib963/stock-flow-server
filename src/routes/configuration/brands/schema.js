@@ -10,7 +10,12 @@ const brand_list_schema = Joi.object({
       include: Joi.string().valid("", "stats").optional(),
 });
 
-const brand_dropdown_schema = Joi.object({});
+const brand_dropdown_schema = Joi.object({
+      search: Joi.string().trim().max(100).allow(null, "").optional(),
+      offset: Joi.number().integer().min(0).default(0),
+      limit: Joi.number().integer().min(1).max(100).default(50),
+      oids: Joi.string().pattern(/^[0-9a-f-]{36}(,[0-9a-f-]{36}){0,99}$/i).allow(null, "").optional(),
+});
 
 const brand_oid_schema = Joi.object({
       oid: Joi.string().uuid().required(),

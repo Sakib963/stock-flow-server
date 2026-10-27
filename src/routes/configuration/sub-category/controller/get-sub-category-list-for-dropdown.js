@@ -1,24 +1,31 @@
 const { TABLE } = require("../../../../utils/constant");
-const { get_data } = require("../../../../db/database");
+const { read_choices } = require("../../../../db/list-query");
 const { log } = require("../../../../utils/log");
 
-// Active sub-categories under Active categories, grouped by their category for the picker. The old
-// query checked only the category, so an Inactive sub-category was still offered on new products.
+// Searched by its own name or its category's, so typing a category finds everything under it. Picking
+// offers active ones under active categories; naming by oids takes any, so a product keeps showing its own.
 const get_sub_category_list_for_dropdown = async (request, res) => {
-      const { category_oid } = request.query;
+      const { category_oid, oids } = request.query;
       try {
-            const data = await get_data({
-                  text: `SELECT sc.oid AS value, sc.name AS label, sc.category_oid, c.name AS "groupLabel"
-                         FROM ${TABLE.SUB_CATEGORIES} sc
-                         JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid
-                         WHERE sc.status = 'Active' AND c.status = 'Active' AND ($1::text IS NULL OR sc.category_oid = $1)
-                         ORDER BY c.name ASC, sc.name ASC`,
-                  values: [category_oid || null],
+            const where = oids ? [] : ["sc.status = 'Active'", "c.status = 'Active'"];
+            const values = [];
+            if (category_oid) {
+                  values.push(category_oid);
+                  where.push(`sc.category_oid = $${values.length}`);
+            }
+            const data = await read_choices({
+                  select: `sc.oid AS value, sc.name AS label, sc.category_oid, c.name AS "groupLabel"`,
+                  from: `${TABLE.SUB_CATEGORIES} sc JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid`,
+                  key: "sc.oid",
+                  where,
+                  values,
+                  search: ["sc.name", "c.name"],
+                  order: "c.name, sc.name",
+                  query: request.query,
             });
-
-            return res.status(200).json({ code: 200, message: "Sub-Category list For Dropdown Found", data });
+            return res.status(200).json({ code: 200, message: "Sub-categories", data });
       } catch (e) {
-            log.error(`An exception occurred while getting sub-category list for dropdown information: ${e?.message}`);
+            log.error(`An exception occurred while loading sub-categories for a dropdown: ${e?.message}`);
             return res.status(500).json({ code: 500, message: "Could not load sub-categories. Try again in a moment." });
       }
 };

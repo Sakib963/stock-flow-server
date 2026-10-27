@@ -196,3 +196,28 @@ describe("the brands list and record", () => {
         assert.equal((await get(LIST, other)).status, 403);
     });
 });
+
+describe("the brands a product or a filter picks from, searched on the server", () => {
+    let viewer;
+
+    beforeEach(async () => {
+        await h.reset();
+        viewer = await sign_in_with(["configuration.brands.view"]);
+    });
+
+    it("finds a brand by part of its name, fifty at a time", async () => {
+        for (let i = 0; i < 55; i++) await seed_brand(`Brand ${String(i).padStart(2, "0")}`);
+        await seed_brand("Aarong");
+
+        assert.equal((await get(DROPDOWN, viewer)).body.data.length, 50);
+        assert.equal((await get(DROPDOWN, viewer, { offset: 50 })).body.data.length, 6);
+        assert.deepEqual((await get(DROPDOWN, viewer, { search: "aaro" })).body.data.map((b) => b.label), ["Aarong"]);
+    });
+
+    it("names a product's brand even after the brand was made inactive", async () => {
+        const closed = await seed_brand("Old Label", "Inactive");
+
+        assert.deepEqual((await get(DROPDOWN, viewer, { search: "old" })).body.data, []);
+        assert.deepEqual((await get(DROPDOWN, viewer, { oids: closed })).body.data.map((b) => b.label), ["Old Label"]);
+    });
+});
