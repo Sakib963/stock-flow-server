@@ -185,3 +185,49 @@ describe("campaigns", () => {
         assert.deepEqual(listed.data.stats, { planned: 1, live: 0, completed: 0 });
     });
 });
+
+describe("the partners a campaign picks from, searched on the server", () => {
+    let planner;
+
+    beforeEach(async () => {
+        await h.reset();
+        await h.query("TRUNCATE partner CASCADE");
+        planner = await sign_in_with(ALL);
+    });
+
+    const seed = async (name, { handle = null, status = "Active" } = {}) => {
+        const oid = uuidv4();
+        await h.query("INSERT INTO partner (oid, name, partner_type, handle, status) VALUES ($1, $2, 'Page', $3, $4)", [oid, name, handle, status]);
+        return oid;
+    };
+
+    it("finds an active partner by name or handle, fifty at a time", async () => {
+        for (let i = 0; i < 53; i++) await seed(`Page ${String(i).padStart(2, "0")}`);
+        await seed("Style Diaries", { handle: "@stylediaries" });
+
+        assert.equal((await get(PARTNERS, planner)).body.data.length, 50);
+        assert.equal((await get(PARTNERS, planner, { offset: 50 })).body.data.length, 4);
+        assert.deepEqual((await get(PARTNERS, planner, { search: "@stylediar" })).body.data.map((p) => p.name), ["Style Diaries"]);
+    });
+
+    it("names a partner made inactive since, but never offers it", async () => {
+        const gone = await seed("Ad House", { status: "Inactive" });
+
+        assert.deepEqual((await get(PARTNERS, planner, { search: "ad house" })).body.data, []);
+        assert.deepEqual((await get(PARTNERS, planner, { oids: gone })).body.data.map((p) => p.name), ["Ad House"]);
+    });
+});
+
+describe("adding a partner the campaign already has", () => {
+    it("is never offered again, so a page is never emptied by partners already on the campaign", async () => {
+        await h.reset();
+        await h.query("TRUNCATE partner CASCADE");
+        const planner = await sign_in_with(ALL);
+        const [style, ad] = [uuidv4(), uuidv4()];
+        await h.query("INSERT INTO partner (oid, name, partner_type, status) VALUES ($1, 'Style Diaries', 'Page', 'Active'), ($2, 'Ad House', 'Business', 'Active')", [style, ad]);
+
+        const offered = (await get(PARTNERS, planner, { exclude: style })).body.data.map((p) => p.name);
+
+        assert.deepEqual(offered, ["Ad House"]);
+    });
+});

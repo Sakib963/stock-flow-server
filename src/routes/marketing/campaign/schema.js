@@ -21,7 +21,13 @@ const campaign_oid_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
 
-const partners_for_campaign_schema = Joi.object({});
+const partners_for_campaign_schema = Joi.object({
+    search: Joi.string().trim().max(100).allow(null, "").optional(),
+    offset: Joi.number().integer().min(0).default(0),
+    limit: Joi.number().integer().min(1).max(100).default(50),
+    oids: Joi.string().pattern(/^[0-9a-f-]{36}(,[0-9a-f-]{36}){0,99}$/i).allow(null, "").optional(),
+    exclude: Joi.string().pattern(/^[0-9a-f-]{36}(,[0-9a-f-]{36}){0,99}$/i).allow(null, "").optional(),
+});
 
 const batches_for_campaign_schema = Joi.object({
     search: Joi.string().trim().max(100).allow(null, "").optional(),
