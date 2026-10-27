@@ -332,3 +332,32 @@ describe("who may do what", () => {
         assert.match(created.body.data.adjustment_number, new RegExp(`^ADJ-${yymm}-\\d{4}$`));
     });
 });
+
+describe("picking a product to adjust", () => {
+    const PICKER = BASE + ROUTES.GET_PRODUCT_LIST_FOR_ADJUSTMENT;
+
+    it("finds a product by part of its name or SKU, with each batch's units and cost", async () => {
+        const batch = await opening_batch();
+
+        for (const search of ["sun c", "SUN"]) {
+            const [found] = (await get(PICKER, token, { search })).body.data;
+            assert.equal(found.name, "Sun cream");
+            assert.deepEqual([found.batches[0].oid, found.batches[0].on_hand, found.batches[0].free, found.batches[0].cost_price], [batch, 10, 10, 300]);
+        }
+        assert.deepEqual((await get(PICKER, token, { search: "lipstick" })).body.data, []);
+    });
+
+    it("leaves the cost out for someone who may adjust stock but not see money", async () => {
+        await opening_batch();
+        const clerk = await sign_in_with(["inventory.stock-adjustment.view", "inventory.stock-adjustment.create"]);
+
+        const [found] = (await get(PICKER, clerk, { search: "sun" })).body.data;
+
+        assert.equal("cost_price" in found.batches[0], false);
+        assert.equal(found.batches[0].on_hand, 10);
+    });
+
+    it("refuses someone who may only look at adjustments", async () => {
+        assert.equal((await get(PICKER, await sign_in_with(["inventory.stock-adjustment.view"]))).status, 403);
+    });
+});

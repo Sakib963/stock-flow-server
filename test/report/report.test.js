@@ -336,4 +336,29 @@ describe("customer and marketing reports", () => {
         const without = await get(await person(["report.marketing.view"]), MARKETING, "partner-dues");
         assert.equal(without.status, 403);
     });
+    const download = (token, base, report) => fetch(`${h.url()}${CONTEXTS.REPORT}${base}?report=${report}`, { headers: { authorization: `Bearer ${token}` } });
+
+    it("downloads the customer list as a sheet with the same people on it, and refuses it to someone who may only look", async () => {
+        const base = SUB_CONTEXTS.CUSTOMER_REPORT + ROUTES.DOWNLOAD_CUSTOMER_REPORT;
+        assert.equal((await download(await person([...SELLS, "report.customer.view"]), base, "customer-list")).status, 403);
+
+        const res = await download(await person([...SELLS, "report.customer.view", "report.customer.export"]), base, "customer-list");
+        assert.equal(res.status, 200);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+        const names = [];
+        workbook.worksheets[0].eachRow((row) => names.push(...row.values.slice(1).map((v) => String(v ?? ""))));
+        assert.ok(names.includes("Rina") && names.includes("Mita"));
+    });
+
+    it("downloads a marketing report as a sheet, and refuses it to someone who may only look", async () => {
+        const base = SUB_CONTEXTS.MARKETING_REPORT + ROUTES.DOWNLOAD_MARKETING_REPORT;
+        assert.equal((await download(await person(["report.marketing.view"]), base, "campaign-costs")).status, 403);
+
+        const res = await download(await person(["report.marketing.view", "report.marketing.export"]), base, "campaign-costs");
+        assert.equal(res.status, 200);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+        assert.ok(workbook.worksheets.length > 0);
+    });
 });

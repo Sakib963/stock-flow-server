@@ -123,6 +123,7 @@ const send = async (route, { method = "POST", body, token, cookie, headers: extr
         config_version: res.headers.get("x-config-version"),
         reference_version: res.headers.get("x-reference-version"),
         etag: res.headers.get("etag"),
+        retry_after: res.headers.get("retry-after"),
         set_cookie: refresh_cookie,
         cookie: refresh_cookie === null ? null : decodeURIComponent(refresh_cookie.slice("sf_rt=".length, refresh_cookie.indexOf(";"))),
     };

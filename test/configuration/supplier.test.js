@@ -267,3 +267,30 @@ describe("the suppliers a purchase order or a filter picks from", () => {
         assert.deepEqual(named.map((s) => s.label), ["Closed Mills"]);
     });
 });
+
+describe("downloading a supplier's record", () => {
+    const EXPORT = BASE + ROUTES.EXPORT_SUPPLIER_DATA;
+    const download = (token, oid) => fetch(`${h.url()}${EXPORT}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ oid }) });
+
+    beforeEach(h.reset);
+
+    it("downloads a sheet naming the supplier, to someone with the export permission only", async () => {
+        const oid = await seed_supplier("Islampur Fabrics", "01712-345678");
+        assert.equal((await download(await sign_in_with(["configuration.supplier.view"]), oid)).status, 403);
+
+        const res = await download(await sign_in_with(["configuration.supplier.view", "configuration.supplier.export"]), oid);
+
+        assert.equal(res.status, 200);
+        const ExcelJS = require("exceljs");
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+        const cells = [];
+        workbook.worksheets[0].eachRow((row) => cells.push(...row.values.slice(1).map((v) => String(v ?? ""))));
+        assert.ok(cells.includes("Islampur Fabrics"));
+    });
+
+    it("answers not found for a supplier that does not exist", async () => {
+        const res = await download(await sign_in_with(["configuration.supplier.view", "configuration.supplier.export"]), uuidv4());
+        assert.equal(res.status, 404);
+    });
+});

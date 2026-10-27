@@ -108,4 +108,24 @@ describe("observability", () => {
         assert.ok(db.connections >= 1 && db.max_connections >= db.connections);
         assert.ok(db.tables.some((t) => t.name === "api_request_log"));
     });
+    it("counts who used the app and how much, busiest first, by the business's day", async () => {
+        const rina = await h.seed_user({ email: "rina@arithmalabs.test" });
+        const mita = await h.seed_user({ email: "mita@arithmalabs.test" });
+        for (let i = 0; i < 3; i++) await logged({ login_oid: rina.oid });
+        await logged({ login_oid: mita.oid });
+
+        const usage = (await get(ROUTES.GET_OBSERVABILITY_USAGE)).data;
+
+        const seen = usage.people.filter((p) => [rina.oid, mita.oid].includes(p.oid));
+        assert.deepEqual(seen.map((p) => [p.email, p.requests]), [["rina@arithmalabs.test", 3], ["mita@arithmalabs.test", 1]]);
+        assert.ok(usage.people_count >= 2);
+        const day = usage.daily.find((d) => d.day === today);
+        assert.ok(day.requests >= 4 && day.people >= 2);
+        assert.ok(usage.last_active);
+    });
+
+    it("keeps usage to the system admin", async () => {
+        const token = (await h.sign_in(await h.seed_user({ email: "owner@arithmalabs.test", permissions: ["dashboard.overview.view"] }))).access;
+        assert.equal((await h.call(`${BASE}${ROUTES.GET_OBSERVABILITY_USAGE}?date_from=${today}&date_to=${today}`, { method: "GET", token })).status, 403);
+    });
 });

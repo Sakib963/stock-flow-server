@@ -462,3 +462,36 @@ describe("what a purchase order reads from elsewhere", () => {
             assert.equal((await post(REPORT, viewer, { oid: uuidv4() })).status, 403);
       });
 });
+
+describe("downloading the products of a purchase order", () => {
+      const PRODUCTS_REPORT = BASE + ROUTES.GET_PURCHASE_ORDER_PRODUCTS_REPORT;
+      const download = (token, oid) => fetch(`${h.url()}${PRODUCTS_REPORT}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ oid }) });
+      let ids;
+      let exporter;
+
+      beforeEach(async () => {
+            await h.reset();
+            ids = await seed();
+            exporter = await sign_in_with([...ALL, "inventory.purchase-order.export"]);
+      });
+
+      it("lists every product ordered in a sheet, to someone with the export permission only", async () => {
+            const created = await post(CREATE, exporter, order(ids));
+            assert.equal(created.status, 200, JSON.stringify(created.body));
+            assert.equal((await download(await sign_in_with(["inventory.purchase-order.view"]), created.body.data.oid)).status, 403);
+
+            const res = await download(exporter, created.body.data.oid);
+
+            assert.equal(res.status, 200);
+            const ExcelJS = require("exceljs");
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(Buffer.from(await res.arrayBuffer()));
+            const cells = [];
+            workbook.worksheets[0].eachRow((row) => cells.push(...row.values.slice(1).map((v) => String(v ?? ""))));
+            assert.ok(cells.includes("Cotton kurti") && cells.includes("Woolen scarf"));
+      });
+
+      it("answers not found for an order that does not exist", async () => {
+            assert.equal((await download(exporter, uuidv4())).status, 404);
+      });
+});

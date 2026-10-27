@@ -213,3 +213,41 @@ describe("what an aisle record tells the storekeeper", () => {
         assert.equal((await post(REPORT, viewer, { oid: shelf })).status, 403);
     });
 });
+
+describe("suggesting an aisle code from its name", () => {
+    const GENERATE = BASE + ROUTES.GENERATE_AISLE_CODE;
+    const { buildCandidates } = require("../../src/routes/configuration/utils/code-generator");
+    let viewer;
+
+    beforeEach(async () => {
+        await h.reset();
+        await h.query("TRUNCATE aisle, warehouse CASCADE");
+        viewer = await sign_in_with(["configuration.aisle.view"]);
+    });
+
+    it("offers the name's own code, and the next one when another aisle already has it", async () => {
+        const [first, second] = buildCandidates("Cold Room");
+        assert.equal((await get(GENERATE, viewer, { name: "Cold Room" })).body.data.code, first);
+
+        await seed_aisle(await seed_warehouse("Main"), "Cold room east", first);
+
+        assert.equal((await get(GENERATE, viewer, { name: "Cold Room" })).body.data.code, second);
+    });
+
+    it("keeps an aisle's own code when it is being edited", async () => {
+        const [first] = buildCandidates("Cold Room");
+        const own = await seed_aisle(await seed_warehouse("Main"), "Cold Room", first);
+
+        assert.equal((await get(GENERATE, viewer, { name: "Cold Room", oid: own })).body.data.code, first);
+    });
+
+    it("asks for a code to be typed when the name has no letters to build one from", async () => {
+        const res = await get(GENERATE, viewer, { name: "1234" });
+        assert.equal(res.status, 400);
+        assert.match(res.body.message, /Type a code yourself/);
+    });
+
+    it("refuses someone without the aisle view permission", async () => {
+        assert.equal((await get(GENERATE, await sign_in_with(["configuration.brands.view"]), { name: "Cold Room" })).status, 403);
+    });
+});
