@@ -49,8 +49,12 @@ const userCardSchema = Joi.object({
       email: Joi.string().email({ tlds: { allow: false } }).max(256).required()
 });
 
+// A guest sends nothing: the server picks the name and everything else.
+const guestSignInSchema = Joi.object({});
+
 module.exports = {
       loginSchema,
+      guestSignInSchema,
       refreshSchema,
       signOutSchema,
       signOutEverywhereSchema,

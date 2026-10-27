@@ -64,6 +64,8 @@ repair. This is what was done on 2026-10-23; ask Claude to do it with these step
    `stock-flow-documents/generated_schema.sql`.
 3. Copy from the backup what belongs to the business rather than the schema: the Manager and Staff
    roles, the Owner, Manager and Staff grants, the Owner and System Admin accounts, and the settings row.
+   In the dev deployment also the Guest role with its grants, and every guest account
+   (`login` rows where `is_guest`): the expired ones are the visitor count (docs/guest-access).
 4. Seed a year into it, then verify:
 
    ```bash

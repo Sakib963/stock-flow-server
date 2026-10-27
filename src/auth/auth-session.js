@@ -71,12 +71,13 @@ const issue_refresh_token = async (tx, { session_oid, by }) => {
     return { oid, raw };
 };
 
-const open_session = async (tx, { login_oid, email, remember, context }) => {
+// max_seconds shortens a session below the configured maximum: a guest's ends with its visit.
+const open_session = async (tx, { login_oid, email, remember, context, max_seconds = null }) => {
     const session_oid = uuidv4();
     await tx.execute_value({
         text: `INSERT INTO ${TABLE.AUTH_SESSION} (oid, login_oid, status, remember, ip_address, user_agent, last_used_on, expires_on, created_by)
                VALUES ($1, $2, 'Active', $3, $4, $5, LOCALTIMESTAMP, LOCALTIMESTAMP + make_interval(secs => $6), $7)`,
-        values: [session_oid, login_oid, remember, context.ip_address, context.user_agent, auth_config().session_max_seconds, email],
+        values: [session_oid, login_oid, remember, context.ip_address, context.user_agent, Math.min(max_seconds ?? Infinity, auth_config().session_max_seconds), email],
     });
     const refresh = await issue_refresh_token(tx, { session_oid, by: email });
     return { session_oid, refresh_token: refresh.raw };

@@ -145,6 +145,7 @@ module.exports = {
     REFRESH_TOKEN: "/refresh-token",
     GET_USER_INFO: "/get-user-info",
     FORGOT_PASSWORD: "/forgot-password",
+    GUEST_SIGN_IN: "/guest-sign-in",
     RESET_PASSWORD: "/reset-password",
     GET_DASHBOARD: "/get-dashboard",
     GET_SALES_REPORT: "/get-sales-report",

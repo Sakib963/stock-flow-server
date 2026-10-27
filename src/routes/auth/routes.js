@@ -1,6 +1,7 @@
 const { Router } = require("express");
-const { loginSchema, refreshSchema, signOutSchema, signOutEverywhereSchema, getSessionsSchema, signOutSessionSchema, forgotPasswordSchema, resetPasswordSchema, userCardSchema } = require("./schema");
+const { loginSchema, guestSignInSchema, refreshSchema, signOutSchema, signOutEverywhereSchema, getSessionsSchema, signOutSessionSchema, forgotPasswordSchema, resetPasswordSchema, userCardSchema } = require("./schema");
 const signInUser = require("./controllers/sign-in");
+const guest_sign_in = require("./controllers/guest-sign-in");
 const sign_out = require("./controllers/sign-out");
 const sign_out_everywhere = require("./controllers/sign-out-everywhere");
 const get_sessions = require("./controllers/get-sessions");
@@ -17,6 +18,10 @@ const { validator } = require("../../middleware/validator");
 const router = Router();
 
 router.post(ROUTES.SIGN_IN, validator.post(loginSchema), signInUser)
+
+// Open like sign-in: a visitor has no account yet. It answers 404 unless GUEST_ACCESS is on, which only
+// the dev deployment sets, and what a guest may do is the Guest role's grants (docs/guest-access).
+router.post(ROUTES.GUEST_SIGN_IN, validator.post(guestSignInSchema), guest_sign_in)
 
 // Deliberately without jwtMiddleware, for the same reason as password recovery below: the common
 // moment to sign out is coming back to a tab after the 15 minute access token has lapsed. Requiring
