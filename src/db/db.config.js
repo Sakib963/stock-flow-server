@@ -17,7 +17,11 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
-  max: 5, // Reduced for serverless (Vercel creates multiple instances)
+  // The free Aiven plan leaves about 16 connections and has no pooler. Vercel starts a copy per burst
+  // and a frozen copy keeps its connections, so 5 a copy ran out at three or four copies. A
+  // transaction never waits on a second connection, so a small pool cannot deadlock; 3 lets a page
+  // that reads several things at once run three at a time. See docs/capacity in stock-flow-documents.
+  max: 3,
   min: 0, // Allow scaling down to 0 for serverless
   idleTimeoutMillis: 60000, // 60 seconds before closing idle connections
   connectionTimeoutMillis: 10000, // 10 seconds - increased for cloud databases

@@ -49,12 +49,14 @@ const write_online_order = (editing) => async (request, res) => {
     const payload = request.body;
     const user_id = request.credentials.user_id;
     try {
+        // Checked before the transaction: inside it, this read would wait on a second connection while holding the first.
+        const may_convert = payload.pre_order_oid && !editing && (await permissions_for(user_id)).has("sales.pre-order.convert");
         const order = await execute_transaction(async (tx) => {
             let kept = null;
             let booking = null;
             if (payload.pre_order_oid) {
                 if (editing) fail(400, "An order that already exists cannot be made from a pre-order.", { field: "pre_order_oid" });
-                if (!(await permissions_for(user_id)).has("sales.pre-order.convert")) fail(403, "You may not turn a pre-order into an order. Ask your admin if you should.");
+                if (!may_convert) fail(403, "You may not turn a pre-order into an order. Ask your admin if you should.");
                 booking = await lockBooking(tx, payload.pre_order_oid);
             }
             if (editing) {
