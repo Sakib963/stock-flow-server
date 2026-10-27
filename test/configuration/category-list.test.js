@@ -148,7 +148,7 @@ describe("the categories list", () => {
         const kurti = rows.find((r) => r.name === "Kurti");
 
         assert.equal(saree.last_action_by, "owner@arithmalabs.test");
-        assert.equal(saree.last_action_by_name, "Samiha Rahman");
+        assert.equal(saree.last_action_by_name, "Test Owner");
         assert.equal(saree.last_action_by_role, role_name);
         assert.equal(saree.last_action_is_edit, false);
         assert.equal(kurti.last_action_is_edit, true);

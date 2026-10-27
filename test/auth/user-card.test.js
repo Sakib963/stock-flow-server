@@ -26,7 +26,7 @@ describe("the person card", () => {
         const res = await card(access, { email: "counter@arithmalabs.test" });
 
         assert.equal(res.status, 200);
-        assert.equal(res.body.data.name, "Samiha Rahman");
+        assert.equal(res.body.data.name, "Test Owner");
     });
 
     it("refuses a request with no token as signed out, not as forbidden", async () => {
@@ -40,7 +40,7 @@ describe("the person card", () => {
         const res = await card(reader, { email: "owner@arithmalabs.test" });
 
         assert.equal(res.status, 200);
-        assert.equal(res.body.data.name, "Samiha Rahman");
+        assert.equal(res.body.data.name, "Test Owner");
         assert.equal(res.body.data.designation, "Shop owner");
         assert.equal(res.body.data.active, true);
         assert.match(res.body.data.role, /^Role /);
@@ -49,7 +49,7 @@ describe("the person card", () => {
     it("finds the person whatever case the row stored the address in", async () => {
         const res = await card(reader, { email: "OWNER@arithmalabs.test" });
 
-        assert.equal(res.body.data.name, "Samiha Rahman");
+        assert.equal(res.body.data.name, "Test Owner");
     });
 
     it("says an address with no account is not active rather than answering 404", async () => {
@@ -69,7 +69,7 @@ describe("the person card", () => {
         const res = await card(reader, { email: "gone@arithmalabs.test" });
 
         assert.equal(res.body.data.active, false);
-        assert.equal(res.body.data.name, "Samiha Rahman");
+        assert.equal(res.body.data.name, "Test Owner");
     });
 
     it("refuses anything that is not an email, so nothing else can reach the query", async () => {

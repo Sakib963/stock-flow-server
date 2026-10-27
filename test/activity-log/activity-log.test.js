@@ -47,7 +47,7 @@ describe("the activity log", () => {
         const rows = res.body.data.rows;
         assert.deepEqual(rows.map((row) => row.title), ["Deleted product", "Dispose Approved", "Submitted", "Online order cancelled", "Created brand"]);
         const created = rows.at(-1);
-        assert.deepEqual([created.performed_by_name, created.area, created.record_exists], ["Samiha Rahman", "configuration", true]);
+        assert.deepEqual([created.performed_by_name, created.area, created.record_exists], ["Test Owner", "configuration", true]);
         assert.deepEqual(created.device, { browser: "Chrome", os: "Windows", type: "desktop" });
         assert.equal(rows[0].record_exists, false, "a deleted product is not offered as a link");
         assert.equal(rows[0].device, null);
