@@ -30,7 +30,7 @@ const seed_catalogue = async () => {
     await h.query("INSERT INTO inventory (oid, batch_code, product_oid, initial_quantity, quantity_available, cost_price, selling_price, status) VALUES ('I-1', 'B-1', 'P-1', 50, 3, 300, 500, 'ready_for_sale'), ('I-2', 'B-2', 'P-2', 40, 40, 20, NULL, 'internal_use')");
 };
 
-const order = async ({ channel = "POS", status = "Purchased", sold_on = at("2026-10-05"), payment_status = "paid", total_amount = 0, amount_paid = 0, delivery_charge = 0, refund_due = 0, amount_refunded = 0, payment_type = null, lines }) => {
+const order = async ({ channel = "POS", status = "Purchased", sold_on = at("2026-10-05"), payment_status = "paid", total_amount = 0, amount_paid = payment_status === "paid" ? total_amount : 0, delivery_charge = 0, refund_due = 0, amount_refunded = 0, payment_type = null, lines }) => {
     const oid = uuidv4();
     await h.query(
         "INSERT INTO orders (oid, invoice_no, total_amount, channel, status, sold_on, payment_status, amount_paid, delivery_charge, refund_due, amount_refunded, payment_type, customer_name) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Rina')",

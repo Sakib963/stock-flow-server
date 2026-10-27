@@ -342,7 +342,7 @@ describe("a customer's record", () => {
         const returned = await sale("partially_paid", 500, { status: "PartiallyReturned", quantity: 2, unit_price: 400 });
         await h.query("UPDATE orders SET payment_status = 'partially_refunded', amount_refunded = 400 WHERE oid = $1", [returned.oid]);
         await h.query("UPDATE order_items SET returned_qty = 1 WHERE oid = $1", [returned.item]);
-        await sale("paid", 0, { unit_price: 900 });
+        await sale("paid", 900, { unit_price: 900 });
         await sale("unpaid", 0, { status: "Cancelled", unit_price: 700, sold: false });
         // Returned in full, but the return kept the delivery charge: the courier's 60 is still owed.
         const full = await sale("unpaid", 0, { status: "Returned", unit_price: 1000 });
