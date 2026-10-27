@@ -229,3 +229,41 @@ describe("what the supplier record tells the owner", () => {
         assert.deepEqual(res.body.data.stats, { active: 2, inactive: 0, owing: 1, unused: 1 });
     });
 });
+
+describe("the suppliers a purchase order or a filter picks from", () => {
+    const DROPDOWN = BASE + ROUTES.GET_SUPPLIER_LIST_FOR_DROPDOWN;
+    let buyer;
+
+    beforeEach(async () => {
+        await h.reset();
+        buyer = await sign_in_with(["inventory.purchase-order.create"]);
+    });
+
+    it("finds an active supplier by part of its name or phone, and never offers an inactive one", async () => {
+        await seed_supplier("Islampur Fabrics", "01712-345678");
+        await seed_supplier("Gulshan Threads", "01811-000222");
+        await seed_supplier("Closed Mills", "01911-999999", "Inactive");
+
+        const find = async (search) => (await get(DROPDOWN, buyer, { search })).body.data.map((s) => s.label);
+
+        assert.deepEqual(await find(""), ["Gulshan Threads", "Islampur Fabrics"]);
+        assert.deepEqual(await find("islam"), ["Islampur Fabrics"]);
+        assert.deepEqual(await find("0181"), ["Gulshan Threads"]);
+        assert.deepEqual(await find("closed"), []);
+    });
+
+    it("sends fifty at a time and the next fifty when scrolled", async () => {
+        for (let i = 0; i < 55; i++) await seed_supplier(`Supplier ${String(i).padStart(2, "0")}`, `0170000${String(i).padStart(4, "0")}`);
+
+        assert.equal((await get(DROPDOWN, buyer)).body.data.length, 50);
+        assert.equal((await get(DROPDOWN, buyer, { offset: 50 })).body.data.length, 5);
+    });
+
+    it("names the supplier of an old order even after the supplier was made inactive", async () => {
+        const closed = await seed_supplier("Closed Mills", "01911-999999", "Inactive");
+
+        const named = (await get(DROPDOWN, buyer, { oids: closed })).body.data;
+
+        assert.deepEqual(named.map((s) => s.label), ["Closed Mills"]);
+    });
+});
