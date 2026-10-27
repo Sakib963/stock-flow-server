@@ -122,5 +122,7 @@ Utilities that already exist and must be used rather than re-implemented:
   command is in `test/README.md`. **Anything touching auth, sessions, permissions, stock or money
   keeps this suite green and adds the tests that prove the change.** Name a test for the behaviour a
   person would recognise, as `test/auth/sessions.test.js` does.
-- The pre-commit hook in the workspace loads the routers and runs `npm test` before any commit that
-  touches `src/` or `test/`.
+- The pre-commit hook in the workspace loads the routers and runs the tests related to what changed
+  before any commit that touches `src/` or `test/`; the whole suite only when a foundation changed.
+  By hand, run the same: the changed feature's tests and its consumers, never `npm test` for a
+  feature change.
