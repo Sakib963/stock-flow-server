@@ -71,4 +71,19 @@ const read_list = async ({ select, from, where, values, search, filters, sortabl
     return { rows, total: count[0]?.total ?? 0, stats: counted };
 };
 
-module.exports = { read_list, escape_like };
+// One page of a dropdown whose list grows for years: a search while typing, the next page on scroll,
+// or exactly the values a field already holds (`oids`), so a value from the URL or a saved record is
+// named without loading the list. A page shorter than `limit` is the last; there is no count query.
+const read_choices = async ({ select, from, key, where = [], values = [], search, order, query }) => {
+    const oids = String(query.oids ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    const filtered = oids.length
+        ? build_where({ where: [...where, `${key} = ANY($${values.length + 1})`], values: [...values, oids], query: {} })
+        : build_where({ where, values, search, query });
+    const page = oids.length ? "" : `LIMIT ${filtered.add(Number(query.limit ?? 50))} OFFSET ${filtered.add(Number(query.offset ?? 0))}`;
+    return get_data({ text: `SELECT ${select} FROM ${from} ${filtered.text} ORDER BY ${order}, ${key} ${page}`, values: filtered.params });
+};
+
+module.exports = { read_list, read_choices, escape_like };

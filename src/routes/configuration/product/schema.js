@@ -19,7 +19,10 @@ const product_list_schema = Joi.object({
 });
 
 const product_dropdown_schema = Joi.object({
-      grouped: Joi.boolean().optional(),
+      search: Joi.string().trim().max(100).allow(null, "").optional(),
+      offset: Joi.number().integer().min(0).default(0),
+      limit: Joi.number().integer().min(1).max(100).default(50),
+      oids: Joi.string().pattern(/^[0-9a-f-]{36}(,[0-9a-f-]{36}){0,99}$/i).allow(null, "").optional(),
 });
 
 const product_oid_schema = Joi.object({

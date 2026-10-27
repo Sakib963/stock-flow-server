@@ -405,6 +405,47 @@ describe("the product names a list filter picks from", () => {
 
         assert.deepEqual(names, ["Cotton Kurti", "Silk Saree"]);
     });
+
+    it("finds a product by part of its name or SKU, a literal % included", async () => {
+        const viewer = await sign_in_with(["configuration.product.view"]);
+        await seed_product("Cotton Kurti", { sku: "KUR-01" });
+        await seed_product("Silk Saree", { sku: "SAR-01" });
+        await seed_product("50% Off Bundle");
+
+        const find = async (search) => (await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer, { search })).body.data.map((p) => p.label);
+
+        assert.deepEqual(await find("kurti"), ["Cotton Kurti"]);
+        assert.deepEqual(await find("sar-0"), ["Silk Saree"]);
+        assert.deepEqual(await find("50%"), ["50% Off Bundle"]);
+    });
+
+    it("sends fifty at a time, the next fifty when scrolled, and none twice", async () => {
+        const viewer = await sign_in_with(["configuration.product.view"]);
+        for (let i = 0; i < 60; i++) await seed_product(`Kurti ${String(i).padStart(2, "0")}`);
+
+        const first = (await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer)).body.data;
+        const second = (await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer, { offset: 50 })).body.data;
+
+        assert.equal(first.length, 50);
+        assert.equal(second.length, 10);
+        assert.equal(new Set([...first, ...second].map((p) => p.value)).size, 60);
+    });
+
+    it("names exactly the products a filter already holds, without the rest of the list", async () => {
+        const viewer = await sign_in_with(["configuration.product.view"]);
+        const kurti = await seed_product("Cotton Kurti");
+        const saree = await seed_product("Silk Saree");
+        await seed_product("Scarf");
+
+        const named = (await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer, { oids: `${kurti},${saree}`, search: "scarf" })).body.data.map((p) => p.label).sort();
+
+        assert.deepEqual(named, ["Cotton Kurti", "Silk Saree"]);
+    });
+
+    it("refuses a request for more than a hundred at once", async () => {
+        const viewer = await sign_in_with(["configuration.product.view"]);
+        assert.equal((await get(BASE + ROUTES.GET_PRODUCT_LIST_FOR_DROPDOWN, viewer, { limit: 101 })).status, 400);
+    });
 });
 
 describe("SKU helpers", () => {
