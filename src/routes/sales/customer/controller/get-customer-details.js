@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { channels_of } = require("../../utils/channels");
@@ -11,7 +12,7 @@ const DETAILS_SQL = `
            c.first_source_oid, s.name AS first_source_name, s.platform AS first_source_platform,
            c.created_by, c.created_on, c.edited_by, c.edited_on,
            COALESCE(c.edited_on, c.created_on) AS last_action_on,
-           COALESCE(c.edited_by, c.created_by) AS last_action_by
+           COALESCE(c.edited_by, c.created_by) AS last_action_by, c.${VERSION}
       FROM ${TABLE.CUSTOMERS} c
       LEFT JOIN ${TABLE.ORDER_SOURCE} s ON s.oid = c.first_source_oid
      WHERE c.oid = $1`;

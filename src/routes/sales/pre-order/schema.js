@@ -55,6 +55,9 @@ const pre_order_schema = Joi.object({
     notes: optional_text(256),
 });
 
+// An edit carries the row version its form loaded; a new booking has none.
+const pre_order_update_schema = pre_order_schema.keys({ version: Joi.string().pattern(/^\d+$/).required() });
+
 const cancel_pre_order_schema = Joi.object({
     oid: Joi.string().uuid().required(),
     reason: Joi.string().valid(...CANCEL_REASONS).required(),
@@ -70,4 +73,4 @@ const product_list_schema = Joi.object({
     search: Joi.string().trim().max(100).allow(null, "").optional(),
 });
 
-module.exports = { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, cancel_pre_order_schema, product_list_schema, customer_phone_schema };
+module.exports = { pre_order_list_schema, by_product_schema, pre_order_oid_schema, pre_order_schema, pre_order_update_schema, cancel_pre_order_schema, product_list_schema, customer_phone_schema };

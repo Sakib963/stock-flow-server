@@ -68,4 +68,7 @@ const online_draft_oid_schema = Joi.object({
     oid: Joi.string().uuid().required(),
 });
 
-module.exports = { online_order_setup_schema, chat_message_schema, create_online_order_schema, online_draft_schema, online_drafts_schema, online_draft_oid_schema };
+// An edit carries the row version its form loaded; a new order has none.
+const edit_online_order_schema = create_online_order_schema.keys({ version: Joi.string().pattern(/^\d+$/).required() });
+
+module.exports = { edit_online_order_schema, online_order_setup_schema, chat_message_schema, create_online_order_schema, online_draft_schema, online_drafts_schema, online_draft_oid_schema };

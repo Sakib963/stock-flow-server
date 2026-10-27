@@ -1,6 +1,7 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { read_product_stock_stats } = require("../../utils/product-stock-stats");
 
@@ -12,7 +13,7 @@ const get_sub_category_details = async (request, res) => {
                                 c.name AS category_name,
                                 sc.created_by, sc.created_on, sc.edited_by, sc.edited_on,
                                 COALESCE(sc.edited_on, sc.created_on) AS last_action_on,
-                                COALESCE(sc.edited_by, sc.created_by) AS last_action_by
+                                COALESCE(sc.edited_by, sc.created_by) AS last_action_by, sc.${VERSION}
                          FROM ${TABLE.SUB_CATEGORIES} sc
                          JOIN ${TABLE.CATEGORIES} c ON c.oid = sc.category_oid
                          WHERE sc.oid = $1`,

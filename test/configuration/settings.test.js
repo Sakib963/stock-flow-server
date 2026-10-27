@@ -66,6 +66,18 @@ describe("business settings", () => {
         assert.equal((await h.call(SIGN, { body: {}, token: owner })).body.data.folder, "stockflow/branding");
     });
 
+    it("saves over a change to the delivery charges, and refuses only when the name, logo or contacts changed", async () => {
+        const { version } = (await h.call(READ, { method: "GET", token: owner })).body.data;
+        await h.query("UPDATE settings SET delivery_charge_inside = 70, delivery_charge_outside = 140, edited_on = now()");
+        const saved = await h.call(SAVE, { body: { ...BODY, version }, token: owner });
+        assert.equal(saved.status, 200, JSON.stringify(saved.body));
+
+        await h.query("UPDATE settings SET phone_primary = '01811000222'");
+        const stale = await h.call(SAVE, { body: { ...BODY, version: saved.body.data.version }, token: owner });
+        assert.equal(stale.status, 409);
+        assert.equal((await h.query("SELECT phone_primary FROM settings"))[0].phone_primary, "01811000222");
+    });
+
     it("refuses a missing name and a web address that is not one", async () => {
         assert.equal((await h.call(SAVE, { body: { ...BODY, name: "" }, token: owner })).status, 400);
         assert.equal((await h.call(SAVE, { body: { ...BODY, website: "not a site" }, token: owner })).status, 400);

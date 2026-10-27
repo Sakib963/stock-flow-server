@@ -35,9 +35,12 @@ const batch_orders_schema = Joi.object({
     order_oids,
 });
 
+// Changing which orders are in the batch carries the row version its page loaded; delivering does not.
+const update_batch_orders_schema = batch_orders_schema.keys({ version: Joi.string().pattern(/^\d+$/).required() });
+
 const cancel_batch_schema = Joi.object({
     oid: Joi.string().uuid().required(),
     note: Joi.string().trim().min(3).max(500).required(),
 });
 
-module.exports = { batch_list_schema, ready_orders_schema, batch_oid_schema, create_batch_schema, batch_orders_schema, cancel_batch_schema };
+module.exports = { batch_list_schema, ready_orders_schema, batch_oid_schema, create_batch_schema, batch_orders_schema, update_batch_orders_schema, cancel_batch_schema };

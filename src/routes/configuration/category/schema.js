@@ -42,6 +42,7 @@ const category_create_schema = Joi.object(category_fields);
 
 const category_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...category_fields,
 });
 

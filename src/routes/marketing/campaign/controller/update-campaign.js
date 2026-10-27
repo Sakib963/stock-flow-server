@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { save_batches, save_partners } = require("../utils/campaign-lines");
@@ -10,6 +11,7 @@ const update_campaign = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const campaign_no = await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.CAMPAIGN, oid: c.oid, version: c.version, gone: "That campaign no longer exists. It may have been removed." });
             const [row] = await tx.get_data({ text: `SELECT campaign_no, status FROM ${TABLE.CAMPAIGN} WHERE oid = $1 FOR UPDATE`, values: [c.oid] });
             if (!row) fail(404, "That campaign no longer exists. It may have been removed.");
             if (!["Planned", "Live"].includes(row.status)) fail(409, `A ${row.status.toLowerCase()} campaign can no longer be changed.`, { status: row.status });

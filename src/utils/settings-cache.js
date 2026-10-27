@@ -9,13 +9,20 @@
 // -----------------------------------------------------------------------------
 const { TABLE } = require("./constant");
 const { get_data } = require("../db/database");
+const { columns_version } = require("../db/stale-edit");
 const { read_config_version } = require("./config-version");
+
+// The business settings page and the delivery charges each save their own columns of the one row.
+const SETTINGS_FORM = {
+    business: ["name", "logo_url", "address", "phone_primary", "phone_secondary", "website", "facebook_url", "instagram_url"],
+    delivery: ["home_district_oid", "delivery_charge_inside", "delivery_charge_outside"],
+};
 
 let cache = null;
 let cachedAt = null;
 
 const loadFromDb = async () => {
-    const rows = await get_data({ text: `SELECT * FROM ${TABLE.SETTINGS} ORDER BY created_on ASC LIMIT 1`, values: [] });
+    const rows = await get_data({ text: `SELECT *, ${columns_version(SETTINGS_FORM.business)} AS business_version, ${columns_version(SETTINGS_FORM.delivery)} AS delivery_version FROM ${TABLE.SETTINGS} ORDER BY created_on ASC LIMIT 1`, values: [] });
     return rows.length ? rows[0] : null;
 };
 
@@ -34,4 +41,4 @@ const invalidateSettings = () => {
     cachedAt = null;
 };
 
-module.exports = { getSettings, invalidateSettings };
+module.exports = { SETTINGS_FORM, getSettings, invalidateSettings };

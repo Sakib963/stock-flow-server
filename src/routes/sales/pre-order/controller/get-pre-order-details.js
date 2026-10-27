@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { sees_money } = require("../../../inventory/utils/sees-money");
 const { SELLABLE_BY_PRODUCT_CTE, priceHints } = require("../utils/pre-order-utils");
@@ -14,7 +15,7 @@ const get_pre_order_details = async (request, res) => {
             text: `SELECT po.oid, po.preorder_no, po.customer_oid, c.name AS customer_name, c.phone AS customer_phone, po.status, po.total_amount::int AS total_amount,
                           po.advance_paid::int AS advance_paid, po.advance_method, po.advance_reference, po.advance_refund_due::int AS advance_refund_due, po.advance_refunded::int AS advance_refunded,
                           po.refunded_on, to_char(po.expected_date, 'YYYY-MM-DD') AS expected_date, po.notes, po.cancel_reason, po.converted_order_oid, o.invoice_no AS converted_invoice_no,
-                          po.created_on, COALESCE(u.name, po.created_by) AS created_by
+                          po.created_on, COALESCE(u.name, po.created_by) AS created_by, po.${VERSION}
                      FROM ${TABLE.PRE_ORDERS} po
                      JOIN ${TABLE.CUSTOMERS} c ON c.oid = po.customer_oid
                      LEFT JOIN ${TABLE.ORDERS} o ON o.oid = po.converted_order_oid

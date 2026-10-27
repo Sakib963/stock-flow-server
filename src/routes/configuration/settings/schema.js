@@ -23,6 +23,7 @@ const link = Joi.string()
 // (legal name, tax numbers, bank details, the tracker template) is not set from here: nothing the
 // new app prints reads it (decided by the user, 2026-10-12).
 const update_settings_schema = Joi.object({
+    version: Joi.string().pattern(/^[0-9a-f]{1,32}$/).required(),
     name: Joi.string().trim().min(2).max(128).required(),
     logo_url: Joi.string()
         .trim()

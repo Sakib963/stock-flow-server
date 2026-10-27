@@ -85,6 +85,11 @@ Utilities that already exist and must be used rather than re-implemented:
   Zero rows is a 409 with the record's actual state.
 - **Every stock movement is guarded in SQL** (`WHERE quantity_available >= $1`) and verified through
   `rowCount`. Use `stock-movement.js`, which already does.
+- **Every edit refuses a stale form.** The details endpoint returns `${VERSION}` (the row's `xmin`),
+  the edit schema requires `version`, and the controller's first step in its transaction is
+  `refuse_stale(tx, { table, oid, version, gone })` from `db/stale-edit.js` (a row two forms each save part of, like settings, passes `columns` so each form is versioned by its own). `test/stale-edit.test.js`
+  fails for an `update-*` controller without it; an exemption names its reason there. The test
+  harness tries each edit once with an old version and asserts it is refused and writes nothing.
 - A counter that must survive a rollback (failed attempts, throttles) is written outside the
   transaction, because `fail()` rolls back everything inside it.
 - Columns follow the database conventions: `oid` uuid, audit columns `created_by` / `created_on` /

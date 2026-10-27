@@ -23,6 +23,7 @@ const optional_text = (max) => Joi.string().trim().max(max).allow(null, "").empt
 
 const feature_update_schema = Joi.object({
     oid: Joi.string().uuid().required(),
+    version: Joi.string().pattern(/^\d+$/).required(),
     label: Joi.string().trim().min(1).max(128).required(),
     label_bn: Joi.string().trim().min(1).max(128).required(),
     description_en: optional_text(512),

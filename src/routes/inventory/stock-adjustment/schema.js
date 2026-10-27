@@ -65,6 +65,7 @@ const stock_adjustment_create_schema = Joi.object(adjustment_fields);
 
 const stock_adjustment_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...adjustment_fields,
 });
 

@@ -47,6 +47,7 @@ const product_dispose_create_schema = Joi.object(dispose_fields);
 
 const product_dispose_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...dispose_fields,
 });
 

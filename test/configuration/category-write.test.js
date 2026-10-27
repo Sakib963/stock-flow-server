@@ -60,7 +60,7 @@ const hold_stock = async (inventory_oid, quantity) => {
 };
 
 const create = (token, body) => h.call(CREATE, { method: "POST", token, body });
-const update = (token, body) => h.call(UPDATE, { method: "POST", token, body });
+const update = async (token, body) => h.call(UPDATE, { method: "POST", token, body: { version: await h.version_of("categories", body.oid), ...body } });
 const availability = (token, params) => h.call(`${AVAILABILITY}?${new URLSearchParams(params)}`, { method: "GET", token });
 const generate = (token, params) => h.call(`${GENERATE}?${new URLSearchParams(params)}`, { method: "GET", token });
 
@@ -96,9 +96,23 @@ describe("creating and editing a category", () => {
         assert.equal(rows[0].request_id, res.request_id);
     });
 
+    it("refuses an edit from a form opened before someone else saved, and writes nothing", async () => {
+        const created = await create(author, A_CATEGORY);
+        const oid = created.body.data.oid;
+        const old_tab = await h.version_of("categories", oid);
+        assert.equal((await update(author, { oid, ...A_CATEGORY, status: "Inactive" })).status, 200);
+
+        const stale = await h.call(UPDATE, { token: author, body: { oid, version: old_tab, ...A_CATEGORY, description: "From the old tab" } });
+
+        assert.equal(stale.status, 409);
+        assert.equal(stale.body.data.reason, "changed_since_loaded");
+        const [row] = await h.query("SELECT status, description FROM categories WHERE oid = $1", [oid]);
+        assert.deepEqual(row, { status: "Inactive", description: A_CATEGORY.description ?? null });
+    });
+
     it("joins each create and edit to its request: one request log row and one activity row, same id", async () => {
         const created = await create(author, A_CATEGORY);
-        const edited = await h.call(UPDATE, { token: author, body: { oid: created.body.data.oid, ...A_CATEGORY, status: "Inactive" } });
+        const edited = await update(author, { oid: created.body.data.oid, ...A_CATEGORY, status: "Inactive" });
         assert.equal(edited.status, 200);
 
         for (const [res, title] of [[created, "Created category"], [edited, "Updated category"]]) {

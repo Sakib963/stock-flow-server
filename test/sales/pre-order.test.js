@@ -9,6 +9,7 @@ const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 const PRE = CONTEXTS.SALES + SUB_CONTEXTS.PRE_ORDER;
 const CREATE = PRE + ROUTES.CREATE_PRE_ORDER;
 const UPDATE = PRE + ROUTES.UPDATE_PRE_ORDER;
+const edit = async (body, token) => h.call(UPDATE, { body: { version: await h.version_of("pre_orders", body.oid), ...body }, token });
 const CONFIRM = PRE + ROUTES.CONFIRM_PRE_ORDER;
 const CANCEL = PRE + ROUTES.CANCEL_PRE_ORDER;
 const REFUND = PRE + ROUTES.RECORD_PRE_ORDER_REFUND;
@@ -95,6 +96,20 @@ describe("pre-orders, bookings", () => {
         assert.equal((await h.query("SELECT COUNT(*)::int AS n FROM pre_orders"))[0].n, 0);
     });
 
+    it("refuses an edit from a form opened before someone else saved, and keeps the newer advance", async () => {
+        const token = await person();
+        const saved = await book(token, [{ product_oid: kurti, quantity: 1, unit_price: 1500 }]);
+        const old_tab = await h.version_of("pre_orders", saved.oid);
+
+        const paid = await edit({ ...saved, advance_paid: 500, advance_method: "cash" }, token);
+        assert.equal(paid.status, 200, JSON.stringify(paid.body));
+        const stale = await h.call(UPDATE, { body: { ...saved, version: old_tab, notes: "Typed in the old tab" }, token });
+
+        assert.equal(stale.status, 409);
+        assert.equal(stale.body.data.reason, "changed_since_loaded");
+        assert.deepEqual(await h.query("SELECT advance_paid::int AS advance, notes FROM pre_orders WHERE oid = $1", [saved.oid]), [{ advance: 500, notes: null }]);
+    });
+
     it("refuses an expected date already past, yet lets an overdue booking keep its date while other things change", async () => {
         const token = await person();
         const past = await h.call(CREATE, { body: booking([{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2026-01-01" }), token });
@@ -104,23 +119,23 @@ describe("pre-orders, bookings", () => {
 
         const saved = await book(token, [{ product_oid: kurti, quantity: 1, unit_price: 1500 }], { expected_date: "2099-01-01" });
         await h.query("UPDATE pre_orders SET expected_date = '2026-01-01' WHERE oid = $1", [saved.oid]);
-        const kept = await h.call(UPDATE, { body: { ...saved, expected_date: "2026-01-01", notes: "Asked again on Friday" }, token });
+        const kept = await edit({ ...saved, expected_date: "2026-01-01", notes: "Asked again on Friday" }, token);
         assert.equal(kept.status, 200, JSON.stringify(kept.body));
-        const moved_back = await h.call(UPDATE, { body: { ...saved, expected_date: "2026-01-02" }, token });
+        const moved_back = await edit({ ...saved, expected_date: "2026-01-02" }, token);
         assert.equal(moved_back.status, 400, "a changed date may not be in the past");
     });
 
     it("edits every line while Pending, and once Confirmed only prices and money, never the units", async () => {
         const token = await person();
         const saved = await book(token, [{ product_oid: kurti, quantity: 2, unit_price: 1500 }]);
-        const edited = await h.call(UPDATE, { body: { ...saved, lines: [{ product_oid: kurti, quantity: 3, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }] }, token });
+        const edited = await edit({ ...saved, lines: [{ product_oid: kurti, quantity: 3, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }] }, token);
         assert.equal(edited.status, 200, JSON.stringify(edited.body));
         assert.equal((await get(`${DETAILS}/${saved.oid}`, token)).body.data.total_amount, 5400);
 
         assert.equal((await h.call(CONFIRM, { body: { oid: saved.oid }, token })).status, 200);
-        const more = await h.call(UPDATE, { body: { ...saved, lines: [{ product_oid: kurti, quantity: 4, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }] }, token });
+        const more = await edit({ ...saved, lines: [{ product_oid: kurti, quantity: 4, unit_price: 1500 }, { product_oid: scarf, quantity: 1, unit_price: 900 }] }, token);
         assert.equal(more.status, 409, "a confirmed booking keeps its units");
-        const cheaper = await h.call(UPDATE, { body: { ...saved, lines: [{ product_oid: kurti, quantity: 3, unit_price: 1400 }, { product_oid: scarf, quantity: 1, unit_price: 900 }], advance_paid: 1000, advance_method: "cash" }, token });
+        const cheaper = await edit({ ...saved, lines: [{ product_oid: kurti, quantity: 3, unit_price: 1400 }, { product_oid: scarf, quantity: 1, unit_price: 900 }], advance_paid: 1000, advance_method: "cash" }, token);
         assert.equal(cheaper.status, 200, JSON.stringify(cheaper.body));
         const details = (await get(`${DETAILS}/${saved.oid}`, token)).body.data;
         assert.deepEqual({ total: details.total_amount, advance: details.advance_paid }, { total: 5100, advance: 1000 });
@@ -138,7 +153,7 @@ describe("pre-orders, bookings", () => {
         const cancelled = await h.call(CANCEL, { body: { oid: saved.oid, reason: "stock_not_coming", refund_due: 400 }, token });
         assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
         assert.equal((await h.call(CANCEL, { body: { oid: saved.oid, reason: "changed_mind", refund_due: 0 }, token })).status, 409);
-        assert.equal((await h.call(UPDATE, { body: saved, token })).status, 409, "a cancelled booking is final");
+        assert.equal((await edit(saved, token)).status, 409, "a cancelled booking is final");
         assert.equal((await get(LIST, token)).body.data.rows[0].refund_owed, 400);
 
         assert.equal((await h.call(REFUND, { body: { oid: saved.oid }, token })).status, 200);
@@ -250,7 +265,7 @@ describe("pre-orders, bookings", () => {
         const viewer = await person(["sales.pre-order.view"]);
         assert.equal((await get(LIST, viewer)).status, 200);
         assert.equal((await h.call(CREATE, { body: booking([{ product_oid: kurti, quantity: 1, unit_price: 1500 }]), token: viewer })).status, 403);
-        assert.equal((await h.call(UPDATE, { body: saved, token: viewer })).status, 403);
+        assert.equal((await edit(saved, viewer)).status, 403);
         assert.equal((await h.call(CONFIRM, { body: { oid: saved.oid }, token: viewer })).status, 403);
         assert.equal((await h.call(CANCEL, { body: { oid: saved.oid, reason: "changed_mind", refund_due: 0 }, token: viewer })).status, 403);
         assert.equal((await h.call(REFUND, { body: { oid: saved.oid }, token: viewer })).status, 403);

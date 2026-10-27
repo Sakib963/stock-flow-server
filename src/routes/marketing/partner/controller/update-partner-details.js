@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { duplicate_name } = require("../utils/duplicate");
@@ -12,6 +13,7 @@ const update_partner_details = async (request, res) => {
     let changed = true;
     try {
         await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.PARTNER, oid: p.oid, version: p.version, gone: GONE });
             const rows = await tx.get_data({
                 text: `SELECT name, partner_type, platforms, handle, phone_number, payment_method, payment_account, note, status FROM ${TABLE.PARTNER} WHERE oid = $1 FOR UPDATE`,
                 values: [p.oid],
@@ -35,7 +37,7 @@ const update_partner_details = async (request, res) => {
             await saveLogActivity({ reference_type: "partner", reference_oid: p.oid, title: "Updated partner", description: generateChangeDescription(`partner "${p.name}"`, changes) }, { tx, request });
         });
     } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
         const taken = duplicate_name(e);
         if (taken) return res.status(409).json({ code: 409, message: taken.message, data: { field: taken.field } });
         log.error(`An exception occurred while updating partner ${p.oid}: ${e?.message}`);

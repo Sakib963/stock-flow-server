@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { find_or_create_customer } = require("../../customer/utils/find-or-create");
@@ -8,10 +9,11 @@ const { refusePastDate, writeLines, OPEN_STATUSES } = require("../utils/pre-orde
 // Pending is fully editable; a Confirmed booking keeps its products and units, and only its prices,
 // advance, customer, date and note change (REQ-05).
 const update_pre_order = async (request, res) => {
-    const { oid, customer, lines, advance_paid, advance_method, advance_reference, expected_date, notes } = request.body;
+    const { oid, version, customer, lines, advance_paid, advance_method, advance_reference, expected_date, notes } = request.body;
     const user_id = request.credentials.user_id;
     try {
         const outcome = await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.PRE_ORDERS, oid, version, gone: "No pre-order with that number." });
             const [current] = await tx.get_data({
                 text: `SELECT preorder_no, status, customer_oid, total_amount::int AS total_amount, advance_paid::int AS advance_paid, advance_method, advance_reference, to_char(expected_date, 'YYYY-MM-DD') AS expected_date, notes
                          FROM ${TABLE.PRE_ORDERS} WHERE oid = $1 FOR UPDATE`,

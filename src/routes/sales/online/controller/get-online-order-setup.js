@@ -13,6 +13,7 @@ const get_online_order_setup = async (request, res) => {
             sources,
             delivery_charge_inside: Number(settings?.delivery_charge_inside ?? 0),
             delivery_charge_outside: Number(settings?.delivery_charge_outside ?? 0),
+            settings_version: settings?.delivery_version ?? null,
             home_district: home ?? null,
             // The invoice prints the business's own logo when settings has one.
             logo_url: settings?.invoice_logo_url || settings?.logo_url || null,

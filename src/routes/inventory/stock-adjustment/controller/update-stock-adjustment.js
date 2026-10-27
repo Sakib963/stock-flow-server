@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { REASON_LABEL, shape_lines, check_lines, insert_lines, delete_lines, units } = require("../utils/adjustment-rules");
@@ -20,6 +21,7 @@ const update_stock_adjustment = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.STOCK_ADJUSTMENT, oid: payload.oid, version: payload.version, gone: "That adjustment no longer exists." });
                   const [adjustment] = await tx.get_data({ text: `SELECT adjustment_number, status, reason, note FROM ${TABLE.STOCK_ADJUSTMENT} WHERE oid = $1 FOR UPDATE`, values: [payload.oid] });
                   if (!adjustment) fail(404, "That adjustment no longer exists.");
                   if (adjustment.status !== "Draft" && adjustment.status !== "Submitted") fail(409, `This adjustment is ${adjustment.status} and can no longer be edited.`, { status: adjustment.status });

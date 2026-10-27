@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { BATCH_BUDGETS, BUDGET_JOIN, costs_of } = require("../utils/campaign-lines");
@@ -14,7 +15,7 @@ const get_campaign_details = async (request, res) => {
             text: `SELECT c.oid, c.campaign_no, c.name, c.promotion_type, c.status,
                           to_char(c.posting_start, 'YYYY-MM-DD') AS posting_start, to_char(c.posting_end, 'YYYY-MM-DD') AS posting_end, to_char(c.measure_end, 'YYYY-MM-DD') AS measure_end,
                           c.ad_spend, c.other_cost, c.other_cost_note, c.note, c.cancel_note,
-                          c.created_on, COALESCE(cu.name, c.created_by) AS created_by, c.started_on, c.completed_on, c.cancelled_on
+                          c.created_on, COALESCE(cu.name, c.created_by) AS created_by, c.started_on, c.completed_on, c.cancelled_on, c.${VERSION}
                      FROM ${TABLE.CAMPAIGN} c LEFT JOIN ${TABLE.LOGIN} cu ON cu.email = c.created_by
                     WHERE c.oid = $1`,
             values: [oid],
@@ -44,7 +45,7 @@ const get_campaign_details = async (request, res) => {
                                  FROM ${TABLE.GIVEAWAY} g WHERE g.campaign_partner_oid = cp.oid) AS giveaways,
                               -- past_due is only a hint (REQ-12): nothing changes the status by itself.
                               (SELECT COALESCE(json_agg(json_build_object('oid', d.oid, 'kind', d.kind, 'quantity', d.quantity, 'due_on', to_char(d.due_on, 'YYYY-MM-DD'), 'status', d.status,
-                                                'link', d.link, 'posted_on', to_char(d.posted_on, 'YYYY-MM-DD'), 'note', d.note, 'past_due', d.status = 'Pending' AND d.due_on < ${business_today}) ORDER BY d.due_on, d.created_on), '[]'::json)
+                                                'link', d.link, 'posted_on', to_char(d.posted_on, 'YYYY-MM-DD'), 'note', d.note, 'version', d.xmin::text, 'past_due', d.status = 'Pending' AND d.due_on < ${business_today}) ORDER BY d.due_on, d.created_on), '[]'::json)
                                  FROM ${TABLE.CAMPAIGN_DELIVERABLE} d WHERE d.campaign_partner_oid = cp.oid) AS deliverables
                          FROM ${TABLE.CAMPAIGN_PARTNER} cp JOIN ${TABLE.PARTNER} pt ON pt.oid = cp.partner_oid
                         WHERE cp.campaign_oid = $1

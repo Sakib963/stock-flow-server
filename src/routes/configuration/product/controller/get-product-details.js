@@ -1,6 +1,7 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { sees_money } = require("../../../inventory/utils/sees-money");
 const { read_recent_sales } = require("../utils/recent-sales");
@@ -10,7 +11,7 @@ const DETAILS_SQL = `
              p.category_oid, c.name AS category_name, p.sub_category_oid, s.name AS sub_category_name, p.brand_oid, b.name AS brand_name,
              p.created_by, p.created_on, p.edited_by, p.edited_on,
              COALESCE(p.edited_on, p.created_on) AS last_action_on,
-             COALESCE(p.edited_by, p.created_by) AS last_action_by
+             COALESCE(p.edited_by, p.created_by) AS last_action_by, p.${VERSION}
       FROM ${TABLE.PRODUCT} p
       LEFT JOIN ${TABLE.CATEGORIES} c ON c.oid = p.category_oid
       LEFT JOIN ${TABLE.SUB_CATEGORIES} s ON s.oid = p.sub_category_oid

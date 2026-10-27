@@ -1,8 +1,9 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale, columns_version } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { bump_config_version } = require("../../../../utils/config-version");
-const { invalidateSettings } = require("../../../../utils/settings-cache");
+const { SETTINGS_FORM, invalidateSettings } = require("../../../../utils/settings-cache");
 const { log } = require("../../../../utils/log");
 
 // Only the fields the page sends are written; the rest of the row is left as it is. The version bump
@@ -13,12 +14,15 @@ const update_settings = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const saved = await execute_transaction(async (tx) => {
+            const [settings] = await tx.get_data({ text: `SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` });
+            if (!settings) fail(409, "The business settings are missing. Ask support to set them up.");
+            await refuse_stale(tx, { table: TABLE.SETTINGS, oid: settings.oid, version: p.version, columns: SETTINGS_FORM.business, gone: "The business settings are missing. Ask support to set them up." });
             const updated = await tx.execute_value({
                 text: `UPDATE ${TABLE.SETTINGS}
                           SET name = $1, logo_url = $2, address = $3, phone_primary = $4, phone_secondary = $5,
                               website = $6, facebook_url = $7, instagram_url = $8, edited_by = $9, edited_on = clock_timestamp()
                         WHERE oid = (SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1)
-                    RETURNING oid, name, logo_url, address, phone_primary, phone_secondary, website, facebook_url, instagram_url, edited_on, edited_by`,
+                    RETURNING oid, name, logo_url, address, phone_primary, phone_secondary, website, facebook_url, instagram_url, edited_on, edited_by, ${columns_version(SETTINGS_FORM.business)} AS version`,
                 values: [p.name, p.logo_url, p.address, p.phone_primary, p.phone_secondary, p.website, p.facebook_url, p.instagram_url, user_id],
             });
             if (updated.rowCount !== 1) fail(409, "The business settings are missing. Ask support to set them up.");

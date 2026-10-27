@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { sees_money } = require("../../utils/sees-money");
@@ -12,7 +13,7 @@ const DETAILS_SQL = `
              s.verified_on, s.verified_by, vu.name AS verified_by_name,
              s.rejected_on, s.rejected_by, ru.name AS rejected_by_name,
              s.cancelled_on, s.cancelled_by, xu.name AS cancelled_by_name,
-             t.line_count, t.units_in, t.units_out, t.value_in, t.value_out
+             t.line_count, t.units_in, t.units_out, t.value_in, t.value_out, s.${VERSION}
         FROM ${TABLE.STOCK_ADJUSTMENT} s
         LEFT JOIN ${TABLE.LOGIN} cu ON cu.email = s.created_by
         LEFT JOIN ${TABLE.LOGIN} su ON su.email = s.submitted_by

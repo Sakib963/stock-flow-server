@@ -16,6 +16,7 @@ const get_settings = async (request, res) => {
             instagram_url: row.instagram_url ?? null,
             edited_on: row.edited_on ?? null,
             edited_by: row.edited_by ?? null,
+            version: row.business_version ?? null,
         };
         return res.status(200).json({ code: 200, message: "Settings", data });
     } catch (e) {

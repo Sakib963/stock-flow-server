@@ -1,6 +1,7 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { business_day, business_today } = require("../../../../utils/business-time");
 
@@ -16,7 +17,7 @@ const DETAILS_SQL = `
              p.created_on, p.created_by, cu.name AS created_by_name,
              p.verified_on, p.verified_by, vu.name AS verified_by_name,
              p.cancelled_on, p.cancelled_by, xu.name AS cancelled_by_name,
-             COALESCE(p.edited_on, p.created_on) AS last_action_on
+             COALESCE(p.edited_on, p.created_on) AS last_action_on, p.${VERSION}
         FROM ${TABLE.PURCHASE} p
         JOIN ${TABLE.SUPPLIER} s ON s.oid = p.supplier_oid
         LEFT JOIN ${TABLE.LOGIN} cu ON cu.email = p.created_by

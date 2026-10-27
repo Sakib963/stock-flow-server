@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { duplicate_conflict } = require("../utils/duplicate");
@@ -16,6 +17,7 @@ const update_product_details = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.PRODUCT, oid: payload.oid, version: payload.version, gone: NOT_FOUND });
                   const rows = await tx.get_data({
                         text: `SELECT name, sku, category_oid, sub_category_oid, brand_oid, unit_type, description, photo, restock_threshold::int AS restock_threshold, status, has_expiry
                                FROM ${TABLE.PRODUCT} WHERE oid = $1 AND is_deleted = FALSE FOR UPDATE`,

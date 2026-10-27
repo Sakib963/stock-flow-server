@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { POSTED_ON, lock_line } = require("../utils/deliverable-line");
@@ -10,6 +11,7 @@ const update_campaign_deliverable = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.CAMPAIGN_DELIVERABLE, oid: d.oid, version: d.version, gone: "That promised post no longer exists. Reload the campaign." });
             const line = await lock_line(tx, { deliverable_oid: d.oid });
             const updated = await tx.execute_value({
                 text: `UPDATE ${TABLE.CAMPAIGN_DELIVERABLE}
@@ -22,7 +24,7 @@ const update_campaign_deliverable = async (request, res) => {
         });
         return res.status(200).json({ code: 200, message: "Promised post saved", data: { oid: d.oid } });
     } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
         log.error(`An exception occurred while updating promised post ${d.oid}: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not save the promised post. Try again in a moment." });
     }

@@ -63,6 +63,7 @@ const customer_create_schema = Joi.object({
 
 const customer_update_schema = Joi.object({
     oid: Joi.string().uuid().required(),
+    version: Joi.string().pattern(/^\d+$/).required(),
     ...customer_fields,
     status: Joi.string().valid("Active", "Inactive").required(),
 });
@@ -80,6 +81,7 @@ const address_create_schema = Joi.object({
 
 const address_update_schema = Joi.object({
     oid: Joi.string().uuid().required(),
+    version: Joi.string().pattern(/^\d+$/).required(),
     ...address_fields,
 });
 

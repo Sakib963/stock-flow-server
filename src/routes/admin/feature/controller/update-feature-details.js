@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { bump_config_version } = require("../../../../utils/config-version");
@@ -12,6 +13,7 @@ const update_feature_details = async (request, res) => {
     let changes = [];
     try {
         await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.MENU_ITEM, oid: payload.oid, version: payload.version, gone: "That feature is not in the registry." });
             const [row] = await tx.get_data({
                 text: `SELECT label, label_bn, description_en, description_bn, tags, is_new FROM ${TABLE.MENU_ITEM} WHERE oid = $1 FOR UPDATE`,
                 values: [payload.oid],
@@ -35,7 +37,7 @@ const update_feature_details = async (request, res) => {
             );
         });
     } catch (e) {
-        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+        if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
         log.error(`An exception occurred while updating feature ${payload.oid}: ${e?.message}`);
         return res.status(500).json({ code: 500, message: "Could not save the feature. Try again in a moment." });
     }

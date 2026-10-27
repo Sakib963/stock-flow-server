@@ -15,6 +15,8 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const app = require("../../server");
 const pool = require("../../src/db/db.config");
+const { columns_version } = require("../../src/db/stale-edit");
+const { SETTINGS_FORM } = require("../../src/utils/settings-cache");
 const { CONTEXTS, SUB_CONTEXTS, ROUTES } = require("../../src/utils/constant");
 
 const PASSWORD = "Counter-sale-2026";
@@ -31,6 +33,12 @@ const ROUTE = {
     VERIFY_PASSWORD_CHANGE: CONTEXTS.PROFILE + SUB_CONTEXTS.CHANGE_PASSWORD + ROUTES.VERIFY_OTP_FOR_PASSWORD_CHANGE,
     SWITCH_USER_STATUS: CONTEXTS.ADMIN + SUB_CONTEXTS.USER + ROUTES.SWITCH_USER_STATUS,
 };
+
+// The table behind each edit that refuses a stale form. A test that sends no version edits the way a
+// freshly opened form does, with the row's version as it is now; a test sends an old one on purpose.
+const STALE_GUARDED = Object.entries(require("./stale-guarded")).map(([key, table]) => [ROUTES[key], table]);
+
+const guarded_table = (route) => STALE_GUARDED.find(([suffix]) => route.endsWith(suffix))?.[1];
 
 let server;
 let base;
@@ -76,7 +84,29 @@ const json_or_text = (text) => {
     }
 };
 
-const call = async (route, { method = "POST", body, token, cookie, headers: extra = {} } = {}) => {
+// The settings row has one version per form, over that form's own columns.
+const settings_version = (form) => query(`SELECT ${columns_version(SETTINGS_FORM[form])} AS version FROM settings ORDER BY created_on LIMIT 1`).then((rows) => rows[0]?.version ?? "0");
+const current_version = (table, oid) => (table.startsWith("settings.") ? settings_version(table.split(".")[1]) : version_of(table, oid));
+
+// Every edit a test makes is first sent once more from an old form, version "1", which no live row
+// carries. It must be refused as changed since loaded and leave the row as it was, so each guarded
+// edit is proven by every test that already exercises it. A refusal for another reason (no
+// permission, a body the schema rejects, a record that is not there) says nothing either way.
+const call = async (route, options = {}) => {
+    const { method = "POST", body } = options;
+    const table = method === "POST" && body && !("version" in body) && guarded_table(route);
+    if (!table) return send(route, options);
+    const before = await current_version(table, body.oid);
+    const stale = await send(route, { ...options, body: { ...body, version: "1" } });
+    if (![400, 401, 403, 404].includes(stale.status)) {
+        assert.equal(stale.status, 409, `${route} took an edit from a form opened before someone else saved: ${JSON.stringify(stale.body)}`);
+        assert.equal(stale.body?.data?.reason, "changed_since_loaded", `${route} refused a stale edit for another reason: ${JSON.stringify(stale.body)}`);
+        assert.equal(await current_version(table, body.oid), before, `${route} wrote to the row while refusing a stale edit`);
+    }
+    return send(route, { ...options, body: { ...body, version: before } });
+};
+
+const send = async (route, { method = "POST", body, token, cookie, headers: extra = {} } = {}) => {
     const headers = { ...extra };
     if (method !== "GET") headers["content-type"] = "application/json";
     if (token) headers.authorization = `Bearer ${token}`;
@@ -133,4 +163,7 @@ const eventually = async (read, accept, { tries = 20, every = 50 } = {}) => {
 /** The running server, for a test that reads a response as bytes rather than JSON. */
 const url = () => base;
 
-module.exports = { url, ROUTE, PASSWORD, start, stop, query, reset, seed_user, call, sign_in, refresh, refresh_token_of, hash, sign_token, session, token_row, events, eventually };
+// The row version a form would have loaded, for an edit to send back.
+const version_of = async (table, oid) => (await query(`SELECT xmin::text AS version FROM ${table} WHERE oid = $1`, [oid]))[0]?.version ?? "0";
+
+module.exports = { version_of, url, ROUTE, PASSWORD, start, stop, query, reset, seed_user, call, sign_in, refresh, refresh_token_of, hash, sign_token, session, token_row, events, eventually };

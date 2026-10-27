@@ -1,13 +1,14 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { read_product_stock_stats } = require("../../utils/product-stock-stats");
 
 const DETAILS_SQL = `
       SELECT oid, name, description, origin_country, status, created_by, created_on, edited_by, edited_on,
              COALESCE(edited_on, created_on) AS last_action_on,
-             COALESCE(edited_by, created_by) AS last_action_by
+             COALESCE(edited_by, created_by) AS last_action_by, ${VERSION}
       FROM ${TABLE.BRANDS}
       WHERE oid = $1`;
 

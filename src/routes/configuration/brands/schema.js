@@ -28,6 +28,7 @@ const brand_create_schema = Joi.object(brand_fields);
 
 const brand_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...brand_fields,
 });
 

@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { addOrders, takenElsewhere } = require("../utils/batch-writes");
@@ -7,10 +8,11 @@ const { addOrders, takenElsewhere } = require("../utils/batch-writes");
 // While a batch is Open its orders change freely (REQ-04): a parcel pulled at the last minute is taken
 // out, and one confirmed since is added.
 const update_delivery_batch_orders = async (request, res) => {
-    const { oid, order_oids } = request.body;
+    const { oid, version, order_oids } = request.body;
     const user_id = request.credentials.user_id;
     try {
         const outcome = await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.DELIVERY_BATCH, oid, version, gone: "No delivery batch with that number." });
             const [batch] = await tx.get_data({ text: `SELECT batch_no, status FROM ${TABLE.DELIVERY_BATCH} WHERE oid = $1 FOR UPDATE`, values: [oid] });
             if (!batch) fail(404, "No delivery batch with that number.");
             if (batch.status !== "Open") fail(409, `${batch.batch_no} is ${batch.status === "HandedOver" ? "already handed to the courier" : "cancelled"}, so its orders stay as they are.`, { status: batch.status });

@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { ORDER_COLUMNS, ORDER_FROM } = require("../utils/batch-orders");
 const { PARCELS, STATUS } = require("../utils/batch-list");
@@ -9,7 +10,7 @@ const get_delivery_batch_details = async (request, res) => {
     try {
         const [batch] = await get_data({
             text: `SELECT b.oid, b.batch_no, b.courier, ${STATUS} AS status, b.note, b.cancel_note, b.created_on, COALESCE(c.name, b.created_by) AS created_by,
-                          b.handed_over_on, COALESCE(h.name, b.handed_over_by) AS handed_over_by, b.cancelled_on
+                          b.handed_over_on, COALESCE(h.name, b.handed_over_by) AS handed_over_by, b.cancelled_on, b.${VERSION}
                      FROM ${TABLE.DELIVERY_BATCH} b ${PARCELS}
                      LEFT JOIN ${TABLE.LOGIN} c ON c.email = b.created_by
                      LEFT JOIN ${TABLE.LOGIN} h ON h.email = b.handed_over_by

@@ -1,17 +1,21 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale, columns_version } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { bump_config_version } = require("../../../../utils/config-version");
-const { invalidateSettings } = require("../../../../utils/settings-cache");
+const { SETTINGS_FORM, invalidateSettings } = require("../../../../utils/settings-cache");
 const { invalidate_location_index } = require("../../location/utils/location-index");
 const { log } = require("../../../../utils/log");
 
 // The two delivery charges an online order is suggested from, and the district they are measured
 // from (sales REQ-39). Each order's charge can still be changed on the order.
 const update_delivery_charges = async (request, res) => {
-    const { home_district_oid, delivery_charge_inside, delivery_charge_outside } = request.body;
+    const { version, home_district_oid, delivery_charge_inside, delivery_charge_outside } = request.body;
     try {
         const saved = await execute_transaction(async (tx) => {
+            const [settings] = await tx.get_data({ text: `SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1` });
+            if (!settings) fail(409, "The business settings are missing. Ask support to set them up.");
+            await refuse_stale(tx, { table: TABLE.SETTINGS, oid: settings.oid, version, columns: SETTINGS_FORM.delivery, gone: "The business settings are missing. Ask support to set them up." });
             const [district] = await tx.get_data({ text: `SELECT oid, name_en, name_bn FROM ${TABLE.DISTRICT} WHERE oid = $1 AND status = 'Active'`, values: [home_district_oid] });
             if (!district) fail(400, "That district is not in the list. Pick it again.", { field: "home_district_oid" });
 
@@ -19,14 +23,14 @@ const update_delivery_charges = async (request, res) => {
                 text: `UPDATE ${TABLE.SETTINGS}
                           SET home_district_oid = $1, delivery_charge_inside = $2, delivery_charge_outside = $3, edited_by = $4, edited_on = clock_timestamp()
                         WHERE oid = (SELECT oid FROM ${TABLE.SETTINGS} ORDER BY created_on LIMIT 1)
-                    RETURNING oid`,
+                    RETURNING oid, ${columns_version(SETTINGS_FORM.delivery)} AS version`,
                 values: [home_district_oid, delivery_charge_inside, delivery_charge_outside, request.credentials.user_id],
             });
             if (updated.rowCount !== 1) fail(409, "The business settings are missing. Ask support to set them up.");
 
             await bump_config_version(tx);
             await saveLogActivity({ reference_type: "settings", reference_oid: updated.rows[0].oid, title: "Updated delivery charges", description: `${district.name_en}: ${delivery_charge_inside} inside, ${delivery_charge_outside} outside` }, { tx, request });
-            return { home_district: district, delivery_charge_inside, delivery_charge_outside };
+            return { home_district: district, delivery_charge_inside, delivery_charge_outside, settings_version: updated.rows[0].version };
         });
 
         invalidateSettings();

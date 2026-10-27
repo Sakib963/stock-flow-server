@@ -5,7 +5,7 @@ const { TABLE } = require("../../../../utils/constant");
 // sell, counting the units this order already holds as its own), and the address with its places named.
 const read_orders_for_form = (get_data, where, values) =>
     get_data({
-        text: `SELECT o.oid, o.invoice_no, o.draft_label, o.customer_name, o.customer_phone, o.notes, o.payment_type, o.payment_method, o.payment_reference,
+        text: `SELECT o.oid, o.xmin::text AS version, o.invoice_no, o.draft_label, o.customer_name, o.customer_phone, o.notes, o.payment_type, o.payment_method, o.payment_reference,
                       o.amount_paid::int AS amount_paid, o.delivery_charge::int AS delivery_charge, o.total_amount::int AS total_amount, o.created_on, saver.name AS saved_by,
                       oo.source_oid, oo.customer_address_oid, oo.recipient_name, oo.recipient_phone, oo.address_line, oo.area_text, oo.postal_code,
                       oo.district_oid, d.name_en AS district_name_en, d.name_bn AS district_name_bn, oo.thana_oid, t.name_en AS thana_name_en, t.name_bn AS thana_name_bn,

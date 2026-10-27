@@ -3,7 +3,7 @@ const { ROUTES } = require("../../../utils/constant");
 const jwtMiddleware = require("../../../middleware/validate-jwt");
 const requirePermission = require("../../../middleware/require-permission");
 const { validator } = require("../../../middleware/validator");
-const { online_order_setup_schema, chat_message_schema, create_online_order_schema, online_draft_schema, online_drafts_schema, online_draft_oid_schema } = require("./schema");
+const { online_order_setup_schema, chat_message_schema, create_online_order_schema, edit_online_order_schema, online_draft_schema, online_drafts_schema, online_draft_oid_schema } = require("./schema");
 const get_online_order_setup = require("./controller/get-online-order-setup");
 const read_chat_message = require("./controller/read-chat-message");
 const { create_online_order, edit_online_order } = require("./controller/create-online-order");
@@ -21,7 +21,7 @@ router.get(ROUTES.GET_ONLINE_ORDER_SETUP, [jwtMiddleware, requirePermission("sal
 router.post(ROUTES.READ_CHAT_MESSAGE, [jwtMiddleware, requirePermission(["sales.online.create", "sales.pre-order.create", "sales.pre-order.edit"]), validator.post(chat_message_schema)], read_chat_message);
 
 router.post(ROUTES.CREATE_ONLINE_ORDER, [jwtMiddleware, requirePermission("sales.online.create"), validator.post(create_online_order_schema)], create_online_order);
-router.post(ROUTES.EDIT_ONLINE_ORDER, [jwtMiddleware, requirePermission("sales.order.edit"), online_sellers, validator.post(create_online_order_schema)], edit_online_order);
+router.post(ROUTES.EDIT_ONLINE_ORDER, [jwtMiddleware, requirePermission("sales.order.edit"), online_sellers, validator.post(edit_online_order_schema)], edit_online_order);
 router.get(ROUTES.GET_ONLINE_ORDER_FOR_EDIT, [jwtMiddleware, requirePermission("sales.order.edit"), online_sellers, validator.get(online_draft_oid_schema)], get_online_order_for_edit);
 
 router.post(ROUTES.SAVE_ONLINE_DRAFT, [jwtMiddleware, requirePermission("sales.online.create"), validator.post(online_draft_schema)], save_online_draft);

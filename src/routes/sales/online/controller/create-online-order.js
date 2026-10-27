@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { holdStock, releaseHolds } = require("../../utils/stock-movement");
@@ -57,6 +58,7 @@ const write_online_order = (editing) => async (request, res) => {
                 booking = await lockBooking(tx, payload.pre_order_oid);
             }
             if (editing) {
+                await refuse_stale(tx, { table: TABLE.ORDERS, oid: payload.oid, version: payload.version, gone: "That order no longer exists." });
                 [kept] = await tx.get_data({ text: `SELECT invoice_no, tracking_token, pre_order_oid FROM ${TABLE.ORDERS} WHERE oid = $1 AND channel = 'ONLINE' AND status = 'Pending' FOR UPDATE`, values: [payload.oid] });
                 if (!kept) await refuse_change(tx, payload.oid, "edited");
                 // An order made from a booking keeps the booking's rules through every edit: its units and its advance.

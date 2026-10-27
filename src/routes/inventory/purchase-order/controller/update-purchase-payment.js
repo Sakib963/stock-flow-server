@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { taka, resolve_paid } = require("../utils/order-rules");
@@ -16,6 +17,7 @@ const update_purchase_payment = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.PURCHASE, oid: payload.oid, version: payload.version, gone: "That purchase order no longer exists." });
                   const [order] = await tx.get_data({
                         text: `SELECT po_number, status, total_amount::bigint AS total_amount, payment_status, paid_amount::bigint AS paid_amount FROM ${TABLE.PURCHASE} WHERE oid = $1 FOR UPDATE`,
                         values: [payload.oid],

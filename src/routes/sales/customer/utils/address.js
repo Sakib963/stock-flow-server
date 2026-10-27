@@ -54,7 +54,7 @@ const read_addresses = (customer_oid) =>
         text: `SELECT a.oid, a.label, a.recipient_name, a.recipient_phone, a.address_line, a.area_oid, a.area_text, a.postal_code, a.is_default,
                       a.district_oid, d.name_en AS district_name_en, d.name_bn AS district_name_bn,
                       a.thana_oid, t.name_en AS thana_name_en, t.name_bn AS thana_name_bn,
-                      ar.name_en AS area_name_en, ar.name_bn AS area_name_bn
+                      ar.name_en AS area_name_en, ar.name_bn AS area_name_bn, a.xmin::text AS version
                  FROM ${TABLE.CUSTOMER_ADDRESS} a
                  LEFT JOIN ${TABLE.DISTRICT} d ON d.oid = a.district_oid
                  LEFT JOIN ${TABLE.THANA} t ON t.oid = a.thana_oid

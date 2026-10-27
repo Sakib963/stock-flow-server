@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { duplicate_conflict } = require("../utils/duplicate");
@@ -14,6 +15,7 @@ const update_warehouse_details = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.WAREHOUSE, oid: payload.oid, version: payload.version, gone: GONE });
                   const rows = await tx.get_data({
                         text: `SELECT name, code, location, capacity_units, status FROM ${TABLE.WAREHOUSE} WHERE oid = $1 FOR UPDATE`,
                         values: [payload.oid],
@@ -46,7 +48,7 @@ const update_warehouse_details = async (request, res) => {
                   );
             });
       } catch (e) {
-            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
 
             const conflict = duplicate_conflict(e);
             if (conflict) {

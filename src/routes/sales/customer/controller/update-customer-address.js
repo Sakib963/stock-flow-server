@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { check_place, clear_default, describe_address } = require("../utils/address");
@@ -15,6 +16,7 @@ const update_customer_address = async (request, res) => {
             const [owner] = await tx.get_data({ text: `SELECT customer_oid FROM ${TABLE.CUSTOMER_ADDRESS} WHERE oid = $1`, values: [payload.oid] });
             if (!owner) fail(404, "That address no longer exists.");
             await tx.get_data({ text: `SELECT oid FROM ${TABLE.CUSTOMERS} WHERE oid = $1 FOR UPDATE`, values: [owner.customer_oid] });
+            await refuse_stale(tx, { table: TABLE.CUSTOMER_ADDRESS, oid: payload.oid, version: payload.version, gone: "That address no longer exists." });
             const [current] = await tx.get_data({
                 text: `SELECT a.customer_oid, a.status, ${FIELDS.map((f) => `a.${f}`).join(", ")}
                          FROM ${TABLE.CUSTOMER_ADDRESS} a

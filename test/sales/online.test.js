@@ -344,7 +344,9 @@ describe("the online order page's helpers", () => {
     it("gives the sources in use and the two delivery charges", async () => {
         const res = await h.call(SETUP, { method: "GET", token });
         assert.equal(res.status, 200);
-        assert.deepEqual(res.body.data, { sources: [{ oid: SOURCE, platform: "Facebook", name: "Facebook page" }], delivery_charge_inside: 60, delivery_charge_outside: 120, home_district: { oid: "BD-Dhaka", name_en: "Dhaka", name_bn: "ঢাকা" }, logo_url: null });
+        const { settings_version, ...setup } = res.body.data;
+        assert.deepEqual(setup, { sources: [{ oid: SOURCE, platform: "Facebook", name: "Facebook page" }], delivery_charge_inside: 60, delivery_charge_outside: 120, home_district: { oid: "BD-Dhaka", name_en: "Dhaka", name_bn: "ঢাকা" }, logo_url: null });
+        assert.match(settings_version, /^[0-9a-f]{32}$/, "the delivery charges form sends it back");
     });
 
     it("reads a pasted message into phone, name, address and the places it can mean, with the customer behind the phone", async () => {

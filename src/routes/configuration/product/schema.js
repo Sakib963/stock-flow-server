@@ -54,6 +54,7 @@ const product_create_schema = Joi.object({ ...product_fields, has_expiry: Joi.bo
 // Left out, the product keeps its setting: an older client must not switch expiry off by omission.
 const product_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...product_fields,
       has_expiry: Joi.boolean().optional(),
 });

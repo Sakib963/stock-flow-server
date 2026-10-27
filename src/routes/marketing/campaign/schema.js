@@ -49,7 +49,7 @@ const campaign_fields = {
 // The oid is made by the client, so a save repeated after a lost answer finds the campaign it made.
 const create_campaign_schema = Joi.object({ oid: Joi.string().uuid().required(), ...campaign_fields });
 
-const update_campaign_schema = Joi.object({ oid: Joi.string().uuid().required(), ...campaign_fields });
+const update_campaign_schema = Joi.object({ oid: Joi.string().uuid().required(), version: Joi.string().pattern(/^\d+$/).required(), ...campaign_fields });
 
 // One promised piece of work (REQ-11). Posted and Late carry the day it went up; the server fills
 // today when none is given. Pending and Missed carry none.
@@ -65,7 +65,7 @@ const deliverable_fields = {
 
 const create_deliverable_schema = Joi.object({ oid: Joi.string().uuid().required(), campaign_partner_oid: Joi.string().uuid().required(), ...deliverable_fields });
 
-const update_deliverable_schema = Joi.object({ oid: Joi.string().uuid().required(), ...deliverable_fields });
+const update_deliverable_schema = Joi.object({ oid: Joi.string().uuid().required(), version: Joi.string().pattern(/^\d+$/).required(), ...deliverable_fields });
 
 const deliverable_oid_schema = Joi.object({ oid: Joi.string().uuid().required() });
 

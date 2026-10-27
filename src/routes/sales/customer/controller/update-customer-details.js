@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { phone_taken, phone_conflict } = require("../utils/duplicate");
@@ -12,6 +13,7 @@ const update_customer_details = async (request, res) => {
     let changed = true;
     try {
         await execute_transaction(async (tx) => {
+            await refuse_stale(tx, { table: TABLE.CUSTOMERS, oid: payload.oid, version: payload.version, gone: "That customer no longer exists." });
             const [current] = await tx.get_data({ text: `SELECT ${FIELDS.join(", ")} FROM ${TABLE.CUSTOMERS} WHERE oid = $1 FOR UPDATE`, values: [payload.oid] });
             if (!current) fail(404, "That customer no longer exists.");
 

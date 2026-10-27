@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { check_lines, insert_lines, delete_lines, write_totals, describe } = require("../utils/dispose-rules");
@@ -19,6 +20,7 @@ const update_product_dispose = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.PRODUCT_DISPOSE, oid: payload.oid, version: payload.version, gone: "That disposal no longer exists." });
                   const [disposal] = await tx.get_data({ text: `SELECT dispose_no, status, disposal_method, notes FROM ${TABLE.PRODUCT_DISPOSE} WHERE oid = $1 FOR UPDATE`, values: [payload.oid] });
                   if (!disposal) fail(404, "That disposal no longer exists.");
                   if (disposal.status !== "Draft" && disposal.status !== "Submitted") fail(409, `This disposal is ${disposal.status} and can no longer be edited.`, { status: disposal.status });

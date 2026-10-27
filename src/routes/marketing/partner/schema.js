@@ -36,6 +36,7 @@ const partner_create_schema = Joi.object(partner_fields);
 
 const partner_update_schema = Joi.object({
     oid: Joi.string().uuid().required(),
+    version: Joi.string().pattern(/^\d+$/).required(),
     ...partner_fields,
 });
 

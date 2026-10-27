@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { sees_money } = require("../../utils/sees-money");
@@ -13,7 +14,7 @@ const DETAILS_SQL = `
              d.approved_on, d.approved_by, au.name AS approved_by_name,
              d.rejected_on, d.rejected_by, ru.name AS rejected_by_name,
              d.cancelled_on, d.cancelled_by, xu.name AS cancelled_by_name,
-             t.line_count, t.units, t.value
+             t.line_count, t.units, t.value, d.${VERSION}
         FROM ${TABLE.PRODUCT_DISPOSE} d
         LEFT JOIN ${TABLE.LOGIN} cu ON cu.email = d.created_by
         LEFT JOIN ${TABLE.LOGIN} su ON su.email = d.submitted_by

@@ -66,6 +66,7 @@ const purchase_order_create_schema = Joi.object({
 // payment was recorded cannot put the old one back.
 const purchase_order_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...order_fields,
       payment_status: optional(Joi.string().valid(...PAYMENT_STATUSES)),
       paid_amount: Joi.number().integer().min(0).allow(null).optional(),
@@ -73,6 +74,7 @@ const purchase_order_update_schema = Joi.object({
 
 const purchase_order_payment_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...payment_fields,
 });
 

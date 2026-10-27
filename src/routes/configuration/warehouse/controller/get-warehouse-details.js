@@ -1,13 +1,14 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { read_warehouse_stats } = require("../utils/warehouse-stats");
 
 const DETAILS_SQL = `
       SELECT oid, name, code, location, capacity_units, status, created_by, created_on, edited_by, edited_on,
              COALESCE(edited_on, created_on) AS last_action_on,
-             COALESCE(edited_by, created_by) AS last_action_by
+             COALESCE(edited_by, created_by) AS last_action_by, ${VERSION}
       FROM ${TABLE.WAREHOUSE}
       WHERE oid = $1`;
 

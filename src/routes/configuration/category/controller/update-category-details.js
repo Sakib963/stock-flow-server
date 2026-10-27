@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { saveLogActivity, detectChanges, generateChangeDescription } = require("../../../../utils/activity-logger");
 const { duplicate_conflict } = require("../utils/duplicate");
@@ -16,6 +17,7 @@ const update_category_details = async (request, res) => {
             // change from a snapshot that a concurrent update had already replaced, so the timeline
             // recorded a status change that the row no longer had.
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.CATEGORIES, oid: payload.oid, version: payload.version, gone: "That category no longer exists. It may have been removed." });
                   const rows = await tx.get_data({
                         text: `SELECT name, description, category_code, status FROM ${TABLE.CATEGORIES} WHERE oid = $1 FOR UPDATE`,
                         values: [payload.oid],
@@ -50,7 +52,7 @@ const update_category_details = async (request, res) => {
                   );
             });
       } catch (e) {
-            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message });
+            if (e instanceof TransactionError) return res.status(e.code).json({ code: e.code, message: e.message, data: e.data });
 
             const conflict = duplicate_conflict(e);
             if (conflict) {

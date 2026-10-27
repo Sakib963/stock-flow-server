@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { FROM, KIND, STATE, OWN_STATE, LOCKED } = require("../utils/feature-sql");
@@ -12,7 +13,7 @@ const DETAILS_SQL = `
            ${OWN_STATE} AS own_state,
            p.disabled_message_en AS module_reason_en, p.disabled_message_bn AS module_reason_bn,
            m.created_on, COALESCE(m.edited_on, m.created_on) AS last_action_on,
-           COALESCE(m.edited_by, m.created_by) AS last_action_by, u.name AS last_action_by_name
+           COALESCE(m.edited_by, m.created_by) AS last_action_by, u.name AS last_action_by_name, m.${VERSION}
       FROM ${FROM}
      WHERE m.oid = $1`;
 

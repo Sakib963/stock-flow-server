@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { execute_transaction, TransactionError, fail } = require("../../../../db/database");
+const { refuse_stale } = require("../../../../db/stale-edit");
 const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { taka, order_total, resolve_paid, draft_paid, check_references, insert_lines } = require("../utils/order-rules");
@@ -26,6 +27,7 @@ const update_purchase_order_details = async (request, res) => {
 
       try {
             await execute_transaction(async (tx) => {
+                  await refuse_stale(tx, { table: TABLE.PURCHASE, oid: payload.oid, version: payload.version, gone: GONE });
                   const [order] = await tx.get_data({
                         text: `SELECT po_number, status, supplier_oid, purchase_type, to_char(expected_delivery_date, 'YYYY-MM-DD') AS expected_delivery_date, special_notes, payment_status, paid_amount::bigint AS paid_amount
                                FROM ${TABLE.PURCHASE} WHERE oid = $1 FOR UPDATE`,

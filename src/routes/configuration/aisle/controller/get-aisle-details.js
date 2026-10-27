@@ -1,6 +1,7 @@
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { log } = require("../../../../utils/log");
 const { read_aisle_stock } = require("../utils/aisle-stats");
 
@@ -8,7 +9,7 @@ const DETAILS_SQL = `
       SELECT a.oid, a.name, a.code, a.warehouse_oid, w.name AS warehouse_name, a.storage_type, a.capacity_units, a.special_notes, a.status,
              a.created_by, a.created_on, a.edited_by, a.edited_on,
              COALESCE(a.edited_on, a.created_on) AS last_action_on,
-             COALESCE(a.edited_by, a.created_by) AS last_action_by
+             COALESCE(a.edited_by, a.created_by) AS last_action_by, a.${VERSION}
       FROM ${TABLE.AISLE} a
       JOIN ${TABLE.WAREHOUSE} w ON w.oid = a.warehouse_oid
       WHERE a.oid = $1`;

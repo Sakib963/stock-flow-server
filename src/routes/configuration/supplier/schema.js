@@ -35,6 +35,7 @@ const supplier_create_schema = Joi.object(supplier_fields);
 
 const supplier_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...supplier_fields,
 });
 

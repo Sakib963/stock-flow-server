@@ -1,5 +1,6 @@
 const { TABLE } = require("../../../../utils/constant");
 const { get_data } = require("../../../../db/database");
+const { VERSION } = require("../../../../db/stale-edit");
 const { getLogActivities } = require("../../../../utils/activity-logger");
 const { log } = require("../../../../utils/log");
 const { permissions_for } = require("../../../../middleware/require-permission");
@@ -10,7 +11,7 @@ const get_partner_details = async (request, res) => {
     try {
         const [details] = await get_data({
             text: `SELECT oid, name, partner_type, platforms, handle, phone_number, payment_method, payment_account, note, status,
-                          created_by, created_on, edited_by, edited_on, COALESCE(edited_on, created_on) AS last_action_on
+                          created_by, created_on, edited_by, edited_on, COALESCE(edited_on, created_on) AS last_action_on, ${VERSION}
                      FROM ${TABLE.PARTNER} WHERE oid = $1`,
             values: [oid],
         });

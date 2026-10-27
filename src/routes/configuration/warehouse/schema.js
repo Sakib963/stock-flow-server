@@ -28,6 +28,7 @@ const warehouse_create_schema = Joi.object(warehouse_fields);
 
 const warehouse_update_schema = Joi.object({
       oid: Joi.string().uuid().required(),
+      version: Joi.string().pattern(/^\d+$/).required(),
       ...warehouse_fields,
 });
 

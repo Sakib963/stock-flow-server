@@ -1,0 +1,26 @@
+// The table behind each edit that refuses a stale form, by its ROUTES key. test/stale-edit.test.js
+// fails when a guarded edit is missing here, so every one gets the harness's stale check.
+module.exports = {
+    UPDATE_CATEGORY_DETAILS: "categories",
+    UPDATE_SUB_CATEGORY_DETAILS: "sub_categories",
+    UPDATE_BRANDS_DETAILS: "brands",
+    UPDATE_PRODUCT_DETAILS: "product",
+    UPDATE_SUPPLIER_DETAILS: "supplier",
+    UPDATE_WAREHOUSE_DETAILS: "warehouse",
+    UPDATE_AISLE_DETAILS: "aisle",
+    UPDATE_SETTINGS: "settings.business",
+    UPDATE_DELIVERY_CHARGES: "settings.delivery",
+    UPDATE_FEATURE_DETAILS: "menu_item",
+    UPDATE_PURCHASE_DETAILS: "purchase",
+    UPDATE_PURCHASE_PAYMENT: "purchase",
+    UPDATE_STOCK_ADJUSTMENT: "stock_adjustment",
+    UPDATE_PRODUCT_DISPOSE: "product_dispose",
+    UPDATE_CAMPAIGN: "campaign",
+    UPDATE_CAMPAIGN_DELIVERABLE: "campaign_deliverable",
+    UPDATE_PARTNER_DETAILS: "partner",
+    UPDATE_CUSTOMER_DETAILS: "customers",
+    UPDATE_CUSTOMER_ADDRESS: "customer_address",
+    UPDATE_DELIVERY_BATCH_ORDERS: "delivery_batch",
+    UPDATE_PRE_ORDER: "pre_orders",
+    EDIT_ONLINE_ORDER: "orders",
+};
