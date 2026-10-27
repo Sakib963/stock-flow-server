@@ -1,6 +1,6 @@
 # stock-flow-server: agent guide
 
-Express and PostgreSQL API, no ORM, raw parameterized SQL. Branch `refactor/order-sales-core`. The
+Express and PostgreSQL API, no ORM, raw parameterized SQL. Branch `dev` (work in `feat/` and `fix/` branches off it). The
 workspace guide (`../CLAUDE.md`) holds the business rules, access control, engineering practice and
 writing style; this file holds what is specific to the server. Both apply.
 
