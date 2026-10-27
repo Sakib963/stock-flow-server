@@ -5,12 +5,13 @@ const { business_day } = require("../../../../utils/business-time");
 // Customer money held for stock not yet delivered: the advance kept on an open booking, and on a
 // cancelled one the part still owed back. A converted booking's advance moved to its order.
 const SQL = `
-    SELECT to_char(${business_day("created_on")}, 'YYYY-MM-DD') AS day, preorder_no, customer_name AS customer, customer_phone AS phone, status AS pre_order_status,
-           advance_paid::float AS advance_paid, advance_refunded::float AS advance_refunded,
-           (CASE WHEN status = 'Cancelled' THEN GREATEST(advance_refund_due - advance_refunded, 0) ELSE advance_paid - advance_refunded END)::float AS held_money
-      FROM ${TABLE.PRE_ORDERS}
-     WHERE (status IN ('Pending', 'Confirmed') AND advance_paid > advance_refunded) OR (status = 'Cancelled' AND advance_refund_due > advance_refunded)
-     ORDER BY created_on, preorder_no
+    SELECT to_char(${business_day("po.created_on")}, 'YYYY-MM-DD') AS day, po.preorder_no, c.name AS customer, c.phone, po.status AS pre_order_status,
+           po.advance_paid::float AS advance_paid, po.advance_refunded::float AS advance_refunded,
+           (CASE WHEN po.status = 'Cancelled' THEN GREATEST(po.advance_refund_due - po.advance_refunded, 0) ELSE po.advance_paid - po.advance_refunded END)::float AS held_money
+      FROM ${TABLE.PRE_ORDERS} po
+      LEFT JOIN ${TABLE.CUSTOMERS} c ON c.oid = po.customer_oid
+     WHERE (po.status IN ('Pending', 'Confirmed') AND po.advance_paid > po.advance_refunded) OR (po.status = 'Cancelled' AND po.advance_refund_due > po.advance_refunded)
+     ORDER BY po.created_on, po.preorder_no
      LIMIT $1`;
 
 module.exports = {

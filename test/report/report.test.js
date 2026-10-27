@@ -362,3 +362,18 @@ describe("customer and marketing reports", () => {
         assert.ok(workbook.worksheets.length > 0);
     });
 });
+
+describe("pre-order deposits held", () => {
+    it("names the customer and phone of each booking whose advance is still held", async () => {
+        await h.reset();
+        await h.query("TRUNCATE pre_orders, customers CASCADE");
+        await h.query("INSERT INTO customers (oid, name, phone, status) VALUES ('CU-9', 'Rina', '01711-222333', 'Active')");
+        await h.query("INSERT INTO pre_orders (oid, preorder_no, customer_oid, total_amount, advance_paid, status) VALUES ('PO-9', 'PRE-0009', 'CU-9', 3000, 1000, 'Pending')");
+
+        const res = await sales_report(await person(["report.sales.view", "sales.pre-order.view"]), "pre-order-deposits", "");
+
+        assert.equal(res.status, 200, JSON.stringify(res.body));
+        const row = res.body.data.rows.find((r) => r.preorder_no === "PRE-0009");
+        assert.deepEqual([row.customer, row.phone, row.held_money], ["Rina", "01711-222333", 1000]);
+    });
+});
