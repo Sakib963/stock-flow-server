@@ -34,7 +34,7 @@ const check_rate_limit = async ({ bucket, identifier, limit, window_minutes }) =
 
     try {
         const rows = await get_data({
-            text: `SELECT count(*)::int AS n, min(created_on) AS oldest
+            text: `SELECT count(*)::int AS n, CEIL(EXTRACT(EPOCH FROM min(created_on) + ($3 || ' minutes')::interval - NOW()))::int AS retry
                    FROM ${TABLE.REQUEST_THROTTLE}
                    WHERE bucket = $1 AND identifier = $2 AND created_on > NOW() - ($3 || ' minutes')::interval`,
             values: [bucket, identifier, String(window_minutes)],
@@ -43,10 +43,7 @@ const check_rate_limit = async ({ bucket, identifier, limit, window_minutes }) =
         const used = rows[0]?.n ?? 0;
         if (used >= limit) {
             // Tell the caller when the oldest request in the window falls out of it.
-            const oldest = rows[0]?.oldest ? new Date(rows[0].oldest) : new Date();
-            const freesAt = oldest.getTime() + window_minutes * 60 * 1000;
-            const retry = Math.max(1, Math.ceil((freesAt - Date.now()) / 1000));
-            return { allowed: false, retry_after_seconds: retry };
+            return { allowed: false, retry_after_seconds: Math.max(1, rows[0].retry) };
         }
 
         await execute_value({

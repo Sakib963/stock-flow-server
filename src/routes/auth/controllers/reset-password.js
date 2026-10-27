@@ -47,7 +47,7 @@ const reset_password = async (request, res) => {
             if (!user) fail(404, "No account found with that email address. Check the spelling, or ask your shop admin.");
 
             const codes = await tx.get_data({
-                text: `SELECT oid, otp, attempts, expires_at FROM ${TABLE.OTP_LOG}
+                text: `SELECT oid, otp, attempts, expires_at > LOCALTIMESTAMP AS live FROM ${TABLE.OTP_LOG}
                        WHERE user_id = $1 AND status = 'Active'
                        ORDER BY created_on DESC LIMIT 1`,
                 values: [user.email],
@@ -55,7 +55,7 @@ const reset_password = async (request, res) => {
             const code = codes[0];
 
             if (!code) fail(404, "That code has expired. Send a new one.");
-            if (new Date(code.expires_at) <= new Date()) {
+            if (!code.live) {
                 await tx.execute_value({
                     text: `UPDATE ${TABLE.OTP_LOG} SET status = 'Inactive' WHERE oid = $1`,
                     values: [code.oid],

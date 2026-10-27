@@ -34,8 +34,8 @@ const save_generated_otp = async (user_id) => {
     });
 
     await execute_value({
-      text: `INSERT INTO ${TABLE.OTP_LOG} (oid, user_id, otp, expires_at, status) values ($1, $2, $3, $4, $5)`,
-      values: [otp_oid, user_id, otp, new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000), 'Active'],
+      text: `INSERT INTO ${TABLE.OTP_LOG} (oid, user_id, otp, expires_at, status) values ($1, $2, $3, LOCALTIMESTAMP + make_interval(mins => $4), $5)`,
+      values: [otp_oid, user_id, otp, OTP_TTL_MINUTES, 'Active'],
     });
 
     // The code is deliberately not logged. It used to be written here at info level, which handed
