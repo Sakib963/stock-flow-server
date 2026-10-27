@@ -7,8 +7,7 @@ const { saveLogActivity } = require("../../../../utils/activity-logger");
 const { caller_for, read_role, contact_taken, taken_by_index } = require("../utils/user-rules");
 
 // The password is temporary: must_change_password makes the person set their own before anything
-// else, so whoever created the account never knows the one they use. login.role stays NOT NULL
-// until it is dropped after the release, so it gets an empty string: no access check reads it.
+// else, so whoever created the account never knows the one they use.
 const create_user = async (request, res) => {
     const { name, email, mobile_number, designation, photo, role_oid, password } = request.body;
     const oid = uuidv4();
@@ -19,8 +18,8 @@ const create_user = async (request, res) => {
             const role = await read_role(tx, role_oid, caller);
             await contact_taken(tx, { email, mobile_number });
             await tx.execute_value({
-                text: `INSERT INTO ${TABLE.LOGIN} (oid, email, password, name, mobile_number, designation, photo, role, role_oid, status, must_change_password, created_by)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, '', $8, 'Active', true, $9)`,
+                text: `INSERT INTO ${TABLE.LOGIN} (oid, email, password, name, mobile_number, designation, photo, role_oid, status, must_change_password, created_by)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Active', true, $9)`,
                 values: [oid, email, hashed, name, mobile_number, designation, photo, role_oid, caller.user_id],
             });
             await saveLogActivity({ reference_type: "user", reference_oid: oid, title: "Created user", description: `${name} (${email}) with the ${role.name} role.` }, { tx, request });

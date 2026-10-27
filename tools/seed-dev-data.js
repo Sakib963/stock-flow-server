@@ -827,7 +827,7 @@ const hire_staff = async () => {
         if (!role) throw new Error(`The ${person.role} role is missing. Add it with its grants first.`);
         const password = crypto.randomBytes(24).toString("base64url");
         person.oid = uuidv4();
-        await admin.query("INSERT INTO login (oid, email, password, name, designation, role, status, role_oid, created_by) VALUES ($1, $2, $3, $4, $5, '', 'Active', $6, $7)", [
+        await admin.query("INSERT INTO login (oid, email, password, name, designation, status, role_oid, created_by) VALUES ($1, $2, $3, $4, $5, 'Active', $6, $7)", [
             person.oid,
             person.email,
             await bcrypt.hash(password, 10),
@@ -1145,7 +1145,7 @@ const plan_day = (day) => {
 };
 
 const shift_the_rest = async (since) => {
-    const skip = ["auth_session", "auth_refresh_token", "auth_event", "login_log", "otp_log", "request_throttle", "api_request_log", "config_version"];
+    const skip = ["auth_session", "auth_refresh_token", "auth_event", "otp_log", "request_throttle", "api_request_log", "config_version"];
     const columns = await read(
         `SELECT c.table_name, c.column_name FROM information_schema.columns c JOIN information_schema.tables t ON t.table_name = c.table_name AND t.table_schema = c.table_schema
           WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE' AND c.data_type = 'timestamp without time zone' AND NOT (c.table_name = ANY($1))`,

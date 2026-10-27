@@ -72,7 +72,7 @@ const seed_user = async ({ email = "owner@arithmalabs.test", status = "Active", 
     }
 
     const oid = uuidv4();
-    await query("INSERT INTO login (oid, email, password, name, role, status, role_oid) VALUES ($1, $2, $3, $4, $5, $6, $7)", [oid, email, await bcrypt.hash(PASSWORD, 4), "Test Owner", "Owner", status, role_oid]);
+    await query("INSERT INTO login (oid, email, password, name, status, role_oid) VALUES ($1, $2, $3, $4, $5, $6)", [oid, email, await bcrypt.hash(PASSWORD, 4), "Test Owner", status, role_oid]);
     return { oid, email, password: PASSWORD, role_oid, role_name };
 };
 
