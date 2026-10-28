@@ -17,12 +17,12 @@ jobs:
         env:
             TZ: UTC
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
               with:
                   path: stock-flow-server
 
             # The suite builds its database from ../stock-flow-documents/generated_schema.sql.
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
               with:
                   repository: Sakib963/stock-flow-documents
                   ref: main
@@ -32,7 +32,7 @@ jobs:
             - run: docker compose up -d --wait
               working-directory: stock-flow-server
 
-            - uses: actions/setup-node@v5
+            - uses: actions/setup-node@v7
               with:
                   node-version-file: stock-flow-server/.nvmrc
                   cache: npm
@@ -61,9 +61,9 @@ jobs:
             VERCEL_ORG_ID: team_cug7jOCNgj5YL7PCFu21b3uP
             VERCEL_PROJECT_ID: prj_mbOm6NWMwEuvJIq5fz0TjmAMc8n9
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
 
-            - uses: actions/setup-node@v5
+            - uses: actions/setup-node@v7
               with:
                   node-version-file: .nvmrc
 
