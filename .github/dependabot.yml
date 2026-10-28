@@ -1,4 +1,5 @@
-# Weekly updates as one grouped pull request per ecosystem, tested by CI like any other push.
+# Weekly updates, tested by CI like any other push. Minor and patch updates arrive as one grouped pull
+# request; a major one arrives on its own, because it can need code changes.
 version: 2
 updates:
     - package-ecosystem: npm
@@ -10,6 +11,7 @@ updates:
       groups:
           npm:
               patterns: ['*']
+              update-types: [minor, patch]
     - package-ecosystem: github-actions
       directory: /
       target-branch: dev
