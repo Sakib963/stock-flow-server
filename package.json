@@ -8,11 +8,14 @@
     "dev:local": "node tools/start-local-service.js",
     "test": "node test/support/create-test-db.js && node --test --test-concurrency=1 \"test/**/*.test.js\""
   },
+  "engines": {
+    "node": "24.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
@@ -21,10 +24,13 @@
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.33",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^10.2.1",
     "pg": "^8.13.1",
-    "uuid": "^11.0.3",
+    "uuid": "^11.1.1",
     "winston": "^3.3.3",
     "winston-daily-rotate-file": "^4.5.0"
+  },
+  "overrides": {
+    "uuid": "$uuid"
   }
 }
