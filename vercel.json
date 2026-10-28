@@ -1,6 +1,8 @@
 {
   "version": 2,
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "builds": [
     {
       "src": "server.js",
@@ -12,5 +14,8 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
