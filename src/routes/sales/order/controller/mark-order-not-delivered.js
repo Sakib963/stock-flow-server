@@ -16,6 +16,14 @@ const mark_order_not_delivered = async (request, res) => {
     const user_id = request.credentials.user_id;
     try {
         const { invoice_no, return_oid, return_no } = await execute_transaction(async (tx) => {
+            // The order row is locked before the parcel row, the order Deliver takes them in; the other
+            // way round, pressing both at once deadlocked and one of them answered 500 instead of 409.
+            const [order] = await tx.get_data({
+                text: `SELECT oid, invoice_no, payment_status, delivery_charge::int AS delivery_charge, total_amount::int AS total_amount, amount_paid::int AS amount_paid,
+                              amount_refunded::int AS amount_refunded, refund_due::int AS refund_due
+                         FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`,
+                values: [oid],
+            });
             const failed = await tx.execute_value({
                 text: `UPDATE ${TABLE.ONLINE_ORDER} oo SET delivery_status = 'Failed', edited_by = $1, edited_on = clock_timestamp()
                          FROM ${TABLE.ORDERS} o
@@ -25,12 +33,6 @@ const mark_order_not_delivered = async (request, res) => {
             });
             if (failed.rowCount !== 1) await refuse_change(tx, oid, "recorded as not delivered");
             const { invoice_no } = failed.rows[0];
-            const [order] = await tx.get_data({
-                text: `SELECT oid, invoice_no, payment_status, delivery_charge::int AS delivery_charge, total_amount::int AS total_amount, amount_paid::int AS amount_paid,
-                              amount_refunded::int AS amount_refunded, refund_due::int AS refund_due
-                         FROM ${TABLE.ORDERS} WHERE oid = $1 FOR UPDATE`,
-                values: [oid],
-            });
             await recordStatusHistory(tx, { order_oid: oid, kind: "Delivery", from_status: "WithCourier", to_status: "Failed", reason: note ? `${reason}: ${note}` : reason, user_id });
             await saveLogActivity({ reference_type: "order", reference_oid: oid, title: "Online order not delivered", description: `${invoice_no}, ${reason}` }, { tx, request });
             const parcel = await raiseReturn(tx, request, { oid: uuidv4(), order, items: [], return_reason: "not_delivered", not_delivered_reason: reason, note });
