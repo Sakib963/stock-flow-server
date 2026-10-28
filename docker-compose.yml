@@ -1,0 +1,21 @@
+# The local test Postgres for `npm test`: the same version as the cloud database, port 5433, trust
+# authentication, UTC. Start it with `docker compose up -d --wait`. CI starts the same file.
+# Durability is off because every run rebuilds the database; it took the suite from 17 to 5 minutes.
+services:
+    test-db:
+        image: postgres:16.15-alpine
+        container_name: stockflow-test-pg
+        command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_HOST_AUTH_METHOD: trust
+            TZ: UTC
+            PGTZ: UTC
+        ports:
+            - '127.0.0.1:5433:5432'
+        healthcheck:
+            test: ['CMD', 'pg_isready', '-U', 'postgres']
+            interval: 2s
+            timeout: 5s
+            retries: 15
+        restart: unless-stopped

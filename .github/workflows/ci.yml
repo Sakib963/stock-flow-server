@@ -1,0 +1,48 @@
+name: CI
+
+on:
+    push:
+        branches: [dev, 'feat/**', 'fix/**']
+    pull_request:
+        branches: [dev]
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/dev' }}
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        env:
+            TZ: UTC
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: stock-flow-server
+
+            # The suite builds its database from ../stock-flow-documents/generated_schema.sql.
+            - uses: actions/checkout@v4
+              with:
+                  repository: Sakib963/stock-flow-documents
+                  ref: main
+                  token: ${{ secrets.DOCUMENTS_READ_TOKEN }}
+                  path: stock-flow-documents
+
+            - run: docker compose up -d --wait
+              working-directory: stock-flow-server
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: stock-flow-server/.nvmrc
+                  cache: npm
+                  cache-dependency-path: stock-flow-server/package-lock.json
+
+            - run: npm ci
+              working-directory: stock-flow-server
+
+            - run: npm test
+              working-directory: stock-flow-server
+
+            - run: npm audit --omit=dev --audit-level=high
+              working-directory: stock-flow-server

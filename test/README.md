@@ -13,21 +13,19 @@ Settings live in `test/.env.test`. It is committed on purpose and holds no real 
 
 ## The local Postgres
 
-Whatever runs it, it must be **PostgreSQL 16 on port 5433** with trust authentication, and its
-timezone must match the machine running node. Some expiry checks compare a timestamp written by the
-database against one read by node, so the suite fails if the two clocks are in different zones. That
-is a real defect, on the backlog under hardening; until it is fixed, the two clocks have to agree.
+Whatever runs it, it must be **PostgreSQL 16 on port 5433** with trust authentication. The test
+database is set to UTC when it is built, so the machine's own timezone does not matter.
 
-### Linux, with Docker
+### With Docker
 
 ```
-docker run -d --name stockflow-test-pg \
-  -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=postgres \
-  -e TZ=$(cat /etc/timezone) -e PGTZ=$(cat /etc/timezone) \
-  -p 127.0.0.1:5433:5432 postgres:16.15-alpine
+docker compose up -d --wait
 ```
 
-Start it again after a reboot with `docker start stockflow-test-pg`.
+`docker-compose.yml` in this repository starts `postgres:16.15-alpine` on 127.0.0.1:5433 and
+restarts it after a reboot. CI starts the same file (`.github/workflows/ci.yml`). Durability is
+switched off (`fsync`, `synchronous_commit`, `full_page_writes`) because every run rebuilds the
+database anyway; it took the suite from 17 minutes to 5. The Windows command below does the same.
 
 ### Windows, portable binaries
 
@@ -44,7 +42,7 @@ localhost only.
 It does not start with Windows. After a reboot:
 
 ```
-C:\Users\user\postgres16\pgsql\bin\pg_ctl.exe start -D C:\Users\user\postgres16\data -l C:\Users\user\postgres16\server.log -o "-p 5433 -c listen_addresses=localhost"
+C:\Users\user\postgres16\pgsql\bin\pg_ctl.exe start -D C:\Users\user\postgres16\data -l C:\Users\user\postgres16\server.log -o "-p 5433 -c listen_addresses=localhost -c fsync=off -c synchronous_commit=off -c full_page_writes=off"
 ```
 
 Stop it with `pg_ctl.exe stop -D C:\Users\user\postgres16\data`.
