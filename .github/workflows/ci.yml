@@ -17,12 +17,12 @@ jobs:
         env:
             TZ: UTC
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
               with:
                   path: stock-flow-server
 
             # The suite builds its database from ../stock-flow-documents/generated_schema.sql.
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
               with:
                   repository: Sakib963/stock-flow-documents
                   ref: main
@@ -32,7 +32,7 @@ jobs:
             - run: docker compose up -d --wait
               working-directory: stock-flow-server
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v5
               with:
                   node-version-file: stock-flow-server/.nvmrc
                   cache: npm
