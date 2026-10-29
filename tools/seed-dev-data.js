@@ -16,7 +16,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 process.env.ENV_FILE = process.env.ENV_FILE || path.resolve(__dirname, "../src/env/.env");
-require("dotenv").config({ path: process.env.ENV_FILE });
+require("dotenv").config({ path: process.env.ENV_FILE, quiet: true });
 process.env.PGOPTIONS = "-c search_path=seedclock,public,pg_catalog";
 process.env.ACCESS_TOKEN_SECRET_EXPIRE = "24h";
 

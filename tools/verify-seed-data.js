@@ -4,7 +4,7 @@
 //
 //   DB_HOST=localhost DB_PORT=5433 DB_USER=postgres DB_PASSWORD= DB_NAME=stockflow_seed DB_SSL=false node tools/verify-seed-data.js
 const path = require("path");
-require("dotenv").config({ path: process.env.ENV_FILE || path.resolve(__dirname, "../src/env/.env") });
+require("dotenv").config({ path: process.env.ENV_FILE || path.resolve(__dirname, "../src/env/.env"), quiet: true });
 const { Client } = require("pg");
 
 // Each check returns the rows that break it.

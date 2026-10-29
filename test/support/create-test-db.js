@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Client } = require("pg");
-require("dotenv").config({ path: path.join(__dirname, "../.env.test") });
+require("dotenv").config({ path: path.join(__dirname, "../.env.test"), quiet: true });
 
 const SCHEMA = path.resolve(__dirname, "../../../stock-flow-documents/generated_schema.sql");
 

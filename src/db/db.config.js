@@ -11,7 +11,7 @@ defaults.parseInputDatesAsUTC = true;
 
 // ENV_FILE lets a local dev point at a different env (e.g. ./src/env/.env.local)
 // without touching the committed cloud .env. Defaults to the cloud env.
-require("dotenv").config({ path: process.env.ENV_FILE || `./src/env/.env` });
+require("dotenv").config({ path: process.env.ENV_FILE || `./src/env/.env`, quiet: true });
 
 const pool = new Pool({
   user: process.env.DB_USER,
