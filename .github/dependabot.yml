@@ -8,6 +8,11 @@ updates:
       schedule:
           interval: weekly
       open-pull-requests-limit: 5
+      # uuid 12 and later are ES module only, and Vercel's runtime cannot require them: 14 crashed
+      # the server on start (2026-10-29), though every test passed on a laptop.
+      ignore:
+          - dependency-name: uuid
+            update-types: ['version-update:semver-major']
       groups:
           npm:
               patterns: ['*']
