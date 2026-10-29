@@ -2,7 +2,8 @@
 // returned `value`, which this used to discard. A schema saying `.trim()` then did nothing, and
 // `.max(255)` was measured against a trimmed string while the untrimmed one reached the column.
 // Assigning the converted value back is what makes a schema mean what it says, everywhere at once.
-// `req.query` is a prototype getter in Express 4, so it is filled in place rather than replaced.
+// `req.query` is a getter in Express 5 that parses the URL again on every read, so assigning to it
+// is lost; the converted value is defined on the request instead.
 const post = (schema) => {
       return (req, res, next) => {
             const { error, value } = schema.validate(req.body, { abortEarly: false });
@@ -28,7 +29,7 @@ const get = (schema) => {
                         data: { details: error.details.map((detail) => detail.message) },
                   });
             }
-            Object.assign(req.query, value);
+            Object.defineProperty(req, "query", { value, writable: true, configurable: true, enumerable: true });
             next();
       };
 };
