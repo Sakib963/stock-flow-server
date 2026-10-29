@@ -1,4 +1,6 @@
 const { Pool, types, defaults } = require("pg");
+const { log } = require("../utils/log");
+const { attachDatabasePool } = require("@vercel/functions");
 
 // Stored times are UTC wall clock (timestamp without time zone). Read them as UTC and write Dates as
 // UTC, whatever zone this machine runs in: on a laptop in Dhaka the driver would otherwise shift both
@@ -23,7 +25,10 @@ const pool = new Pool({
   // that reads several things at once run three at a time. See docs/capacity in stock-flow-documents.
   max: 3,
   min: 0, // Allow scaling down to 0 for serverless
-  idleTimeoutMillis: 60000, // 60 seconds before closing idle connections
+  // A frozen copy cannot run its idle timer, so the database closes idle connections itself at 30
+  // seconds, after the pool's 20. Appended to PGOPTIONS because `options` overrides it.
+  idleTimeoutMillis: 20000,
+  options: [process.env.PGOPTIONS, "-c idle_session_timeout=30s"].filter(Boolean).join(" "),
   connectionTimeoutMillis: 10000, // 10 seconds - increased for cloud databases
   maxUses: 7500,
   // Local Postgres has SSL off; set DB_SSL=false to connect without SSL.
@@ -36,9 +41,13 @@ const pool = new Pool({
   keepAliveInitialDelayMillis: 10000, // 10 seconds
 });
 
+// Under Fluid compute this keeps a copy awake until its pool has closed its idle connections, so a
+// copy is frozen holding none.
+attachDatabasePool(pool);
+
 // Handle pool errors to prevent crashes
 pool.on("error", (err, client) => {
-  console.error("❌ Unexpected error on idle client", err);
+  log.warn(`Idle database connection closed: ${err?.code} ${err?.message}`);
   // Don't exit the process, just log the error
 });
 

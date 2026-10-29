@@ -27,8 +27,9 @@ const feature_of = (code) => code.slice(0, code.lastIndexOf("."));
 
 let cached = { version: null, off: null };
 
-const switched_off = async () => {
-    const version = await read_config_version();
+/** `version` is the config version the caller already read, so this needs no read of its own. */
+const switched_off = async (version) => {
+    version ??= await read_config_version();
     if (cached.version === version) return cached.off;
     const rows = await get_data({ text: OFF_SQL });
     const off = new Map(rows.map((r) => [r.is_module ? r.code_or_module : feature_of(r.code_or_module), { en: r.reason_en, bn: r.reason_bn }]));

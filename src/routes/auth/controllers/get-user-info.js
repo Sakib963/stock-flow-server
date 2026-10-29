@@ -75,7 +75,7 @@ const get_user_info = async (request, res) => {
 
         const permissions = permissionRows.map((r) => r.code);
         // The disabled and hidden features among those this person holds, so the web refuses their pages too.
-        const off = await switched_off();
+        const off = await switched_off(configVersion);
         const switchedOff = [...new Set(permissions.map(feature_of))].filter((feature) => off_reason(off, feature));
         const settings = settingsRows[0] ?? {};
 

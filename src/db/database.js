@@ -15,6 +15,7 @@ const retryQuery = async (queryFn, maxRetries = 3) => {
                 error.code === 'ECONNREFUSED' ||
                 error.code === '57P01' || // admin_shutdown
                 error.code === '57P03' || // cannot_connect_now
+                error.code === '57P05' || // idle_session_timeout, a frozen copy's connection the database closed
                 error.code === '08006' || // connection_failure
                 error.code === '08003' || // connection_does_not_exist
                 error.message?.includes('Connection terminated') ||

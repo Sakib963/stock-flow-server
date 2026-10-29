@@ -46,18 +46,17 @@ const permissions_for = async (user_id) => {
 const requirePermission = (code) => async (request, res, next) => {
     const codes = Array.isArray(code) ? code : [code];
     try {
-        const user_id = request?.credentials?.user_id;
-        if (!user_id) {
+        const { user_id, permissions: held, config_version } = request?.credentials ?? {};
+        if (!user_id || !held) {
             // requirePermission placed before jwtMiddleware, which is a wiring mistake rather than
             // a rejected user. Fail closed and make it loud.
             log.error(`requirePermission('${code}') ran with no credentials. Check middleware order.`);
             return res.status(401).json({ code: 401, message: "Unauthorized" });
         }
 
-        const held = await permissions_for(user_id);
         const usable = codes.filter((c) => held.has(c));
         if (usable.length) {
-            const off = await switched_off();
+            const off = await switched_off(config_version);
             if (usable.some((c) => !off_reason(off, feature_of(c)))) return next();
             const reason = off_reason(off, feature_of(usable[0]));
             log.warn(`Switched off: ${user_id} asked for ${code}`);

@@ -37,7 +37,12 @@ const jwtMiddleware = async (request, res, next) => {
 
     try {
         const rows = await get_data({
-            text: `SELECT l.email, l.must_change_password, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version, ${REFERENCE_VERSION_SQL} AS reference_version
+            // The permissions ride in this read, so requirePermission needs no query of its own.
+            text: `SELECT l.email, l.must_change_password, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version, ${REFERENCE_VERSION_SQL} AS reference_version,
+                          ARRAY(SELECT p.code FROM ${TABLE.ROLE} r
+                                JOIN ${TABLE.ROLE_PERMISSION} rp ON rp.role_oid = r.oid
+                                JOIN ${TABLE.PERMISSION} p ON p.oid = rp.permission_oid
+                                WHERE r.oid = l.role_oid AND r.status = 'Active') AS permissions
                    FROM ${TABLE.AUTH_SESSION} s
                    JOIN ${TABLE.LOGIN} l ON l.oid = s.login_oid
                    WHERE s.oid = $1 AND s.login_oid = $2
@@ -54,7 +59,7 @@ const jwtMiddleware = async (request, res, next) => {
         if (rows[0].must_change_password && !BEFORE_FIRST_PASSWORD.has(request.baseUrl + request.path)) {
             return res.status(403).json({ code: 403, message: "Set your own password before you continue.", data: { reason: "must_change_password" } });
         }
-        request.credentials = { user_id: rows[0].email, login_oid: claims.sub, session_oid: claims.sid };
+        request.credentials = { user_id: rows[0].email, login_oid: claims.sub, session_oid: claims.sid, permissions: new Set(rows[0].permissions), config_version: rows[0].config_version ?? 0 };
         return next();
     } catch (e) {
         log.error(`An exception occurred while validating a session: ${e?.message}`);
