@@ -57,6 +57,13 @@ Utilities that already exist and must be used rather than re-implemented:
 - A route with no permission is a bug, not a default. The code must already exist in the
   `permission` table: if the feature needs a new action, add it to a seed migration first (the
   `db-migration` skill). An unseeded code denies everyone.
+- **A guest changes nothing.** `jwtMiddleware` refuses every request from a guest (`login.is_guest`)
+  that is not a GET, with 403 and `data.reason: 'guest'`, whatever the Guest role grants. So:
+  a read is a **GET**; a write is never a GET. An endpoint that must be posted but changes no data
+  (a report download, reading a pasted message) goes into `GUEST_MAY_POST` in
+  `middleware/validate-jwt.js` in the same change, with a test that a guest still gets it. Nothing
+  else goes there. A guest's rows stay out of the business activity log (`activity_where`); a new
+  view of activity filters them the same way.
 - Names come from `constant.js`. No literal table names or route paths in controllers or routes.
 - **Response envelope everywhere:** `{ code, message, data, total? }`. The client checks
   `res.status === 200 && res.body.code === 200`.
