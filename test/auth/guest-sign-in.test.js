@@ -61,6 +61,26 @@ describe("trying StockFlow as a guest", () => {
         assert.equal((await h.call(USERS, { method: "GET", token: access_token })).status, 403);
     });
 
+    it("refuses every change a guest sends, even one the Guest role grants, and writes nothing", async () => {
+        await h.query("INSERT INTO role_permission (role_oid, permission_oid) SELECT $1, oid FROM permission WHERE code = 'configuration.category.create'", [role.role_oid]);
+        const { access_token } = (await visit()).body.data;
+
+        const category = await h.call(CONTEXTS.CONFIGURATION + SUB_CONTEXTS.CATEGORY + ROUTES.CREATE_CATEGORY, { method: "POST", token: access_token, body: { name: "Saree", category_code: "SARE", status: "Active" } });
+        const note = await h.call(CONTEXTS.PROFILE + SUB_CONTEXTS.NOTES + ROUTES.CREATE_USER_NOTE, { method: "POST", token: access_token, body: { oid: uuidv4(), note_title: "Mine" } });
+
+        assert.deepEqual([category.status, category.body.data.reason], [403, "guest"]);
+        assert.deepEqual([note.status, note.body.data.reason], [403, "guest"]);
+        assert.equal((await h.query("SELECT count(*)::int AS n FROM categories")).at(0).n, 0);
+        assert.equal((await h.query("SELECT count(*)::int AS n FROM user_notes")).at(0).n, 0);
+    });
+
+    it("still lets a guest read and sign out of its own sessions", async () => {
+        const { access_token } = (await visit()).body.data;
+
+        assert.equal((await h.call(CATEGORIES, { method: "GET", token: access_token })).status, 200);
+        assert.equal((await h.call(h.ROUTE.SIGN_OUT_EVERYWHERE, { method: "POST", token: access_token, body: {} })).status, 200);
+    });
+
     it("stops a fourth guest from one machine within the hour, saying how long to wait", async () => {
         const headers = machine();
         for (let i = 0; i < 3; i++) assert.equal((await visit(headers)).status, 200);

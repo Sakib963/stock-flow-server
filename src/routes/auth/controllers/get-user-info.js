@@ -19,7 +19,7 @@ const get_user_info = async (request, res) => {
     try {
         // 1. The cheap question first: who is this, and has anything changed.
         const identity = await get_data({
-            text: `SELECT l.name, l.email, l.mobile_number, l.status, l.must_change_password, l.photo, l.designation, l.edited_on,
+            text: `SELECT l.name, l.email, l.mobile_number, l.status, l.must_change_password, l.is_guest, l.photo, l.designation, l.edited_on,
                           l.role_oid, r.name AS role_name, r.scope AS role_scope
                    FROM ${TABLE.LOGIN} l
                    LEFT JOIN ${TABLE.ROLE} r ON r.oid = l.role_oid
@@ -89,6 +89,7 @@ const get_user_info = async (request, res) => {
                 designation: user.designation,
                 role: user.role_name,
                 mustChangePassword: user.must_change_password,
+                isGuest: user.is_guest === true,
                 // The client never needs to know a scope exists. It only ever receives what it may
                 // see, so there is nothing for it to branch on.
             },

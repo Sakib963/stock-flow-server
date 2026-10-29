@@ -53,6 +53,17 @@ describe("the activity log", () => {
         assert.equal(rows[0].device, null);
     });
 
+    it("leaves a guest's visits out of the feed and the summary", async () => {
+        await h.query("UPDATE login SET is_guest = true WHERE email = 'rafi@arithmalabs.test'");
+
+        const list = await get(LIST, owner);
+        const summary = await get(SUMMARY, owner);
+
+        assert.ok(!list.body.data.rows.some((row) => row.performed_by === "rafi@arithmalabs.test"));
+        assert.equal(list.body.total, 4);
+        assert.ok(!summary.body.data.people.some((person) => person.email === "rafi@arithmalabs.test"), JSON.stringify(summary.body.data));
+    });
+
     it("pages by number, with the total of every page for the pager", async () => {
         const first = await get(LIST, owner, { limit: 2 });
         assert.equal(first.body.data.rows.length, 2);

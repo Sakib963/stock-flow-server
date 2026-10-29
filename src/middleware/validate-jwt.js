@@ -22,6 +22,10 @@ const MESSAGES = {
 // hand-written request gets no further than the page does. Signing out needs no session at all.
 const BEFORE_FIRST_PASSWORD = new Set([CONTEXTS.AUTH + ROUTES.GET_USER_INFO, CONTEXTS.PROFILE + SUB_CONTEXTS.CHANGE_PASSWORD + ROUTES.SET_FIRST_PASSWORD]);
 
+// A guest looks at everything and changes nothing. These are posted but change no data, or end only
+// the guest's own session.
+const GUEST_MAY_POST = new Set([ROUTES.SIGN_OUT_EVERYWHERE, ROUTES.SIGN_OUT_SESSION, ROUTES.READ_CHAT_MESSAGE, ROUTES.GET_PURCHASE_ORDER_REPORT, ROUTES.GET_PURCHASE_ORDER_PRODUCTS_REPORT, ROUTES.GENERATE_PRODUCT_LIST_REPORT_BY_SUB_CATEGORY]);
+
 const unauthorized = (res, reason) => res.status(401).json({ code: 401, message: MESSAGES[reason], data: { reason } });
 
 const jwtMiddleware = async (request, res, next) => {
@@ -38,7 +42,7 @@ const jwtMiddleware = async (request, res, next) => {
     try {
         const rows = await get_data({
             // The permissions ride in this read, so requirePermission needs no query of its own.
-            text: `SELECT l.email, l.must_change_password, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version, ${REFERENCE_VERSION_SQL} AS reference_version,
+            text: `SELECT l.email, l.must_change_password, l.is_guest, (SELECT version FROM ${TABLE.CONFIG_VERSION} LIMIT 1) AS config_version, ${REFERENCE_VERSION_SQL} AS reference_version,
                           ARRAY(SELECT p.code FROM ${TABLE.ROLE} r
                                 JOIN ${TABLE.ROLE_PERMISSION} rp ON rp.role_oid = r.oid
                                 JOIN ${TABLE.PERMISSION} p ON p.oid = rp.permission_oid
@@ -58,6 +62,9 @@ const jwtMiddleware = async (request, res, next) => {
         res.set("X-Reference-Version", String(rows[0].reference_version ?? 0));
         if (rows[0].must_change_password && !BEFORE_FIRST_PASSWORD.has(request.baseUrl + request.path)) {
             return res.status(403).json({ code: 403, message: "Set your own password before you continue.", data: { reason: "must_change_password" } });
+        }
+        if (rows[0].is_guest && request.method !== "GET" && !GUEST_MAY_POST.has(request.path)) {
+            return res.status(403).json({ code: 403, message: "Guests can look around but cannot save changes.", data: { reason: "guest" } });
         }
         request.credentials = { user_id: rows[0].email, login_oid: claims.sub, session_oid: claims.sid, permissions: new Set(rows[0].permissions), config_version: rows[0].config_version ?? 0 };
         return next();

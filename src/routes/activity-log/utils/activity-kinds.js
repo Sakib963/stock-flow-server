@@ -73,7 +73,8 @@ const ATTENTION = `(a.reference_type IN (${WATCHED_KINDS.map(literal).join(", ")
  * the area, only what is worth a look, and a search over the title, the description and the name.
  */
 const activity_where = (query) => {
-    const clauses = [];
+    // A guest's visit is the vendor's to watch, from the request log, not the business's.
+    const clauses = ["l.is_guest IS NOT TRUE"];
     const values = [];
     const add = (value) => {
         values.push(value);
