@@ -32,6 +32,7 @@
     "winston-daily-rotate-file": "^4.5.0"
   },
   "overrides": {
-    "uuid": "$uuid"
+    "uuid": "$uuid",
+    "zod": "4.6.7"
   }
 }
